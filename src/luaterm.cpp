@@ -245,10 +245,10 @@ static int term_openf(lua_State *l)
     PUSH_ENUM_FIELD(KP_Down);
     PUSH_ENUM_FIELD(KP_Left);
     PUSH_ENUM_FIELD(KP_Right);
-    PUSH_ENUM_FIELD(KP_Prior);
+    PUSH_ENUM_FIELD(KP_Page_Up); //Prior
     PUSH_ENUM_FIELD(KP_Begin);
     PUSH_ENUM_FIELD(KP_End);
-    PUSH_ENUM_FIELD(KP_Next);
+    PUSH_ENUM_FIELD(KP_Page_Down); // Next
     PUSH_ENUM_FIELD(KP_Insert);
     PUSH_ENUM_FIELD(KP_Delete);
     PUSH_ENUM_FIELD(KP_Multiply);
