@@ -240,7 +240,6 @@ bool WindowImpl::create(int width, int height)
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
             wmprotocols, XCB_ATOM_ATOM, 32, 1, &wmdeletewin);
 
-    // todo: see if this is right; st uses XA_STRING
     if (xtarget == XCB_ATOM_NONE)
         xtarget = XCB_ATOM_STRING;
 
