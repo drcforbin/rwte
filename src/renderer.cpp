@@ -1,6 +1,7 @@
 #include <cairo/cairo-xcb.h> // for cairo_xcb_surface_set_size
 #include <pango/pangocairo.h>
 #include <cmath>
+#include <vector>
 
 #include "rwte/config.h"
 #include "rwte/renderer.h"
@@ -261,8 +262,11 @@ public:
 
 private:
     void clear(cairo_t *cr, int x1, int y1, int x2, int y2);
-    void clearrow(cairo_t *cr, int row, int col1, int col2);
-    void drawglyph(cairo_t *cr, PangoLayout *layout, Glyph glyph, int row, int col);
+    void drawglyph(cairo_t *cr, PangoLayout *layout, const Glyph& glyph,
+            int row, int col);
+    void drawglyphs(cairo_t *cr, PangoLayout *layout,
+            const glyph_attribute& attr, uint32_t fg, uint32_t bg,
+            const std::vector<Rune>& runes, int row, int col);
     void drawcursor(cairo_t *cr, PangoLayout *layout);
     void load_font();
     cairo_font_options_t *get_font_options();
@@ -335,6 +339,7 @@ void RendererImpl::drawregion(int row1, int col1, int row2, int col2)
     auto& sel = g_term->sel();
     bool ena_sel = sel.ob.col != -1 && sel.alt == g_term->mode()[MODE_ALTSCREEN];
 
+    std::vector<Rune> runes;
     for (int row = row1; row < row2; row++)
     {
         if (!g_term->isdirty(row))
@@ -342,18 +347,37 @@ void RendererImpl::drawregion(int row1, int col1, int row2, int col2)
 
         g_term->cleardirty(row);
 
-        // todo: get smarter about this clearing and drawing;
-        // make runs of same attr, then draw at once
-        clearrow(cr, row, col1, col2);
-        for (int col = col1; col < col2; col++)
+        int col = col1;
+        while (col < col2)
         {
+            runes.clear();
             Glyph g = g_term->glyph(row, col);
             if (!g.attr[ATTR_WDUMMY])
             {
                 if (ena_sel && selected(sel, col, row))
                     g.attr[ATTR_REVERSE] = g.attr[ATTR_REVERSE] ^ true;
-                drawglyph(cr, layout, g, row, col);
             }
+
+            runes.push_back(g.u);
+
+            for (int lookahead = col + 1; lookahead < col2; lookahead++)
+            {
+                const Glyph& g2 = g_term->glyph(row, lookahead);
+                glyph_attribute attr2 = g2.attr;
+                if (!attr2[ATTR_WDUMMY])
+                {
+                    if (ena_sel && selected(sel, lookahead, row))
+                        attr2[ATTR_REVERSE] = attr2[ATTR_REVERSE] ^ true;
+                }
+
+                if (g.attr != attr2 || g.fg != g2.fg || g.bg != g2.bg)
+                    break;
+
+                runes.push_back(g2.u);
+            }
+
+            drawglyphs(cr, layout, g.attr, g.fg, g.bg, runes, row, col);
+            col += runes.size();
         }
     }
 
@@ -392,25 +416,24 @@ void RendererImpl::clear(cairo_t *cr, int x1, int y1, int x2, int y2)
     cairo_fill(cr);
 }
 
-void RendererImpl::clearrow(cairo_t *cr, int row, int col1, int col2)
+void RendererImpl::drawglyph(cairo_t *cr, PangoLayout *layout, const Glyph& glyph,
+        int row, int col)
 {
-    int y = row * m_ch;
-    clear(cr, m_border_px + col1 * m_cw, m_border_px + y, col2 * m_cw, y + m_ch);
+    const std::vector<Rune> rune {glyph.u};
+    drawglyphs(cr, layout, glyph.attr, glyph.fg, glyph.bg, rune, row, col);
 }
 
-void RendererImpl::drawglyph(cairo_t *cr, PangoLayout *layout, Glyph glyph, int row, int col)
+void RendererImpl::drawglyphs(cairo_t *cr, PangoLayout *layout,
+        const glyph_attribute& attr, uint32_t fg, uint32_t bg,
+        const std::vector<Rune>& runes, int row, int col)
 {
-    const int len = 1; // todo: handle runs of chars with same attr
-    int charlen = len * ((glyph.attr[ATTR_WIDE]) ? 2 : 1);
+    int charlen = runes.size() * (attr[ATTR_WIDE] ? 2 : 1);
     int winx = m_border_px + col * m_cw;
     int winy = m_border_px + row * m_ch;
     int width = charlen * m_cw;
 
-    uint32_t fg = glyph.fg;
-    uint32_t bg = glyph.bg;
-
     // change basic system colors [0-7] to bright system colors [8-15]
-    if (glyph.attr[ATTR_BOLD] && fg <= 7)
+    if (attr[ATTR_BOLD] && fg <= 7)
         fg = lookup_color(fg + 8);
 
     if (g_term->mode()[MODE_REVERSE])
@@ -431,20 +454,20 @@ void RendererImpl::drawglyph(cairo_t *cr, PangoLayout *layout, Glyph glyph, int 
             bg = TRUECOL(~REDBYTE(bg), ~GREENBYTE(bg), ~BLUEBYTE(bg));
     }
 
-    if (glyph.attr[ATTR_REVERSE])
+    if (attr[ATTR_REVERSE])
         std::swap(fg, bg);
 
     // todo: this assumes darker is fainter
-    if (glyph.attr[ATTR_FAINT])
+    if (attr[ATTR_FAINT])
     {
         fg = lookup_color(fg);
         fg = TRUECOL(REDBYTE(fg) / 2, GREENBYTE(fg) / 2, BLUEBYTE(fg) / 2);
     }
 
-    if (glyph.attr[ATTR_BLINK] && glyph.attr[MODE_BLINK])
+    if (attr[ATTR_BLINK] && attr[MODE_BLINK])
         fg = bg;
 
-    if (glyph.attr[ATTR_INVISIBLE])
+    if (attr[ATTR_INVISIBLE])
         fg = bg;
 
     // border cleanup
@@ -469,28 +492,37 @@ void RendererImpl::drawglyph(cairo_t *cr, PangoLayout *layout, Glyph glyph, int 
     cairo_rectangle(cr, winx, winy, width, m_ch);
     cairo_fill(cr);
 
-    // render the glyph
+    // render the glyphs
 
     cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
     set_cairo_color(cr, fg);
 
-    char encoded[utf_size + 1];
-    auto glyphlen = utf8encode(glyph.u, encoded);
-    encoded[glyphlen] = 0;
+    // decode to a vector
+    std::vector<char> buf;
+    char encoded[utf_size];
+    std::size_t glyphlen = 0;
+    for (auto& rune : runes)
+    {
+        glyphlen = utf8encode(rune, encoded);
+        std::copy(encoded, encoded + glyphlen, std::back_inserter(buf));
+    }
 
-    pango_layout_set_text(layout, encoded, -1);
+    // zero-terminate
+    buf.push_back(0);
+
+    pango_layout_set_text(layout, &buf[0], -1);
     pango_layout_set_font_description(layout, m_fontdesc.get());
 
     PangoAttrList *attrlist = nullptr;
 
-    if (glyph.attr[ATTR_ITALIC])
+    if (attr[ATTR_ITALIC])
     {
         attrlist = pango_attr_list_new();
         auto attr = pango_attr_style_new(PANGO_STYLE_ITALIC);
         pango_attr_list_insert(attrlist, attr);
     }
 
-    if (glyph.attr[ATTR_BOLD])
+    if (attr[ATTR_BOLD])
     {
         if (!attrlist)
             attrlist = pango_attr_list_new();
@@ -498,7 +530,7 @@ void RendererImpl::drawglyph(cairo_t *cr, PangoLayout *layout, Glyph glyph, int 
         pango_attr_list_insert(attrlist, attr);
     }
 
-    if (glyph.attr[ATTR_UNDERLINE])
+    if (attr[ATTR_UNDERLINE])
     {
         if (!attrlist)
             attrlist = pango_attr_list_new();
@@ -506,7 +538,7 @@ void RendererImpl::drawglyph(cairo_t *cr, PangoLayout *layout, Glyph glyph, int 
         pango_attr_list_insert(attrlist, attr);
     }
 
-    if (glyph.attr[ATTR_STRUCK])
+    if (attr[ATTR_STRUCK])
     {
         if (!attrlist)
             attrlist = pango_attr_list_new();
