@@ -12,15 +12,7 @@
 // IN CONFIG, NOT READING YET
 #define FORCE_SEL_MOD SHIFT_MASK
 
-// keyboard shortcuts
-#define TERM_MOD keymod_state(1 << MOD_SHIFT | 1 << MOD_CTRL)
-#define KEY_SCUTS \
-    /* mod mask, keysym, function, args (optional; use XT0 for term, no \
-     * args, XTA for term varargs, XW0/XWA for window no/varargs) */ \
-    XT0(TERM_MOD, XKB_KEY_C, clipcopy) \
-    XW0(TERM_MOD, XKB_KEY_V, clippaste) \
-    XW0(TERM_MOD, XKB_KEY_Y, selpaste)
-
+// todo: move or remove
 // old stuff
 // X(TERMMOD,              XK_Prior,       zoom,           {.f = +1}) \
 // X(TERMMOD,              XK_Next,        zoom,           {.f = -1}) \

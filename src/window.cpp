@@ -654,26 +654,6 @@ void WindowImpl::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
             return;
     }
 
-
-//    // shortcuts
-//#define XTA(m,k,f,...) \
-//    {if (k == ksym && (m_keymod & m) == m) { \
-//        g_term->f(__VA_ARGS__); return; }}
-//#define XT0(m,k,f) \
-//    {if (k == ksym && (m_keymod & m) == m) { \
-//        g_term->f(); return; }}
-//#define XWA(m,k,f,...) \
-//    {if (k == ksym && (m_keymod & m) == m) { \
-//        f(__VA_ARGS__); return; }}
-//#define XW0(m,k,f) \
-//    {if (k == ksym && (m_keymod & m) == m) { \
-//        f(); return; }}
-//    KEY_SCUTS
-//#undef XTA
-//#undef XT0
-//#undef XWA
-//#undef XW0
-
     auto L = rwte.lua();
     if (luaterm_key_press(L.get(), ksym, m_keymod))
         return;
