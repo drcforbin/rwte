@@ -266,7 +266,7 @@ private:
     void drawcursor(cairo_t *cr, PangoLayout *layout);
     void load_font();
     cairo_font_options_t *get_font_options();
-    int selected(const Selection& sel, int x, int y);
+    int selected(const Selection& sel, int col, int row);
 
     shared_font_options m_fo;
     Surface m_surface;
@@ -695,7 +695,6 @@ void RendererImpl::load_font()
 }
 
 // todo: move to Selection
-// todo: reverse row, col
 int RendererImpl::selected(const Selection& sel, int col, int row)
 {
     if (sel.mode == SEL_EMPTY)
