@@ -1,6 +1,7 @@
 #ifndef LUASTATE_H
 #define LUASTATE_H
 
+#include <string>
 #include <lua.hpp>
 
 class LuaState
@@ -39,6 +40,9 @@ public:
     int getglobal(const char *name);
     void setglobal(const char *name);
 
+    void concat(int n);
+
+    int type(int index);
     bool isnil(int index);
     bool istable(int index);
     int getfield(int index, const char *k);
@@ -50,6 +54,7 @@ public:
     const char *checkstring(int arg);
     const char *checklstring(int arg, size_t *l);
     void pushstring(const char *s);
+    void pushstring(const std::string& s);
 
     int tointeger(int index);
     int tointegerx(int index, int *isnum);

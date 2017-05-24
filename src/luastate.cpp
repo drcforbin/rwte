@@ -92,6 +92,12 @@ int LuaState::getglobal(const char *name)
 void LuaState::setglobal(const char *name)
 { lua_setglobal(m_L, name); }
 
+void LuaState::concat(int n)
+{ lua_concat(m_L, n); }
+
+int LuaState::type(int index)
+{ return lua_type(m_L, index); }
+
 bool LuaState::isnil(int index)
 { return lua_isnil(m_L, index) != 0; }
 
@@ -121,6 +127,9 @@ const char *LuaState::checklstring(int arg, size_t *l)
 
 void LuaState::pushstring(const char *s)
 { lua_pushstring(m_L, s); }
+
+void LuaState::pushstring(const std::string& s)
+{ lua_pushlstring(m_L, s.c_str(), s.size()); }
 
 int LuaState::tointeger(int index)
 { return lua_tointeger(m_L, index); }
