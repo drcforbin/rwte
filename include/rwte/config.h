@@ -25,6 +25,7 @@
 // X(TERMMOD,              XK_I,           iso14755,       {.i =  0})
 
 #define CONFIG_FILE "~/.rwte.lua"
+#define RWTE_LIB_PATH "/usr/share/rwte/lib"
 
 #define DOUBLE_BUFFER false
 

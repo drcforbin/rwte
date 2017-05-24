@@ -27,7 +27,7 @@ BUILDLIST := $(patsubst include/%,$(BUILDDIR)/%,$(INCDIRS))
 INC := -I include -I /usr/local/include
 CFLAGS = -c -Wall -pedantic -std=c++14 -g `pkg-config --cflags xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua`
 # eventually, -O2 rather than -g
-LDFLAGS= -lev -lutil `pkg-config --libs xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua`
+LDFLAGS= -lev -lutil -lxdg-basedir `pkg-config --libs xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua`
 
 $(TARGET): $(OBJECTS)
 	@mkdir -p $(TARGETDIR)
