@@ -164,13 +164,90 @@ term.mouse_press(function(col, row, button, mod)
     return false
 end)
 
+local shift_bit = 0x40
+local alt_bit = 0x20
+local ctrl_bit = 0x10
+local logo_bit = 0x08
+local numlock_bit = 0x04
+local appkp_bit = 0x02
+local appcur_bit = 0x01
+
+local key_map = {
+    [bit32.bor(appkp_bit, numlock_bit)] = {
+        [term.keys.KP_Multiply] = "\027Oj",
+        [term.keys.KP_Add] = "\027Ok",
+        [term.keys.KP_Subtract] = "\027Om",
+        [term.keys.KP_Decimal] = "\027On",
+        [term.keys.KP_Divide] = "\027Oo",
+        [term.keys.KP_0] = "\027Op",
+        [term.keys.KP_1] = "\027Oq",
+        [term.keys.KP_2] = "\027Or",
+        [term.keys.KP_3] = "\027Os",
+        [term.keys.KP_4] = "\027Ot",
+        [term.keys.KP_5] = "\027Ou",
+        [term.keys.KP_6] = "\027Ov",
+        [term.keys.KP_7] = "\027Ow",
+        [term.keys.KP_8] = "\027Ox",
+        [term.keys.KP_9] = "\027Oy",
+        [term.keys.KP_Enter] = "\027OM"
+    },
+    [bit32.bor(appkp_bit, ctrl_bit)] = {
+        [term.keys.KP_End] = "\027[1;5F",
+        [term.keys.KP_Insert] = "\027[2;5~",
+        [term.keys.KP_Delete] = "\027[3;5~"
+    },
+    [bit32.bor(appkp_bit, shift_bit)] = {
+        [term.keys.KP_End] = "\027[1;2F",
+        [term.keys.KP_Insert] = "\027[2;2~",
+        [term.keys.KP_Delete] = "\027[3;2~"
+    },
+    [bit32.bor(appcur_bit, shift_bit)] = {
+        [term.keys.KP_Home] = "\027[1;2H"
+    },
+    [alt_bit] = {
+        [term.keys.BackSpace] = "\027\127",
+        [term.keys.Return] = "\027\r"
+    },
+    [shift_bit] = {
+        [term.keys.KP_Page_Up] = "\027[5;2~",
+        [term.keys.KP_Page_Down] = "\027[6;2~",
+        [term.keys.KP_Home] = "\027[2J",
+        [term.keys.KP_End] = "\027[K",
+        [term.keys.KP_Insert] = "\027[4l",
+        [term.keys.KP_Delete] = "\027[2K"
+    },
+    [ctrl_bit] = {
+        [term.keys.KP_Insert] = "\027[L",
+        [term.keys.KP_Delete] = "\027[M",
+        [term.keys.KP_End] = "\027[J"
+    },
+    [appkp_bit] = {
+        [term.keys.KP_Up] = "\027Ox",
+        [term.keys.KP_Down] = "\027Or",
+        [term.keys.KP_Left] = "\027Ot",
+        [term.keys.KP_Right] = "\027Ov",
+        [term.keys.KP_Insert] = "\027[2~",
+        [term.keys.KP_Delete] = "\027[3~"
+    },
+    [appcur_bit] = {
+        [term.keys.KP_Home] = "\027[1~",
+        [term.keys.KP_Up] = "\027OA",
+        [term.keys.KP_Down] = "\027OB",
+        [term.keys.KP_Left] = "\027OD",
+        [term.keys.KP_Right] = "\027OC"
+    }
+}
+
 local anymod_keycmds = {
     [term.keys.Home] = "\027[1~",
     [term.keys.Insert] = "\027[2~",
     [term.keys.Delete] = "\027[3~",
     [term.keys.End] = "\027[4~",
+    [term.keys.KP_End] = "\027[4~",
     [term.keys.Page_Up] = "\027[5~",
+    [term.keys.KP_Page_Up] = "\027[5~",
     [term.keys.Page_Down] = "\027[6~",
+    [term.keys.KP_Page_Down] = "\027[6~",
     [term.keys.F1] = "\027OP",
     [term.keys.F2] = "\027OQ",
     [term.keys.F3] = "\027OR",
@@ -183,25 +260,31 @@ local anymod_keycmds = {
     [term.keys.F10] = "\027[21~",
     [term.keys.F11] = "\027[23~",
     [term.keys.F12] = "\027[24~",
-    [term.keys.ISO_Left_Tab] = "\027[Z"
+    [term.keys.ISO_Left_Tab] = "\027[Z",
+    [term.keys.BackSpace] = "\127",
+    [term.keys.KP_Begin] = "\027[E",
+    [term.keys.Return] = "\r",
+    [term.keys.KP_Enter] = "\r",
+    [term.keys.KP_Home] = "\027[H",
+    [term.keys.KP_Up] = "\027[A",
+    [term.keys.KP_Down] = "\027[B",
+    [term.keys.KP_Left] = "\027[D",
+    [term.keys.KP_Right] = "\027[C",
+    [term.keys.KP_Insert] = "\027[4h",
+    [term.keys.KP_Delete] = "\027[P"
 }
 
-local appkeypad_numlock_keycmds = {
-    [term.keys.KP_Multiply] = "\027Oj",
-    [term.keys.KP_Add] = "\027Ok",
-    [term.keys.KP_Subtract] = "\027Om",
-    [term.keys.KP_Decimal] = "\027On",
-    [term.keys.KP_Divide] = "\027Oo",
-    [term.keys.KP_0] = "\027Op",
-    [term.keys.KP_1] = "\027Oq",
-    [term.keys.KP_2] = "\027Or",
-    [term.keys.KP_3] = "\027Os",
-    [term.keys.KP_4] = "\027Ot",
-    [term.keys.KP_5] = "\027Ou",
-    [term.keys.KP_6] = "\027Ov",
-    [term.keys.KP_7] = "\027Ow",
-    [term.keys.KP_8] = "\027Ox",
-    [term.keys.KP_9] = "\027Oy"
+-- search order for key_map tables
+local key_map_keys = {
+    bit32.bor(appkp_bit, numlock_bit),
+    bit32.bor(appkp_bit, ctrl_bit),
+    bit32.bor(appkp_bit, shift_bit),
+    bit32.bor(appcur_bit, shift_bit),
+    alt_bit,
+    shift_bit,
+    ctrl_bit,
+    appkp_bit,
+    appcur_bit
 }
 
 term.key_press(function(sym, mod)
@@ -223,171 +306,68 @@ term.key_press(function(sym, mod)
     local appcursor = term.mode(term.modes.MODE_APPCURSOR)
     local crlf = term.mode(term.modes.MODE_CRLF)
 
+    local mask = 0
+    if mod.shift then
+        mask = shift_bit
+    end
+    if mod.alt then
+        mask = bit32.bor(mask, alt_bit)
+    end
+    if mod.ctrl then
+        mask = bit32.bor(mask, ctrl_bit)
+    end
+    if mod.logo then
+        mask = bit32.bor(mask, logo_bit)
+    end
+    if mod.numlock then
+        mask = bit32.bor(mask, numlock_bit)
+    end
+    if appkeypad then
+        mask = bit32.bor(mask, appkp_bit)
+    end
+    if appcursor then
+        mask = bit32.bor(mask, appcur_bit)
+    end
+
     local cmd = nil
 
-    -- a few regular keys
-    if sym == term.keys.BackSpace then
-        if mod.alt then
-            cmd = "\027\127"
-        else
-            cmd = "\127"
-        end
-    elseif sym == term.keys.Return then
-        if not crlf then
-            if not alt then
-                cmd = "\r"
-            else
-                cmd = "\027\r"
-            end
-        else
+    -- just do crlf here, rather than adding
+    -- more tables to key_map
+    if crlf then
+        logger:info("crlf")
+        if sym == term.keys.Return then
             if not alt then
                 cmd = "\r\n"
             else
                 cmd = "\027\r\n"
             end
+        elseif sym == term.keys.KP_Enter then
+            cmd = "\r\n"
         end
     end
 
-    -- check anymod keys
     if not cmd then
-        cmd = anymod_keycmds[sym]
-    end
-
-    -- keypad keys
-    if not cmd then
-        if sym == term.keys.KP_Enter then
-            if appkeypad then
-                if mod.numlock then
-                    cmd = "\027OM"
-                end
-            else
-                if crlf then
-                    cmd = "\r\n"
-                else
-                    cmd = "\r"
-                end
-            end
-        elseif sym == term.keys.KP_Home then
-            if mod.shift then
-                if appcursor then
-                    cmd = "\027[1;2H"
-                else
-                    cmd = "\027[2J"
-                end
-            else
-                if appcursor then
-                    cmd = "\027[1~"
-                else
-                    cmd = "\027[H"
-                end
-            end
-        elseif sym == term.keys.KP_Up then
-            if appkeypad then
-                cmd = "\027Ox"
-            elseif appcursor then
-                cmd = "\027OA"
-            else
-                cmd = "\027[A"
-            end
-        elseif sym == term.keys.KP_Down then
-            if appkeypad then
-                cmd = "\027Or"
-            elseif appcursor then
-                cmd = "\027OB"
-            else
-                cmd = "\027[B"
-            end
-        elseif sym == term.keys.KP_Left then
-            if appkeypad then
-                cmd = "\027Ot"
-            elseif appcursor then
-                cmd = "\027OD"
-            else
-                cmd = "\027[D"
-            end
-        elseif sym == term.keys.KP_Right then
-            if appkeypad then
-                cmd = "\027Ov"
-            elseif appcursor then
-                cmd = "\027OC"
-            else
-                cmd = "\027[C"
-            end
-        elseif sym == term.keys.KP_Prior then
-            if mod.shift then
-                cmd = "\027[5;2~"
-            else
-                cmd = "\027[5~"
-            end
-        elseif sym == term.keys.KP_Begin then
-            cmd = "\027[E"
-        elseif sym == term.keys.KP_End then
-            if mod.ctrl then
-                if appkeypad then
-                    cmd = "\027[1;5F"
-                else
-                    cmd = "\027[J"
-                end
-            elseif mod.shift then
-                if appkeypad then
-                    cmd = "\027[1;2F"
-                else
-                    cmd = "\027[K"
-                end
-            else
-                cmd = "\027[4~"
-            end
-        elseif sym == term.keys.KP_Next then
-            if mod.shift then
-                cmd = "\027[6;2~"
-            else
-                cmd = "\027[6~"
-            end
-        elseif sym == term.keys.KP_Insert then
-            if mod.shift then
-                if appkeypad then
-                    cmd = "\027[2;2~"
-                else
-                    cmd = "\027[4l"
-                end
-            elseif mod.ctrl then
-                if appkeypad then
-                    cmd = "\027[2;5~"
-                else
-                    cmd = "\027[L"
-                end
-            else
-                if appkeypad then
-                    cmd = "\027[2~"
-                else
-                    cmd = "\027[4h"
-                end
-            end
-        elseif sym == term.keys.KP_Delete then
-            if mode.ctrl then
-                if appkeypad then
-                    cmd = "\027[3;5~"
-                else
-                    cmd = "\027[M"
-                end
-            elseif mod.shift then
-                if appkeypad then
-                    cmd = "\027[3;2~"
-                else
-                    cmd = "\027[2K"
-                end
-            else
-                if appkeypad then
-                    cmd = "\027[3~"
-                else
-                    cmd = "\027[P"
+        -- if we have any mods, search the tables in order
+        if mask ~= 0 then
+            for i=1, #key_map_keys do
+                local k = key_map_keys[i]
+                -- is this table applicable?
+                if bit32.band(k, mask) == k then
+                    -- get table and look for sym
+                    local map = key_map[k]
+                    if map then
+                        cmd = map[sym]
+                        if cmd then
+                            break
+                        end
+                    end
                 end
             end
         end
 
-        -- keypad numbers
-        if not cmd and ( appkeypad and mod.numlock ) then
-            cmd = appkeypad_numlock_keycmds[sym]
+        -- if still no command, check anymods
+        if not cmd then
+            cmd = anymod_keycmds[sym]
         end
     end
 
