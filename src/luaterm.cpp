@@ -226,6 +226,10 @@ static int term_openf(lua_State *l)
     PUSH_ENUM_FIELD(Return);
     PUSH_ENUM_FIELD(ISO_Left_Tab);
     PUSH_ENUM_FIELD(BackSpace);
+    PUSH_ENUM_FIELD(Up);
+    PUSH_ENUM_FIELD(Down);
+    PUSH_ENUM_FIELD(Left);
+    PUSH_ENUM_FIELD(Right);
     // F keys
     PUSH_ENUM_FIELD(F1);
     PUSH_ENUM_FIELD(F2);
