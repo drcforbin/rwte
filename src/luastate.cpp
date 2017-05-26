@@ -113,6 +113,9 @@ void LuaState::setfield(int index, const char *k)
 int LuaState::geti(int index, int i)
 { return lua_geti(m_L, index, i); }
 
+void LuaState::seti(int index, int n)
+{ lua_seti(m_L, index, n); }
+
 const char *LuaState::tostring(int index)
 { return lua_tostring(m_L, index); }
 
@@ -136,6 +139,16 @@ int LuaState::tointeger(int index)
 
 int LuaState::tointegerx(int index, int *isnum)
 { return lua_tointegerx(m_L, index, isnum); }
+
+int LuaState::tointegerdef(int index, int def)
+{
+    int isnum = 0;
+    int val = tointegerx(index, &isnum);
+    if (isnum)
+        return val;
+    else
+        return def;
+}
 
 int LuaState::checkinteger(int arg)
 { return luaL_checkinteger(m_L, arg); }

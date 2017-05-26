@@ -48,6 +48,7 @@ public:
     int getfield(int index, const char *k);
     void setfield(int index, const char *k);
     int geti(int index, int i);
+    void seti(int index, int n);
 
     const char *tostring(int index);
     const char *tolstring(int index, size_t *len);
@@ -58,6 +59,7 @@ public:
 
     int tointeger(int index);
     int tointegerx(int index, int *isnum);
+    int tointegerdef(int index, int def);
     int checkinteger(int arg);
     void pushinteger(int n);
 
