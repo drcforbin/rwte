@@ -4,6 +4,7 @@ xcb terminal emulator, with lua, cairo, and pango
 
 ## Todo
 
+* Mouse click / drag to select in vim is broken
 * Shifted function/insert/del/end/etc keys, like what's done in urxvt
 * Parse command arguments
 * Implement urgent and bell in Window
