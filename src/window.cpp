@@ -289,13 +289,11 @@ void WindowImpl::resize(uint16_t width, uint16_t height)
     uint16_t cw = m_renderer->charwidth();
     uint16_t ch = m_renderer->charheight();
 
+    // if invalid, default to 2
     auto L = rwte.lua();
     L->getglobal("config");
     L->getfield(-1, "border_px");
-    int isnum = 0;
-    int border_px = L->tointegerx(-1, &isnum);
-    if (!isnum)
-        border_px = 2; // if value is bad, use 2
+    int border_px = L->tointegerdef(-1, 2);
     L->pop(2);
 
     m_cols = (width - 2 * border_px) / cw;
@@ -622,6 +620,7 @@ void WindowImpl::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
 
     //LOGGER()->debug("ksym {:x}, composed {}, '{}' ({})", ksym, composed, buffer, len);
 
+    // todo: move arrow keys
     switch (ksym)
     {
         case XKB_KEY_Left:

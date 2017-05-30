@@ -121,13 +121,11 @@ static void set_cairo_color(cairo_t *cr, uint32_t color)
 
 static int get_border_px()
 {
+    // if invalid, default to 2
     auto L = rwte.lua();
     L->getglobal("config");
     L->getfield(-1, "border_px");
-    int isnum = 0;
-    int border_px = L->tointegerx(-1, &isnum);
-    if (!isnum)
-        border_px = 2; // if value is bad, use 2
+    int border_px = L->tointegerdef(-1, 2);
     L->pop(2);
 
     return border_px;
@@ -135,13 +133,11 @@ static int get_border_px()
 
 static int get_cursor_thickness()
 {
+    // if invalid, default to 2
     auto L = rwte.lua();
     L->getglobal("config");
     L->getfield(-1, "cursor_thickness");
-    int isnum = 0;
-    int cursor_thickness = L->tointegerx(-1, &isnum);
-    if (!isnum)
-        cursor_thickness = 2; // if value is bad, use 2
+    int cursor_thickness = L->tointegerdef(-1, 2);
     L->pop(2);
 
     return cursor_thickness;
