@@ -174,7 +174,7 @@ static bool run_config(LuaState *L, xdgHandle *xdg, const char *confpatharg)
     return result;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     // todo: parse options
     options.cmd = 0;
@@ -188,6 +188,15 @@ int main()
     // register internal modules, logging first
     register_lualogging(L.get());
     register_luaterm(L.get());
+
+    // feed lua our args
+    L->newtable();
+    for (int i = 0; i < argc; i++)
+    {
+        L->pushstring(argv[i]);
+        L->seti(-2, i+1);
+    }
+    L->setglobal("args");
 
     {
         // Get XDG basedir data
@@ -236,26 +245,29 @@ int main()
             std::string title = L->tostring(-1);
             if (!title.empty())
                 options.title = title;
-            L->pop(1);
+            L->pop();
         }
         else
             LOGGER()->fatal("expected 'config' to be table");
-        L->pop(1);
+        L->pop();
+    }
+
+    // hack
+    if (argc > 1)
+    {
+        if (std::strcmp(argv[1], "--bench") == 0)
+            return 0;
     }
 
     // get ready, loop!
     ev::default_loop main_loop;
 
+    // get cols and rows, default to 80x24
     L->getglobal("config");
     L->getfield(-1, "default_cols");
-    int isnum = 0;
-    int cols = L->tointegerx(-1, &isnum);
-    if (!isnum)
-        cols = 80;
+    int cols = L->tointegerdef(-1, 80);
     L->getfield(-2, "default_rows");
-    int rows = L->tointegerx(-1, &isnum);
-    if (!isnum)
-        rows = 24;
+    int rows = L->tointegerdef(-1, 24);
     L->pop(3);
 
     g_term = std::make_unique<Term>(MAX(cols, 1), MAX(rows, 1));
