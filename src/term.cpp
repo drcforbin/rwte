@@ -296,9 +296,7 @@ void TermImpl::reset()
         LOGGER()->fatal("config.default_rcs is not an integer");
 
     L->getfield(-5, "tab_spaces");
-    int tab_spaces = L->tointegerx(-1, &isnum);
-    if (!isnum)
-        tab_spaces = DEFAULT_TAB_SPACES; // default if bad
+    int tab_spaces = L->tointegerdef(-1, DEFAULT_TAB_SPACES);
 
     L->pop(6);
 
@@ -395,10 +393,7 @@ void TermImpl::resize(int cols, int rows)
         auto L = rwte.lua();
         L->getglobal("config");
         L->getfield(-1, "tab_spaces");
-        int isnum = 0;
-        int tab_spaces = L->tointegerx(-1, &isnum);
-        if (!isnum)
-            tab_spaces = DEFAULT_TAB_SPACES; // default if bad
+        int tab_spaces = L->tointegerdef(-1, DEFAULT_TAB_SPACES);
         L->pop(2);
 
         // point to end of old size
@@ -728,6 +723,21 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
         }
     }
 
+    if (LOGGER()->level() <= logging::trace)
+    {
+        if (evt == MOUSE_MOTION)
+        {
+            LOGGER()->trace("mousereport MOTION {}, {}, oldbutton={}",
+                col, row, oldbutton);
+        }
+        else
+        {
+            LOGGER()->trace("mousereport {} {}, {}, {}, oldbutton={}",
+                evt == MOUSE_PRESS? "PRESS" : "RELEASE",
+                button, col, row, oldbutton);
+        }
+    }
+
     // if FORCE_SEL_MOD is set and all modifiers are present
     bool forcesel = mod != EMPTY_MASK && (mod & FORCE_SEL_MOD) == FORCE_SEL_MOD;
 
@@ -748,7 +758,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
                 return;
 
             // MOUSEMOTION only reports when a button is pressed
-            if (m_mode[MODE_MOUSEMOTION] && oldbutton == 3)
+            if (m_mode[MODE_MOUSEMOTION] && oldbutton == MOUSEFLAGS_RELEASE)
                 return;
 
             cb = oldbutton | MOUSEFLAGS_MOTION;
@@ -778,7 +788,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
                     return;
 
                 // release events are not reported for mousewheel buttons
-                if (cb == MOUSEFLAGS_BUTTON4 || cb == MOUSEFLAGS_BUTTON5)
+                if (button == 4 || button == 5)
                     return;
             }
         }
@@ -822,29 +832,16 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
             if (luaterm_mouse_press(L.get(), col, row, button, mod))
                 return;
 
-            // handle mouse shortcuts
-//#define X(b, m, str) \
-//            {if (button == b && (mod & m) == m) \
-//                { g_tty->write(str, std::strlen(str)); return; }}
-//            MOUSE_SCUTS
-//#undef X
-
-
             // start selection?
             if (button == 1)
             {
                 L->getglobal("config");
 
-                int isnum = 0;
                 L->getfield(-1, "dclick_timeout");
-                int dclick_timeout = L->tointegerx(-1, &isnum);
-                if (!isnum)
-                    dclick_timeout = DEFAULT_DCLICK_TIMEOUT;
+                int dclick_timeout = L->tointegerdef(-1, DEFAULT_DCLICK_TIMEOUT);
 
                 L->getfield(-2, "tclick_timeout");
-                int tclick_timeout = L->tointegerx(-1, &isnum);
-                if (!isnum)
-                    tclick_timeout = DEFAULT_TCLICK_TIMEOUT;
+                int tclick_timeout = L->tointegerdef(-1, DEFAULT_TCLICK_TIMEOUT);
 
                 L->pop(3);
 
@@ -1371,15 +1368,12 @@ void TermImpl::controlcode(unsigned char ascii)
             if (!m_focused)
                 window.seturgent(true);
 
+            // default bell_volume to 0 if invalid
             auto L = rwte.lua();
             L->getglobal("config");
-            int isnum = 0;
             L->getfield(-1, "bell_volume");
-            int bell_volume = L->tointegerx(-1, &isnum);
-            if (!isnum)
-                bell_volume = 0;
-            else
-                LIMIT(bell_volume, -100, 100);
+            int bell_volume = L->tointegerdef(-1, 0);
+            LIMIT(bell_volume, -100, 100);
             L->pop(2);
 
             if (bell_volume)
