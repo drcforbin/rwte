@@ -18,9 +18,12 @@ public:
     const char ** cmd;
 
     std::string title;
-
+    std::string winname;
+    std::string winclass;
+    std::string font;
     std::string io;
     std::string line;
+    bool noalt;
 };
 
 extern Options options;

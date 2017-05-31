@@ -6,6 +6,7 @@
 #include <wordexp.h>
 #include <basedir.h>
 #include <basedir_fs.h>
+#include <getopt.h>
 
 #include "rwte/config.h"
 #include "rwte/renderer.h"
@@ -18,6 +19,7 @@
 #include "rwte/luastate.h"
 #include "rwte/lualogging.h"
 #include "rwte/luaterm.h"
+#include "rwte/version.h"
 
 // globals
 Window window;
@@ -33,7 +35,9 @@ lua_State * g_L = NULL;
 #define MAX(a, b) ((a) < (b)? (b) : (a))
 
 Options::Options() :
-    title("rwte")
+    cmd(0),
+    title("rwte"),
+    noalt(false)
 { }
 
 Rwte::Rwte() :
@@ -148,8 +152,14 @@ static bool run_file(LuaState *L, const char *path)
 static bool run_config(LuaState *L, xdgHandle *xdg, const char *confpatharg)
 {
     // try specified path first
-    if (confpatharg && run_file(L, confpatharg))
-        return true;
+    if (confpatharg)
+    {
+        if (run_file(L, confpatharg))
+            return true;
+        else
+            LOGGER()->warn("unable to run specified config ({}); "
+                    "running config.lua", confpatharg);
+    }
 
     // try paths from xdgConfigFind
     char *paths = xdgConfigFind("rwte/config.lua", xdg);
@@ -174,15 +184,62 @@ static bool run_config(LuaState *L, xdgHandle *xdg, const char *confpatharg)
     return result;
 }
 
+static void exit_help(int code)
+{
+    fprintf((code == EXIT_SUCCESS) ? stdout : stderr,
+        "Usage: rwte [options] [-- args]\n"
+        "  -c, --config FILE     overrides config file\n"
+        "  -a, --noalt           disables alt screens\n"
+        "  -f, --font FONT       pango font string\n"
+        "  -g, --geometry GEOM   window geometry; colsxrows, e.g.,\n"
+        "                        \"80x24\" (the default)\n"
+        "  -t, --title TITLE     window title; defaults to rwte\n"
+        "  -n, --name NAME       window name; defaults to $TERM\n"
+        "  -e, --exe COMMAND     command to execute instead of shell;\n"
+        "                        if specified, any arguments to the\n"
+        "                        command may be specified after a \"--\"\n"
+        "  -o, --out OUT         writes all io to this file;\n"
+        "                        \"-\" means stdout\n"
+        "  -l, --line LINE       use a tty line instead of creating a\n"
+        "                        new pty; LINE is expected to be the\n"
+        "                        device\n"
+        "  -h, --help            show help\n"
+        "  -b, --bench           run config and exit\n"
+        "  -v, --version         show version and exit\n");
+    exit(code);
+}
+
+static void exit_version()
+{
+    fprintf(stdout, "rwte %s\n", version_string());
+    exit(EXIT_SUCCESS);
+}
+
+static bool parse_geometry(const char *g, int *cols, int *rows)
+{
+    // parse cols
+    char *end = nullptr;
+    int c = strtol(g, &end, 10);
+    if (c > 0 && *end == 'x')
+    {
+        // move past x
+        end++;
+
+        // parse rows
+        int r = strtol(end, &end, 10);
+        if (r > 0 && *end == 0)
+        {
+            *cols = c;
+            *rows = r;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 int main(int argc, char *argv[])
 {
-    // todo: parse options
-    options.cmd = 0;
-    // hack: remove this
-    options.io = "termoutput.bin";
-    // todo: add a --config option to override config file
-    const char *confpath = nullptr;
-
     auto L = rwte.lua();
 
     // register internal modules, logging first
@@ -197,6 +254,95 @@ int main(int argc, char *argv[])
         L->seti(-2, i+1);
     }
     L->setglobal("args");
+
+    static struct option long_options[] =
+    {
+        {"config", required_argument, nullptr, 'c'},
+        {"winclass", required_argument, nullptr, 'w'},
+        {"noalt", no_argument, nullptr, 'a'},
+        {"font", required_argument, nullptr, 'f'},
+        {"geometry", required_argument, nullptr, 'g'}, // colsxrows, e.g., 80x24
+        {"title", required_argument, nullptr, 't'},
+        {"name", required_argument, nullptr, 'n'},
+        {"exe", required_argument, nullptr, 'e'},
+        {"out", required_argument, nullptr, 'o'},
+        {"line", required_argument, nullptr, 'l'},
+        {"help", no_argument, nullptr, 'h'},
+        {"bench", no_argument, nullptr, 'b'},
+        {"version", no_argument, nullptr, 'v'},
+        {nullptr, 0, nullptr, 0}
+    };
+
+    const char *confpath = nullptr;
+
+    int opt;
+    int cols = 0, rows = 0;
+    bool got_exe = false;
+    bool got_bench = false;
+    bool got_title = false;
+    while ((opt = getopt_long(argc, argv, "-c:w:af:g:t:n:o:l:hbve:",
+                long_options, NULL)) != -1)
+    {
+        switch (opt)
+        {
+        case 'c':
+            confpath = optarg;
+            break;
+        case 'w':
+            options.winclass = optarg;
+            break;
+        case 'a':
+            options.noalt = true;
+            break;
+        case 'f':
+            options.font = optarg;
+            break;
+        case 'g':
+            if (!parse_geometry(optarg, &cols, &rows))
+                LOGGER()->warn("ignoring invalid geometry '{}'", optarg);
+            break;
+        case 't':
+            options.title = optarg;
+            got_title = true;
+            break;
+        case 'n':
+            options.winname = optarg;
+            break;
+        case 'o':
+            options.io = optarg;
+            break;
+        case 'l':
+            options.line = optarg;
+            break;
+        case 'h':
+            exit_help(EXIT_SUCCESS);
+            break;
+        case 'b':
+            got_bench = true;
+            break;
+        case 'v':
+            exit_version();
+            break;
+        case 'e':
+            // todo: handle -e
+            LOGGER()->info("exe: {}", optarg);
+            got_exe = true;
+            break;
+        case 1:
+            fprintf(stderr, "%s: invalid arg -- '%s'\n",
+                    argv[0], argv[optind-1]);
+        default:
+            exit_help(EXIT_FAILURE);
+        }
+    }
+
+    // todo: handle these with -e
+    if (optind < argc)
+    {
+        LOGGER()->info("non-option args:");
+        while (optind < argc)
+            LOGGER()->info("{}", argv[optind++]);
+    }
 
     {
         // Get XDG basedir data
@@ -237,6 +383,13 @@ int main(int argc, char *argv[])
         xdgWipeHandle(&xdg);
     }
 
+    // nothing else to do if bench arg was specified
+    if (got_bench)
+        return 0;
+
+    // if a title was passed on command line, then
+    // use that rather than checking lua config
+    if (!got_title)
     {
         L->getglobal("config");
         if (L->istable(-1))
@@ -252,23 +405,19 @@ int main(int argc, char *argv[])
         L->pop();
     }
 
-    // hack
-    if (argc > 1)
-    {
-        if (std::strcmp(argv[1], "--bench") == 0)
-            return 0;
-    }
-
     // get ready, loop!
     ev::default_loop main_loop;
 
     // get cols and rows, default to 80x24
-    L->getglobal("config");
-    L->getfield(-1, "default_cols");
-    int cols = L->tointegerdef(-1, 80);
-    L->getfield(-2, "default_rows");
-    int rows = L->tointegerdef(-1, 24);
-    L->pop(3);
+    if (cols == 0 || rows == 0)
+    {
+        L->getglobal("config");
+        L->getfield(-1, "default_cols");
+        cols = L->tointegerdef(-1, 80);
+        L->getfield(-2, "default_rows");
+        rows = L->tointegerdef(-1, 24);
+        L->pop(3);
+    }
 
     g_term = std::make_unique<Term>(MAX(cols, 1), MAX(rows, 1));
 
