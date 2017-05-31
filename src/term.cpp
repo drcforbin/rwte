@@ -129,6 +129,29 @@ static cursor_type get_cursor_type()
         return CURSOR_STEADY_BLOCK;
 }
 
+static bool allow_alt_screen()
+{
+    // check options first
+    if (options.noalt)
+        return false;
+
+    // option not set, check lua config
+    auto L = rwte.lua();
+    L->getglobal("config");
+    L->getfield(-1, "allow_alt_screen");
+
+    // if the field is missing, default to true
+    bool allow;
+    if (L->isnil(-1))
+        allow = true;
+    else
+        allow = L->tobool(-1);
+
+    L->pop(2);
+
+    return allow;
+}
+
 class TermImpl
 {
 public:
@@ -2249,32 +2272,14 @@ void TermImpl::settmode(bool priv, bool set, int *args, int narg)
                 m_mode.set(MODE_8BIT, set);
                 break;
             case 1049: // swap screen & set/restore cursor as xterm
-                {
-                    auto L = rwte.lua();
-                    L->getglobal("config");
-                    L->getfield(-1, "allow_alt_screen");
-                    bool allow_alt_screen = L->tobool(-1);
-                    L->pop(2);
-
-                    if (!allow_alt_screen)
-                        break;
-                }
-
+                if (!allow_alt_screen())
+                    break;
                 cursor(set ? CURSOR_SAVE : CURSOR_LOAD);
                 // FALLTHROUGH
             case 47: // swap screen
             case 1047:
-                {
-                    auto L = rwte.lua();
-                    L->getglobal("config");
-                    L->getfield(-1, "allow_alt_screen");
-                    bool allow_alt_screen = L->tobool(-1);
-                    L->pop(2);
-
-                    if (!allow_alt_screen)
-                        break;
-                }
-
+                if (!allow_alt_screen())
+                    break;
                 alt = m_mode[MODE_ALTSCREEN];
                 if (alt)
                     clearregion(0, 0, m_cols-1, m_rows-1);
