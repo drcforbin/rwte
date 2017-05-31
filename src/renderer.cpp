@@ -51,18 +51,24 @@ static shared_font_options create_font_options()
 
 static unique_font_desc create_font_desc()
 {
-    // get colors lut
-    auto L = rwte.lua();
-    L->getglobal("config");
-    L->getfield(-1, "font");
+    std::string font = options.font;
+    if (font.empty())
+    {
+        // get font from lua config
+        auto L = rwte.lua();
+        L->getglobal("config");
+        L->getfield(-1, "font");
 
-    const char * font = L->tostring(-1);
-    if (!font)
-        LOGGER()->fatal("config.font is invalid");
+        const char * s = L->tostring(-1);
+        if (!s)
+            LOGGER()->fatal("config.font is invalid");
+        else
+            font = s;
 
-    unique_font_desc fontdesc(pango_font_description_from_string(font));
+        L->pop(2);
+    }
 
-    L->pop(2);
+    unique_font_desc fontdesc(pango_font_description_from_string(font.c_str()));
 
     pango_font_description_set_weight(fontdesc.get(), PANGO_WEIGHT_MEDIUM);
     return fontdesc;
