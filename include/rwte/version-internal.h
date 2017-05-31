@@ -1,0 +1,6 @@
+#ifndef VERSION_INTERNAL_H
+#define VERSION_INTERNAL_H
+
+#define RWTE_VERSION "1.0.0"
+
+#endif // VERSION_INTERNAL_H
