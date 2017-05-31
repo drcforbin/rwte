@@ -62,6 +62,7 @@ public:
     uint16_t th() const { return m_th; }
 
     void draw();
+    void set_wm_class();
     void settitle(const std::string& name);
     void seturgent(bool urgent);
     void bell(int volume);
@@ -236,6 +237,8 @@ bool WindowImpl::create(int width, int height)
 
     register_atoms();
 
+    set_wm_class();
+
     // set WM_PROTOCOLS to WM_DELETE_WINDOW
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
             wmprotocols, XCB_ATOM_ATOM, 32, 1, &wmdeletewin);
@@ -312,6 +315,51 @@ void WindowImpl::draw()
         return;
 
     m_renderer->drawregion(0, 0, g_term->rows(), g_term->cols());
+}
+
+static std::string get_term_name()
+{
+    auto L = rwte.lua();
+    L->getglobal("config");
+    L->getfield(-1, "term_name");
+    const char * s = L->tostring(-1);
+    if (!s)
+        LOGGER()->fatal("config.term_name is not valid");
+    std::string name = s;
+    L->pop(2);
+    return name;
+}
+
+void WindowImpl::set_wm_class()
+{
+    std::string c;
+    std::string term_name;
+
+    if (!options.winname.empty())
+        c = options.winname;
+    else
+    {
+        // use termname if unspecified
+        term_name = get_term_name();
+        c = term_name;
+    }
+
+    // add the 0 that separates the parts
+    c.push_back(0);
+
+    if (!options.winclass.empty())
+        c += options.winclass;
+    else
+    {
+        // use termname if unspecified
+        if (term_name.empty())
+            term_name = get_term_name();
+        c += term_name;
+    }
+
+    // set WM_CLASS (including the last null!)
+    xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
+            XCB_ATOM_WM_CLASS, XCB_ATOM_STRING, 8, c.size()+1, c.c_str());
 }
 
 void WindowImpl::settitle(const std::string& name)
