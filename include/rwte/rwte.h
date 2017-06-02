@@ -38,14 +38,19 @@ public:
 
     void refresh();
 
+    void start_blink();
+    void stop_blink();
+
     std::shared_ptr<LuaState> lua() { return m_lua; }
 
 private:
     void childcb(ev::child &w, int);
     void flushcb(ev::timer &w, int);
+    void blinkcb(ev::timer &w, int);
 
     ev::child m_child;
     ev::timer m_flush;
+    ev::timer m_blink;
 
     std::shared_ptr<LuaState> m_lua;
 };

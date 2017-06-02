@@ -166,6 +166,8 @@ public:
 
     const term_mode& mode() const { return m_mode; }
 
+    void blink();
+
     const Selection& sel() const { return m_sel; }
     const Cursor& cursor() const { return m_cursor; }
     cursor_type cursortype() const { return m_cursortype; }
@@ -196,6 +198,9 @@ public:
     void send(const char *data, std::size_t len);
 
 private:
+    void start_blink();
+    void check_blink();
+
     void moveto(int col, int row);
     void moveato(int col, int row);
     void cursor(int mode);
@@ -218,7 +223,7 @@ private:
     bool selected(int col, int row);
     void selsnap(int *col, int *row, int direction);
 
-    void setchar(Rune u, Glyph *attr, int col, int row);
+    void setchar(Rune u, const Glyph& attr, int col, int row);
     void defutf8(char ascii);
     void selscroll(int orig, int n);
     void selnormalize();
@@ -368,6 +373,8 @@ void TermImpl::reset()
         clearregion(0, 0, m_cols-1, m_rows-1);
         swapscreen();
     }
+
+    check_blink();
 }
 
 void TermImpl::resize(int cols, int rows)
@@ -457,6 +464,77 @@ void TermImpl::resize(int cols, int rows)
 void TermImpl::setprint()
 {
     m_mode.set(MODE_PRINT);
+}
+
+void TermImpl::blink()
+{
+    bool need_blink = m_cursortype == CURSOR_BLINK_BLOCK ||
+            m_cursortype == CURSOR_BLINK_UNDER ||
+            m_cursortype == CURSOR_BLINK_BAR;
+
+    // see if we have anything blinking and mark blinking lines dirty
+    for (int i = 0; i < m_lines.size(); i++)
+    {
+        auto& line = m_lines[i];
+        for (auto& g : line)
+        {
+            if (g.attr[ATTR_BLINK])
+            {
+                need_blink = true;
+                setdirty(i, i);
+                break;
+            }
+        }
+    }
+
+    if (need_blink)
+    {
+        // toggle blink
+        m_mode[MODE_BLINK] = !m_mode[MODE_BLINK];
+    }
+    else
+    {
+        // reset and stop blinking
+        m_mode[MODE_BLINK] = false;
+        rwte.stop_blink();
+    }
+
+    rwte.refresh();
+}
+
+void TermImpl::start_blink()
+{
+    // reset mode every time this is called, so that the
+    // cursor shows while the screen is being updated
+    m_mode[MODE_BLINK] = false;
+    rwte.start_blink();
+}
+
+void TermImpl::check_blink()
+{
+    // note...we don't explicitly stop the blink here; when
+    // next the blink event occurs, it will be stopped then
+    // it is no longer needed
+
+    if (m_cursortype == CURSOR_BLINK_BLOCK ||
+            m_cursortype == CURSOR_BLINK_UNDER ||
+            m_cursortype == CURSOR_BLINK_BAR)
+    {
+        start_blink();
+        return;
+    }
+
+    for (auto& line : m_lines)
+    {
+        for (auto& g : line)
+        {
+            if (g.attr[ATTR_BLINK])
+            {
+                start_blink();
+                return;
+            }
+        }
+    }
 }
 
 void TermImpl::moveto(int col, int row)
@@ -677,7 +755,7 @@ check_control_code:
         gp = &m_lines[m_cursor.row][m_cursor.col];
     }
 
-    setchar(u, &m_cursor.attr, m_cursor.col, m_cursor.row);
+    setchar(u, m_cursor.attr, m_cursor.col, m_cursor.row);
 
     if (width == 2)
     {
@@ -748,16 +826,38 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
 
     if (LOGGER()->level() <= logging::trace)
     {
+        std::string mode;
+        if (m_mode[MODE_MOUSEBTN])
+            mode = "BTN";
+        if (m_mode[MODE_MOUSEMOTION])
+        {
+            if (!mode.empty())
+                mode += ",";
+            mode += "MOT";
+        }
+        if (m_mode[MODE_MOUSEX10])
+        {
+            if (!mode.empty())
+                mode += ",";
+            mode += "X10";
+        }
+        if (m_mode[MODE_MOUSEMANY])
+        {
+            if (!mode.empty())
+                mode += ",";
+            mode += "MNY";
+        }
+
         if (evt == MOUSE_MOTION)
         {
-            LOGGER()->trace("mousereport MOTION {}, {}, oldbutton={}",
-                col, row, oldbutton);
+            LOGGER()->trace("mousereport MOTION {}, {}, oldbutton={}, mode={}",
+                col, row, oldbutton, mode);
         }
         else
         {
-            LOGGER()->trace("mousereport {} {}, {}, {}, oldbutton={}",
+            LOGGER()->trace("mousereport {} {}, {}, {}, oldbutton={}, mode={}",
                 evt == MOUSE_PRESS? "PRESS" : "RELEASE",
-                button, col, row, oldbutton);
+                button, col, row, oldbutton, mode);
         }
     }
 
@@ -1207,7 +1307,7 @@ void TermImpl::send(const char *data, std::size_t len)
     g_tty->write(data, len);
 }
 
-void TermImpl::setchar(Rune u, Glyph *attr, int col, int row)
+void TermImpl::setchar(Rune u, const Glyph& attr, int col, int row)
 {
     const char *vt100_0[62] = { // 0x41 - 0x7e
         "↑", "↓", "→", "←", "█", "▚", "☃", // A - G
@@ -1241,9 +1341,10 @@ void TermImpl::setchar(Rune u, Glyph *attr, int col, int row)
     }
 
     m_dirty[row] = true;
-    m_lines[row][col] = *attr;
+    m_lines[row][col] = attr;
     m_lines[row][col].u = u;
 
+    check_blink();
     rwte.refresh();
 }
 
@@ -1355,7 +1456,7 @@ void TermImpl::dectest(char c)
         for (col = 0; col < m_cols; ++col)
         {
             for (row = 0; row < m_rows; ++row)
-                setchar('E', &m_cursor.attr, col, row);
+                setchar('E', m_cursor.attr, col, row);
         }
     }
 }
@@ -1415,7 +1516,7 @@ void TermImpl::controlcode(unsigned char ascii)
         m_charset = 1 - (ascii - '\016');
         return;
     case '\032': // SUB
-        setchar('?', &m_cursor.attr, m_cursor.col, m_cursor.row);
+        setchar('?', m_cursor.attr, m_cursor.col, m_cursor.row);
     case '\030': // CAN
         csireset();
         break;
@@ -2055,6 +2156,7 @@ void TermImpl::csihandle()
                 LOGGER()->error("unknown cursor {}", m_csiesc.arg[0]);
                 break;
             }
+            check_blink();
             break;
         default:
             goto unknown;
@@ -2424,6 +2526,9 @@ void Term::setprint()
 
 const term_mode& Term::mode() const
 { return impl->mode(); }
+
+void Term::blink()
+{ impl->blink(); }
 
 const Selection& Term::sel() const
 { return impl->sel(); }

@@ -159,6 +159,8 @@ public:
 
     const term_mode& mode() const;
 
+    void blink();
+
     const Selection& sel() const;
     const Cursor& cursor() const;
     cursor_type cursortype() const;

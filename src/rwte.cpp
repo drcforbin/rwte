@@ -34,6 +34,10 @@ lua_State * g_L = NULL;
 #define MIN(a, b) ((a) < (b)? (a) : (b))
 #define MAX(a, b) ((a) < (b)? (b) : (a))
 
+// default values to use if we don't have
+// a default value in config
+static const float DEFAULT_BLINK_RATE = 0.6;
+
 Options::Options() :
     cmd(0),
     title("rwte"),
@@ -47,6 +51,7 @@ Rwte::Rwte() :
 
     m_child.set<Rwte,&Rwte::childcb>(this);
     m_flush.set<Rwte,&Rwte::flushcb>(this);
+    m_blink.set<Rwte,&Rwte::blinkcb>(this);
 }
 
 void Rwte::resize(uint16_t width, uint16_t height)
@@ -78,6 +83,37 @@ void Rwte::refresh()
         m_flush.start(1.0/60.0);
 }
 
+void Rwte::start_blink()
+{
+    if (!m_blink.is_active())
+    {
+        m_lua->getglobal("config");
+        m_lua->getfield(-1, "blink_rate");
+
+        int isnum = 0;
+        float rate = m_lua->tonumberx(-1, &isnum);
+        if (!isnum)
+            rate = DEFAULT_BLINK_RATE;
+
+        m_lua->pop(2);
+
+        m_blink.start(rate, rate);
+    }
+    else
+    {
+        // reset the timer if it's already active
+        // (so we don't blink until idle)
+        m_blink.stop();
+        m_blink.start();
+    }
+}
+
+void Rwte::stop_blink()
+{
+    if (m_blink.is_active())
+        m_blink.stop();
+}
+
 void Rwte::childcb(ev::child &w, int)
 {
     if (!WIFEXITED(w.rstatus) || WEXITSTATUS(w.rstatus))
@@ -90,6 +126,11 @@ void Rwte::childcb(ev::child &w, int)
 void Rwte::flushcb(ev::timer &, int)
 {
     window.draw();
+}
+
+void Rwte::blinkcb(ev::timer &, int)
+{
+    g_term->blink();
 }
 
 static void add_to_search_path(LuaState *L, const std::vector<std::string>& searchpaths, bool for_lua)

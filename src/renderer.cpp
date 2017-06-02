@@ -466,7 +466,7 @@ void RendererImpl::drawglyphs(cairo_t *cr, PangoLayout *layout,
         fg = TRUECOL(REDBYTE(fg) / 2, GREENBYTE(fg) / 2, BLUEBYTE(fg) / 2);
     }
 
-    if (attr[ATTR_BLINK] && attr[MODE_BLINK])
+    if (attr[ATTR_BLINK] && g_term->mode()[MODE_BLINK])
         fg = bg;
 
     if (attr[ATTR_INVISIBLE])
@@ -633,11 +633,17 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
         switch (g_term->cursortype())
         {
         case CURSOR_BLINK_BLOCK:
+            if (g_term->mode()[MODE_BLINK])
+                break;
+            // fall through
         case CURSOR_STEADY_BLOCK:
             g.attr[ATTR_WIDE] = g_term->glyph(cursor.row, curcol).attr[ATTR_WIDE];
             drawglyph(cr, layout, g, cursor.row, cursor.col);
             break;
         case CURSOR_BLINK_UNDER:
+            if (g_term->mode()[MODE_BLINK])
+                break;
+            // fall through
         case CURSOR_STEADY_UNDER:
             {
                 int cursor_thickness = get_cursor_thickness();
@@ -652,6 +658,9 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
             }
             break;
         case CURSOR_BLINK_BAR:
+            if (g_term->mode()[MODE_BLINK])
+                break;
+            // fall through
         case CURSOR_STEADY_BAR:
             {
                 int cursor_thickness = get_cursor_thickness();
