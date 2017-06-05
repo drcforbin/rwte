@@ -125,6 +125,7 @@ static void set_cairo_color(cairo_t *cr, uint32_t color)
     cairo_set_source_rgb(cr, r, g, b);
 }
 
+// todo: move somewhere common
 static int get_border_px()
 {
     // if invalid, default to 2
@@ -250,7 +251,10 @@ private:
 class RendererImpl
 {
 public:
-    RendererImpl(cairo_surface_t *surface, int width, int height);
+    RendererImpl();
+
+    void load_font(cairo_surface_t *root_surface);
+    void set_surface(cairo_surface_t *surface, int width, int height);
 
     void resize(int width, int height);
 
@@ -270,12 +274,12 @@ private:
             const glyph_attribute& attr, uint32_t fg, uint32_t bg,
             const std::vector<Rune>& runes, int row, int col);
     void drawcursor(cairo_t *cr, PangoLayout *layout);
-    void load_font();
+    void load_font(cairo_t *cr);
     cairo_font_options_t *get_font_options();
     int selected(const Selection& sel, int col, int row);
 
     shared_font_options m_fo;
-    Surface m_surface;
+    std::unique_ptr<Surface> m_surface;
 
     int m_cw, m_ch;
     int m_width, m_height;
@@ -285,18 +289,30 @@ private:
     int m_border_px;
 };
 
-RendererImpl::RendererImpl(cairo_surface_t *surface, int width, int height) :
+RendererImpl::RendererImpl() :
     m_fo(create_font_options()),
-    m_surface(surface, m_fo, width, height),
     m_cw(0), m_ch(0),
-    m_width(width), m_height(height),
+    m_width(0), m_height(0),
     m_lastcurrow(0), m_lastcurcol(0),
     m_fontdesc(create_font_desc()),
     // initial border_px value; we'll keep it semi-fresh as
     // calls are made to public funcs
     m_border_px(get_border_px())
+{ }
+
+void RendererImpl::load_font(cairo_surface_t *root_surface)
 {
-    load_font();
+    auto cr = cairo_create(root_surface);
+    load_font(cr);
+    cairo_destroy(cr);
+}
+
+void RendererImpl::set_surface(cairo_surface_t *surface, int width, int height)
+{
+    m_width = width;
+    m_height = height;
+
+    m_surface = std::make_unique<Surface>(surface, m_fo, width, height);
 }
 
 void RendererImpl::resize(int width, int height)
@@ -304,12 +320,12 @@ void RendererImpl::resize(int width, int height)
     // update border_px from the lua world
     m_border_px = get_border_px();
 
-    m_surface.resize(width, height);
+    m_surface->resize(width, height);
 
     if (m_width < width)
     {
         // paint from old width to new width, top to old height
-        cairo_t *cr = m_surface.cr();
+        cairo_t *cr = m_surface->cr();
         set_cairo_color(cr, g_term->defbg());
         cairo_rectangle(cr, m_width, 0, width, m_height);
         cairo_fill(cr);
@@ -318,7 +334,7 @@ void RendererImpl::resize(int width, int height)
     if (m_height < height)
     {
         // paint from old height to new height, all the way across
-        cairo_t *cr = m_surface.cr();
+        cairo_t *cr = m_surface->cr();
         set_cairo_color(cr, g_term->defbg());
         cairo_rectangle(cr, 0, m_height, width, height);
         cairo_fill(cr);
@@ -335,8 +351,8 @@ void RendererImpl::drawregion(int row1, int col1, int row2, int col2)
     // freshen up border_px
     m_border_px = get_border_px();
 
-    cairo_t *cr = m_surface.cr();
-    auto layout = m_surface.layout();
+    cairo_t *cr = m_surface->cr();
+    auto layout = m_surface->layout();
 
     auto& sel = g_term->sel();
     bool ena_sel = sel.ob.col != -1 && sel.alt == g_term->mode()[MODE_ALTSCREEN];
@@ -385,7 +401,7 @@ void RendererImpl::drawregion(int row1, int col1, int row2, int col2)
 
     drawcursor(cr, layout);
 
-    m_surface.flush();
+    m_surface->flush();
 }
 
 int RendererImpl::x2col(int x) const
@@ -690,7 +706,7 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
     m_lastcurcol = curcol, m_lastcurrow = cursor.row;
 }
 
-void RendererImpl::load_font()
+void RendererImpl::load_font(cairo_t *cr)
 {
     auto L = rwte.lua();
     L->getglobal("config");
@@ -713,7 +729,6 @@ void RendererImpl::load_font()
     PangoLanguage *lang = pango_language_get_default();
 
     // measure font
-    cairo_t *cr = m_surface.cr();
     PangoContext *context = pango_cairo_create_context(cr);
     PangoFont *font = pango_font_map_load_font(fontmap, context, m_fontdesc.get());
     PangoFontMetrics *metrics = pango_font_get_metrics(font, lang);
@@ -752,12 +767,18 @@ int RendererImpl::selected(const Selection& sel, int col, int row)
         (row != sel.ne.row || col <= sel.ne.col);
 }
 
-Renderer::Renderer(cairo_surface_t *surface, int width, int height) :
-    impl(std::make_unique<RendererImpl>(surface, width, height))
+Renderer::Renderer() :
+    impl(std::make_unique<RendererImpl>())
 { }
 
 Renderer::~Renderer()
 { }
+
+void Renderer::load_font(cairo_surface_t *root_surface)
+{ impl->load_font(root_surface); }
+
+void Renderer::set_surface(cairo_surface_t *surface, int width, int height)
+{ impl->set_surface(surface, width, height); }
 
 void Renderer::resize(int width, int height)
 { impl->resize(width, height); }

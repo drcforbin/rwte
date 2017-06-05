@@ -236,6 +236,7 @@ static void exit_help(int code)
         "                        \"80x24\" (the default)\n"
         "  -t, --title TITLE     window title; defaults to rwte\n"
         "  -n, --name NAME       window name; defaults to $TERM\n"
+        "  -w, --winclass CLASS  overrides window class\n"
         "  -e, --exe COMMAND     command to execute instead of shell;\n"
         "                        if specified, any arguments to the\n"
         "                        command may be specified after a \"--\"\n"
@@ -460,10 +461,13 @@ int main(int argc, char *argv[])
         L->pop(3);
     }
 
-    g_term = std::make_unique<Term>(MAX(cols, 1), MAX(rows, 1));
+    cols = MAX(cols, 1);
+    rows = MAX(rows, 1);
+
+    g_term = std::make_unique<Term>(cols, rows);
 
     // todo: width and height are arbitrary
-    if (!window.create(300, 200))
+    if (!window.create(cols, rows))
         return 1;
 
     {

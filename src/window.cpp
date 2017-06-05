@@ -41,6 +41,18 @@ static const keymod_state ALT_MASK(1 << MOD_ALT);
 static const keymod_state CTRL_MASK(1 << MOD_CTRL);
 static const keymod_state LOGO_MASK(1 << MOD_LOGO);
 
+static int get_border_px()
+{
+    // if invalid, default to 2
+    auto L = rwte.lua();
+    L->getglobal("config");
+    L->getfield(-1, "border_px");
+    int border_px = L->tointegerdef(-1, 2);
+    L->pop(2);
+
+    return border_px;
+}
+
 // main structure for window data
 class WindowImpl
 {
@@ -48,7 +60,7 @@ public:
     WindowImpl();
     ~WindowImpl();
 
-    bool create(int width, int height);
+    bool create(int cols, int rows);
     void destroy();
 
     void resize(uint16_t width, uint16_t height);
@@ -187,11 +199,8 @@ WindowImpl::~WindowImpl()
         delete[] m_clipboardsel;
 }
 
-bool WindowImpl::create(int width, int height)
+bool WindowImpl::create(int cols, int rows)
 {
-    m_width = width;
-    m_height = height;
-
     connection = xcb_connect(NULL, &m_scrno);
     if (xcb_connection_has_error(connection))
         LOGGER()->fatal("Could not connect to X11 server");
@@ -199,6 +208,27 @@ bool WindowImpl::create(int width, int height)
     m_screen = xcb_aux_get_screen(connection, m_scrno);
     if (!m_screen)
         LOGGER()->fatal("Could not get default screen");
+
+    m_visual_type = xcb_aux_get_visualtype(connection,
+            m_scrno, m_screen->root_visual);
+    if (!m_visual_type) {
+        LOGGER()->error("could not get default screen visual type");
+        return false;
+    }
+
+    m_renderer = std::make_unique<Renderer>();
+
+    // arbitrary width and height
+    auto root_surface = cairo_xcb_surface_create(connection,
+            m_screen->root, m_visual_type, 20, 20);
+    m_renderer->load_font(root_surface);
+    cairo_surface_destroy(root_surface);
+
+    int border_px = get_border_px();
+    int width = cols * m_renderer->charwidth() + 2 * border_px;
+    int height = rows * m_renderer->charheight() + 2 * border_px;
+    m_width = width;
+    m_height = height;
 
     // Create the window
     win = xcb_generate_id(connection);
@@ -259,17 +289,6 @@ bool WindowImpl::create(int width, int height)
     xcb_map_window(connection, win);
     xcb_flush(connection);
 
-    m_visual_type = xcb_aux_get_visualtype(connection,
-            m_scrno, m_screen->root_visual);
-    if (!m_visual_type) {
-        LOGGER()->error("could not get default screen visual type");
-        return false;
-    }
-
-    auto surface = cairo_xcb_surface_create(connection,
-            win, m_visual_type, width, height);
-    m_renderer = std::make_unique<Renderer>(surface, width, height);
-
     // start our event watchers
     m_prepare.start();
     m_check.start();
@@ -292,12 +311,7 @@ void WindowImpl::resize(uint16_t width, uint16_t height)
     uint16_t cw = m_renderer->charwidth();
     uint16_t ch = m_renderer->charheight();
 
-    // if invalid, default to 2
-    auto L = rwte.lua();
-    L->getglobal("config");
-    L->getfield(-1, "border_px");
-    int border_px = L->tointegerdef(-1, 2);
-    L->pop(2);
+    int border_px = get_border_px();
 
     m_cols = (width - 2 * border_px) / cw;
     m_rows = (height - 2 * border_px) / ch;
@@ -947,8 +961,16 @@ void WindowImpl::handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t *event)
                 xcb_get_geometry(connection, win), NULL);
     if (geo)
     {
-        rwte.resize(geo->width, geo->height);
+        int width = geo->width;
+        int height = geo->height;
         std::free(geo);
+
+        // renderer owns this surface
+        auto surface = cairo_xcb_surface_create(connection,
+                win, m_visual_type, width, height);
+        m_renderer->set_surface(surface, width, height);
+
+        rwte.resize(width, height);
 
         inittty();
     }
@@ -968,7 +990,8 @@ void WindowImpl::handle_expose(ev::loop_ref&, xcb_expose_event_t *event)
 
 void WindowImpl::handle_configure_notify(ev::loop_ref&, xcb_configure_notify_event_t *event)
 {
-    rwte.resize(event->width, event->height);
+    if (mapped)
+        rwte.resize(event->width, event->height);
 }
 
 // xkb event handler
@@ -1185,8 +1208,8 @@ Window::Window() :
 Window::~Window()
 { }
 
-bool Window::create(int width, int height)
-{ return impl->create(width, height); }
+bool Window::create(int cols, int rows)
+{ return impl->create(cols, rows); }
 
 void Window::destroy()
 { impl->destroy(); }

@@ -12,8 +12,11 @@ class RendererImpl;
 class Renderer
 {
 public:
-    Renderer(cairo_surface_t *surface, int width, int height);
+    Renderer();
     ~Renderer();
+
+    void load_font(cairo_surface_t *root_surface);
+    void set_surface(cairo_surface_t *surface, int width, int height);
 
     void resize(int width, int height);
 

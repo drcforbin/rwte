@@ -11,7 +11,7 @@ public:
     Window();
     ~Window();
 
-    bool create(int width, int height);
+    bool create(int cols, int rows);
     void destroy();
 
     void resize(uint16_t width, uint16_t height);
