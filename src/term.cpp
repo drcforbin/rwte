@@ -199,7 +199,6 @@ public:
 
 private:
     void start_blink();
-    void check_blink();
 
     void moveto(int col, int row);
     void moveato(int col, int row);
@@ -374,7 +373,10 @@ void TermImpl::reset()
         swapscreen();
     }
 
-    check_blink();
+    if (m_cursortype == CURSOR_BLINK_BLOCK ||
+            m_cursortype == CURSOR_BLINK_UNDER ||
+            m_cursortype == CURSOR_BLINK_BAR)
+        start_blink();
 }
 
 void TermImpl::resize(int cols, int rows)
@@ -508,33 +510,6 @@ void TermImpl::start_blink()
     // cursor shows while the screen is being updated
     m_mode[MODE_BLINK] = false;
     rwte.start_blink();
-}
-
-void TermImpl::check_blink()
-{
-    // note...we don't explicitly stop the blink here; when
-    // next the blink event occurs, it will be stopped then
-    // it is no longer needed
-
-    if (m_cursortype == CURSOR_BLINK_BLOCK ||
-            m_cursortype == CURSOR_BLINK_UNDER ||
-            m_cursortype == CURSOR_BLINK_BAR)
-    {
-        start_blink();
-        return;
-    }
-
-    for (auto& line : m_lines)
-    {
-        for (auto& g : line)
-        {
-            if (g.attr[ATTR_BLINK])
-            {
-                start_blink();
-                return;
-            }
-        }
-    }
 }
 
 void TermImpl::moveto(int col, int row)
@@ -1344,7 +1319,9 @@ void TermImpl::setchar(Rune u, const Glyph& attr, int col, int row)
     m_lines[row][col] = attr;
     m_lines[row][col].u = u;
 
-    check_blink();
+    if (attr.attr[ATTR_BLINK])
+        start_blink();
+
     rwte.refresh();
 }
 
@@ -2137,26 +2114,26 @@ void TermImpl::csihandle()
                 break;
             case 3: // Blinking Underline
                 m_cursortype = CURSOR_BLINK_UNDER;
+                start_blink();
                 break;
             case 4: // Steady Underline
                 m_cursortype = CURSOR_STEADY_UNDER;
                 break;
             case 5: // Blinking bar
                 m_cursortype = CURSOR_BLINK_BAR;
+                start_blink();
                 break;
             case 6: // Steady bar
                 m_cursortype = CURSOR_STEADY_BAR;
                 break;
             case 0: // Blinking Block
             case 1: // Blinking Block (Default)
-                m_cursortype = CURSOR_BLINK_BLOCK;
-                break;
             default:
                 m_cursortype = CURSOR_BLINK_BLOCK;
+                start_blink();
                 LOGGER()->error("unknown cursor {}", m_csiesc.arg[0]);
                 break;
             }
-            check_blink();
             break;
         default:
             goto unknown;
