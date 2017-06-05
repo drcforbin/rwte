@@ -29,8 +29,6 @@
 static const keymod_state EMPTY_MASK; // no mods
 static const keymod_state SHIFT_MASK(1 << MOD_SHIFT);
 static const keymod_state ALT_MASK(1 << MOD_ALT);
-static const keymod_state CTRL_MASK(1 << MOD_CTRL);
-static const keymod_state LOGO_MASK(1 << MOD_LOGO);
 
 enum charset
 {
@@ -1897,9 +1895,6 @@ void TermImpl::csiparse()
 
 void TermImpl::csihandle()
 {
-    char buf[40];
-    int len;
-
     LOGGER()->trace("csiesc {}", csidump());
 
     switch (m_csiesc.mode[0])
@@ -1917,10 +1912,10 @@ void TermImpl::csihandle()
         DEFAULT(m_csiesc.arg[0], 1);
         moveto(m_cursor.col, m_cursor.row+m_csiesc.arg[0]);
         break;
-        /*
-        todo: case media copy
     case 'i': // MC -- Media Copy
         switch (m_csiesc.arg[0]) {
+        /*
+        todo: case media copy
         case 0:
             tdump();
             break;
@@ -1930,6 +1925,7 @@ void TermImpl::csihandle()
         case 2:
             tdumpsel();
             break;
+            */
         case 4:
             m_mode.reset(MODE_PRINT);
             break;
@@ -1938,7 +1934,6 @@ void TermImpl::csihandle()
             break;
         }
         break;
-        */
     case 'c': // DA -- Device Attributes
         if (m_csiesc.arg[0] == 0)
         {
@@ -2076,8 +2071,6 @@ void TermImpl::csihandle()
     case 'n': // DSR – Device Status Report (cursor position)
         if (m_csiesc.arg[0] == 6)
         {
-            LOGGER()->debug("status report, {},{}",
-                    m_cursor.row+1, m_cursor.col+1);
             std::string seq = fmt::format(
                     "\033[{};{}R",
                     m_cursor.row+1, m_cursor.col+1);
@@ -2093,7 +2086,6 @@ void TermImpl::csihandle()
             DEFAULT(m_csiesc.arg[1], m_rows);
             setscroll(m_csiesc.arg[0]-1, m_csiesc.arg[1]-1);
             moveato(0, 0);
-            LOGGER()->trace("set scroll {},{}, moveato 0,0",m_csiesc.arg[0]-1, m_csiesc.arg[1]-1);
         }
         break;
     case 's': // DECSC -- Save cursor position (ANSI.SYS)
@@ -2201,7 +2193,6 @@ void TermImpl::setattr(int *attr, int len)
             m_cursor.attr.attr.set(ATTR_UNDERLINE);
             break;
         case 5: // slow blink
-            // FALLTHROUGH
         case 6: // rapid blink
             m_cursor.attr.attr.set(ATTR_BLINK);
             break;

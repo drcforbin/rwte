@@ -7,10 +7,13 @@
 #include <xcb/xcb_aux.h>
 #include <cairo/cairo-xcb.h>
 
-// uses explicit as a field name. ugh.
-#define explicit explt
+// xkb uses explicit as a field name. ugh.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wkeyword-macro"
+#define explicit _explicit
 #include <xcb/xkb.h>
 #undef explicit
+#pragma clang diagnostic pop
 
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-compose.h>
@@ -34,12 +37,6 @@
 // XEMBED messages
 #define XEMBED_FOCUS_IN  4
 #define XEMBED_FOCUS_OUT 5
-
-static const keymod_state EMPTY_MASK; // no mods
-static const keymod_state SHIFT_MASK(1 << MOD_SHIFT);
-static const keymod_state ALT_MASK(1 << MOD_ALT);
-static const keymod_state CTRL_MASK(1 << MOD_CTRL);
-static const keymod_state LOGO_MASK(1 << MOD_LOGO);
 
 static int get_border_px()
 {

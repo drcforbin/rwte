@@ -143,8 +143,6 @@ static void add_to_search_path(LuaState *L, const std::vector<std::string>& sear
 
     for (auto& searchpath : searchpaths)
     {
-        int components;
-
         L->pushstring(fmt::format(";{}{}", searchpath,
                 for_lua? "/?.lua" : "/?.so"));
 
