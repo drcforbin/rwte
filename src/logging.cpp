@@ -1,4 +1,5 @@
 #include <ctime>
+#include <unordered_map>
 
 #include "rwte/logging.h"
 

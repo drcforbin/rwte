@@ -1,10 +1,9 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include <unordered_map>
 #include <memory>
+#include <string>
 #include <chrono>
-#include <thread>
 
 #include "fmt/format.h"
 
