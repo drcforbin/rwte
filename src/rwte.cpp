@@ -19,6 +19,7 @@
 #include "rwte/luastate.h"
 #include "rwte/lualogging.h"
 #include "rwte/luaterm.h"
+#include "rwte/luawindow.h"
 #include "rwte/version.h"
 
 // globals
@@ -285,6 +286,7 @@ int main(int argc, char *argv[])
     // register internal modules, logging first
     register_lualogging(L.get());
     register_luaterm(L.get());
+    register_luawindow(L.get());
 
     // feed lua our args
     L->newtable();

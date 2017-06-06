@@ -13,7 +13,7 @@
 #include "rwte/utf8.h"
 #include "rwte/window.h"
 #include "rwte/luastate.h"
-#include "rwte/luaterm.h"
+#include "rwte/luawindow.h"
 #include "rwte/selection.h"
 
 #define LOGGER() (logging::get("term"))
@@ -925,7 +925,9 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
         {
             auto L = rwte.lua();
 
-            if (luaterm_mouse_press(L.get(), col, row, button, mod))
+            // todo: this call originates from term, when it really
+            // makes a lot more sense to be called from window
+            if (luawindow_mouse_press(L.get(), col, row, button, mod))
                 return;
 
             // start selection?

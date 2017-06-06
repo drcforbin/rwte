@@ -28,7 +28,7 @@
 #include "rwte/utf8.h"
 #include "rwte/window.h"
 #include "rwte/luastate.h"
-#include "rwte/luaterm.h"
+#include "rwte/luawindow.h"
 #include "rwte/selection.h"
 
 #define LOGGER() (logging::get("window"))
@@ -693,7 +693,7 @@ void WindowImpl::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
     }
 
     auto L = rwte.lua();
-    if (luaterm_key_press(L.get(), ksym, m_keymod))
+    if (luawindow_key_press(L.get(), ksym, m_keymod))
         return;
 
     if (len == 1 && m_keymod[MOD_ALT])
