@@ -4,7 +4,6 @@
 #include "rwte/luastate.h"
 #include "rwte/luawindow.h"
 #include "rwte/logging.h"
-#include "rwte/term.h"
 
 #define LOGGER() (logging::get("luawindow"))
 

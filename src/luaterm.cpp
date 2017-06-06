@@ -1,6 +1,3 @@
-#include <xkbcommon/xkbcommon-keysyms.h>
-
-#include "rwte/window.h"
 #include "rwte/luastate.h"
 #include "rwte/luaterm.h"
 #include "rwte/logging.h"
