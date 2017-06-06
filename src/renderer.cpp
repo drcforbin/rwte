@@ -355,7 +355,7 @@ void RendererImpl::drawregion(int row1, int col1, int row2, int col2)
     auto layout = m_surface->layout();
 
     auto& sel = g_term->sel();
-    bool ena_sel = sel.ob.col != -1 && sel.alt == g_term->mode()[MODE_ALTSCREEN];
+    bool ena_sel = !sel.empty() && sel.alt == g_term->mode()[MODE_ALTSCREEN];
 
     std::vector<Rune> runes;
     for (int row = row1; row < row2; row++)
@@ -594,7 +594,7 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
         curcol--;
 
     auto& sel = g_term->sel();
-    bool ena_sel = sel.ob.col != -1 && sel.alt == g_term->mode()[MODE_ALTSCREEN];
+    bool ena_sel = !sel.empty() && sel.alt == g_term->mode()[MODE_ALTSCREEN];
 
     // remove the old cursor
     Glyph og = g_term->glyph(m_lastcurrow, m_lastcurcol);

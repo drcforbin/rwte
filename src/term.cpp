@@ -1,5 +1,6 @@
 #include <limits.h>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 #include <time.h>
 
@@ -262,7 +263,6 @@ private:
 
     int m_charset;  // current charset
     int m_icharset; // selected charset for sequence
-    bool m_numlock; // you know, numlock
     bool m_focused; // whether terminal has focus
 
     char m_trantbl[4]; // charset table translation
@@ -272,7 +272,6 @@ private:
 
 TermImpl::TermImpl(int cols, int rows) :
     m_rows(0), m_cols(0),
-    m_numlock(true),
     m_focused(false)
 {
     Cursor c{};
@@ -280,10 +279,6 @@ TermImpl::TermImpl(int cols, int rows) :
 
     strreset();
     csireset();
-
-    memset(&m_sel, 0, sizeof(m_sel));
-    m_sel.mode = SEL_IDLE;
-    m_sel.ob.col = -1;
 
     // only a few things are initialized here
     // the rest happens in resize and reset
@@ -359,7 +354,7 @@ void TermImpl::reset()
         m_mode.set(MODE_PRINT);
 
     m_esc.reset();
-    memset(m_trantbl, CS_USA, sizeof(m_trantbl));
+    std::memset(m_trantbl, CS_USA, sizeof(m_trantbl));
     m_charset = 0;
     m_icharset = 0;
 
@@ -475,7 +470,7 @@ void TermImpl::blink()
     // see if we have anything blinking and mark blinking lines dirty
     for (int i = 0; i < m_lines.size(); i++)
     {
-        auto& line = m_lines[i];
+        const auto& line = m_lines[i];
         for (auto& g : line)
         {
             if (g.attr[ATTR_BLINK])
@@ -601,7 +596,7 @@ void TermImpl::putc(Rune u)
         len = utf8encode(u, c);
         if (!control && (width = wcwidth(u)) == -1)
         {
-            memcpy(c, "\357\277\275", 4); /* UTF_INVALID */
+            std::memcpy(c, "\357\277\275", 4); /* UTF_INVALID */
             width = 1;
         }
     }
@@ -657,7 +652,7 @@ void TermImpl::putc(Rune u)
             return;
         }
 
-        memmove(&m_stresc.buf[m_stresc.len], c, len);
+        std::memmove(&m_stresc.buf[m_stresc.len], c, len);
         m_stresc.len += len;
         return;
     }
@@ -707,7 +702,7 @@ check_control_code:
         return;
     }
 
-    if (m_sel.ob.col != -1 &&
+    if (!m_sel.empty() &&
             m_sel.ob.row <= m_cursor.row && m_cursor.row <= m_sel.oe.row)
         selclear();
 
@@ -720,7 +715,7 @@ check_control_code:
     }
 
     if (m_mode[MODE_INSERT] && m_cursor.col+width < m_cols)
-        memmove(gp+width, gp, (m_cols - m_cursor.col - width) * sizeof(Glyph));
+        std::memmove(gp+width, gp, (m_cols - m_cursor.col - width) * sizeof(Glyph));
 
     if (m_cursor.col+width > m_cols)
     {
@@ -948,6 +943,8 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
 
                 // clear previous selection, logically and visually.
                 selclear();
+
+                // begin a selection
                 m_sel.mode = SEL_EMPTY;
                 m_sel.type = SEL_REGULAR;
                 m_sel.oe.col = m_sel.ob.col = col;
@@ -987,6 +984,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
                 }
                 else
                     selclear();
+
                 m_sel.mode = SEL_IDLE;
                 setdirty(m_sel.nb.row, m_sel.ne.row);
             }
@@ -1246,10 +1244,10 @@ void TermImpl::setfocused(bool focused)
 
 void TermImpl::selclear()
 {
-    if (m_sel.ob.col == -1)
+    if (m_sel.empty())
         return;
-    m_sel.mode = SEL_IDLE;
-    m_sel.ob.col = -1;
+
+    m_sel.clear();
     setdirty(m_sel.nb.row, m_sel.ne.row);
 }
 
@@ -1318,7 +1316,7 @@ void TermImpl::defutf8(char ascii)
 
 void TermImpl::selscroll(int orig, int n)
 {
-    if (m_sel.ob.col == -1)
+    if (m_sel.empty())
         return;
 
     if ((orig <= m_sel.ob.row && m_sel.ob.row <= m_bot) ||
@@ -1660,7 +1658,7 @@ void TermImpl::puttab(int n)
 
 void TermImpl::strreset()
 {
-    memset(&m_stresc, 0, sizeof(m_stresc));
+    std::memset(&m_stresc, 0, sizeof(m_stresc));
 }
 
 void TermImpl::strparse()
@@ -1844,7 +1842,7 @@ void TermImpl::strsequence(unsigned char c)
 
 void TermImpl::csireset()
 {
-    memset(&m_csiesc, 0, sizeof(m_csiesc));
+    std::memset(&m_csiesc, 0, sizeof(m_csiesc));
 }
 
 void TermImpl::csiparse()
@@ -2413,7 +2411,7 @@ std::shared_ptr<char> TermImpl::getsel()
     int row, bufsize, lastcol, llen;
     Glyph *gp, *last;
 
-    if (m_sel.ob.col == -1)
+    if (m_sel.empty())
         return nullptr;
 
     bufsize = (m_cols+1) * (m_sel.ne.row-m_sel.nb.row+1) * utf_size;

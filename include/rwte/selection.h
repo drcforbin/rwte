@@ -25,6 +25,10 @@ enum selection_snap
 
 struct Selection
 {
+    Selection();
+
+    void clear();
+    bool empty() const;
     bool selected(int col, int row) const;
 
 	int mode;
