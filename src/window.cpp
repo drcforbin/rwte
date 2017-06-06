@@ -29,6 +29,7 @@
 #include "rwte/window.h"
 #include "rwte/luastate.h"
 #include "rwte/luaterm.h"
+#include "rwte/selection.h"
 
 #define LOGGER() (logging::get("window"))
 
@@ -55,7 +56,6 @@ class WindowImpl
 {
 public:
     WindowImpl();
-    ~WindowImpl();
 
     bool create(int cols, int rows);
     void destroy();
@@ -76,9 +76,9 @@ public:
     void seturgent(bool urgent);
     void bell(int volume);
 
-    void setsel(char *sel);
+    void setsel();
     void selpaste();
-    void setclip(char *sel);
+    void setclip();
     void clippaste();
 
 private:
@@ -171,14 +171,10 @@ private:
 
     keymod_state m_keymod;
     xkb_mod_index_t m_shift_modidx, m_ctrl_modidx, m_alt_modidx, m_logo_modidx;
-    char *m_primarysel;
-    char *m_clipboardsel;
     uint32_t m_eventmask;
 };
 
 WindowImpl::WindowImpl() :
-    m_primarysel(nullptr),
-    m_clipboardsel(nullptr),
     m_eventmask(0)
 {
     // this io watcher is just to to kick the loop around
@@ -186,14 +182,6 @@ WindowImpl::WindowImpl() :
     m_io.set<WindowImpl,&WindowImpl::readcb>(this);
     m_prepare.set<WindowImpl,&WindowImpl::preparecb>(this);
     m_check.set<WindowImpl,&WindowImpl::checkcb>(this);
-}
-
-WindowImpl::~WindowImpl()
-{
-    if (!m_primarysel)
-        delete[] m_primarysel;
-    if (!m_clipboardsel)
-        delete[] m_clipboardsel;
 }
 
 bool WindowImpl::create(int cols, int rows)
@@ -391,12 +379,8 @@ void WindowImpl::bell(int volume)
     // todo
 }
 
-void WindowImpl::setsel(char *sel)
+void WindowImpl::setsel()
 {
-    if (m_primarysel)
-        delete[] m_primarysel;
-    m_primarysel = sel;
-
     xcb_set_selection_owner(connection, win, XCB_ATOM_PRIMARY, XCB_CURRENT_TIME);
     xcb_get_selection_owner_reply_t *reply = xcb_get_selection_owner_reply(connection,
                 xcb_get_selection_owner(connection, XCB_ATOM_PRIMARY), NULL);
@@ -418,12 +402,8 @@ void WindowImpl::selpaste()
             xtarget, m_xseldata, XCB_CURRENT_TIME);
 }
 
-void WindowImpl::setclip(char *sel)
+void WindowImpl::setclip()
 {
-    if (m_clipboardsel)
-        delete[] m_clipboardsel;
-    m_clipboardsel = sel;
-
     xcb_set_selection_owner(connection, win, m_clipboard, XCB_CURRENT_TIME);
     xcb_get_selection_owner_reply_t *reply = xcb_get_selection_owner_reply(connection,
                 xcb_get_selection_owner(connection, m_clipboard), NULL);
@@ -891,11 +871,11 @@ void WindowImpl::handle_selection_request(ev::loop_ref&, xcb_selection_request_e
 
         // with XCB_ATOM_STRING non ascii characters may be incorrect in the
         // requestor. not our problem, use utf8
-        char *seltext = nullptr;
+        std::shared_ptr<char> seltext;
         if (event->selection == XCB_ATOM_PRIMARY)
-            seltext = m_primarysel;
+            seltext = g_term->sel().primary;
         else if (event->selection == m_clipboard)
-            seltext = m_clipboardsel;
+            seltext = g_term->sel().clipboard;
         else
         {
             LOGGER()->error("unhandled selection {:#x}", event->selection);
@@ -919,7 +899,7 @@ void WindowImpl::handle_selection_request(ev::loop_ref&, xcb_selection_request_e
 
             xcb_change_property(connection, XCB_PROP_MODE_REPLACE,
                     event->requestor, event->property, event->target,
-                    8, strlen(seltext), seltext);
+                    8, std::strlen(seltext.get()), seltext.get());
             property = event->property;
         }
     }
@@ -1247,14 +1227,14 @@ void Window::seturgent(bool urgent)
 void Window::bell(int volume)
 { impl->bell(volume); }
 
-void Window::setsel(char *sel)
-{ impl->setsel(sel); }
+void Window::setsel()
+{ impl->setsel(); }
 
 void Window::selpaste()
 { impl->selpaste(); }
 
-void Window::setclip(char *sel)
-{ impl->setclip(sel); }
+void Window::setclip()
+{ impl->setclip(); }
 
 void Window::clippaste()
 { impl->clippaste(); }

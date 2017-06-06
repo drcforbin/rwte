@@ -14,6 +14,7 @@
 #include "rwte/window.h"
 #include "rwte/luastate.h"
 #include "rwte/luaterm.h"
+#include "rwte/selection.h"
 
 #define LOGGER() (logging::get("term"))
 
@@ -217,7 +218,6 @@ private:
 
     void setdirty(int top, int bot);
 
-    bool selected(int col, int row);
     void selsnap(int *col, int *row, int direction);
 
     void setchar(Rune u, const Glyph& attr, int col, int row);
@@ -243,7 +243,7 @@ private:
     void setattr(int *attr, int l);
     void settmode(bool priv, bool set, int *args, int narg);
     void getbuttoninfo(int col, int row, const keymod_state& mod);
-    char *getsel();
+    std::shared_ptr<char> getsel();
 
     term_mode m_mode; // terminal mode
     escape_state m_esc; // escape mode
@@ -979,10 +979,9 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
                 {
                     getbuttoninfo(col, row, mod);
 
-                    // todo: better data type
-                    char * sel = getsel();
-                    // setsel assumes ownership
-                    window.setsel(sel);
+                    // set primary sel and tell window about it
+                    m_sel.primary = getsel();
+                    window.setsel();
                 }
                 else
                     selclear();
@@ -1076,7 +1075,7 @@ void TermImpl::clearregion(int col1, int row1, int col2, int row2)
         for (int col = col1; col <= col2; col++)
         {
             Glyph& gp = m_lines[row][col];
-            if (selected(col, row))
+            if (m_sel.selected(col, row))
                 selclear();
             gp.fg = m_cursor.attr.fg;
             gp.bg = m_cursor.attr.bg;
@@ -1148,20 +1147,6 @@ void TermImpl::setdirty(int top, int bot)
         m_dirty[i] = true;
 
     rwte.refresh();
-}
-
-bool TermImpl::selected(int col, int row)
-{
-    if (m_sel.mode == SEL_EMPTY)
-        return false;
-
-    if (m_sel.type == SEL_RECTANGULAR)
-        return (m_sel.nb.row <= row && row <= m_sel.ne.row) &&
-                (m_sel.nb.col <= col && col <= m_sel.ne.col);
-
-    return (m_sel.nb.row <= row && row <= m_sel.ne.row) &&
-            (row != m_sel.nb.row || col >= m_sel.nb.col) &&
-            (row != m_sel.ne.row || col <= m_sel.ne.col);
 }
 
 void TermImpl::selsnap(int *col, int *row, int direction)
@@ -1266,13 +1251,11 @@ void TermImpl::selclear()
     setdirty(m_sel.nb.row, m_sel.ne.row);
 }
 
-// todo: move to window, calling exposed getsel
 void TermImpl::clipcopy()
 {
-    // todo: better data type
-    char * sel = getsel();
-    // setclip assumes ownership
-    window.setclip(sel);
+    // set clipboard sel and tell window about it
+    m_sel.clipboard = getsel();
+    window.setclip();
 }
 
 void TermImpl::send(const char *data, std::size_t len)
@@ -2422,7 +2405,7 @@ void TermImpl::getbuttoninfo(int col, int row, const keymod_state& mod)
     m_sel.type = SEL_REGULAR;
 }
 
-char *TermImpl::getsel()
+std::shared_ptr<char> TermImpl::getsel()
 {
     char *str, *ptr;
     int row, bufsize, lastcol, llen;
@@ -2470,7 +2453,8 @@ char *TermImpl::getsel()
             *ptr++ = '\n';
     }
     *ptr = 0;
-    return str;
+
+    return std::shared_ptr<char>(str, std::default_delete<char[]>());
 }
 
 Term::Term(int cols, int rows) :

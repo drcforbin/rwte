@@ -10,6 +10,7 @@
 #include "rwte/utf8.h"
 #include "rwte/rwte.h"
 #include "rwte/luastate.h"
+#include "rwte/selection.h"
 
 #define LOGGER() (logging::get("renderer"))
 
@@ -276,7 +277,6 @@ private:
     void drawcursor(cairo_t *cr, PangoLayout *layout);
     void load_font(cairo_t *cr);
     cairo_font_options_t *get_font_options();
-    int selected(const Selection& sel, int col, int row);
 
     shared_font_options m_fo;
     std::unique_ptr<Surface> m_surface;
@@ -372,7 +372,7 @@ void RendererImpl::drawregion(int row1, int col1, int row2, int col2)
             Glyph g = g_term->glyph(row, col);
             if (!g.attr[ATTR_WDUMMY])
             {
-                if (ena_sel && selected(sel, col, row))
+                if (ena_sel && sel.selected(col, row))
                     g.attr[ATTR_REVERSE] = g.attr[ATTR_REVERSE] ^ true;
             }
 
@@ -384,7 +384,7 @@ void RendererImpl::drawregion(int row1, int col1, int row2, int col2)
                 glyph_attribute attr2 = g2.attr;
                 if (!attr2[ATTR_WDUMMY])
                 {
-                    if (ena_sel && selected(sel, lookahead, row))
+                    if (ena_sel && sel.selected(lookahead, row))
                         attr2[ATTR_REVERSE] = attr2[ATTR_REVERSE] ^ true;
                 }
 
@@ -598,7 +598,7 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
 
     // remove the old cursor
     Glyph og = g_term->glyph(m_lastcurrow, m_lastcurcol);
-    if (ena_sel && selected(sel, m_lastcurcol, m_lastcurrow))
+    if (ena_sel && sel.selected(m_lastcurcol, m_lastcurrow))
         og.attr[ATTR_REVERSE] = og.attr[ATTR_REVERSE] ^ true;
     drawglyph(cr, layout, og, m_lastcurrow, m_lastcurcol);
 
@@ -615,7 +615,7 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
     {
         g.attr.set(ATTR_REVERSE);
         g.bg = g_term->deffg();
-        if (ena_sel && selected(sel, cursor.col, cursor.row))
+        if (ena_sel && sel.selected(cursor.col, cursor.row))
         {
             drawcol = g_term->defcs();
             g.fg = g_term->defrcs();
@@ -628,7 +628,7 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
     }
     else
     {
-        if (ena_sel && selected(sel, cursor.col, cursor.row))
+        if (ena_sel && sel.selected(cursor.col, cursor.row))
         {
             drawcol = g_term->defrcs();
             g.fg = g_term->deffg();
@@ -750,21 +750,6 @@ void RendererImpl::load_font(cairo_t *cr)
     pango_font_metrics_unref(metrics);
     g_object_unref(font);
     g_object_unref(context);
-}
-
-// todo: move to Selection
-int RendererImpl::selected(const Selection& sel, int col, int row)
-{
-    if (sel.mode == SEL_EMPTY)
-        return 0;
-
-    if (sel.type == SEL_RECTANGULAR)
-        return (sel.nb.row <= row && row <= sel.ne.row) &&
-            (sel.nb.col <= col && col <= sel.ne.col);
-
-    return (sel.nb.row <= row && row <= sel.ne.row) &&
-        (row != sel.nb.row || col >= sel.nb.col) &&
-        (row != sel.ne.row || col <= sel.ne.col);
 }
 
 Renderer::Renderer() :

@@ -36,9 +36,9 @@ public:
     void seturgent(bool urgent);
     void bell(int volume);
 
-    void setsel(char *sel); // assumes ownership
+    void setsel();
     void selpaste();
-    void setclip(char *sel);
+    void setclip();
     void clippaste();
 
 private:
