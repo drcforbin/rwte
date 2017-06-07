@@ -3,8 +3,13 @@
 
 // lua term integration
 
-class LuaState;
+namespace lua
+{
 
-void register_luaterm(LuaState *L);
+class State;
+
+void register_luaterm(State *L);
+
+} // namespace lua
 
 #endif // LUATERM_H

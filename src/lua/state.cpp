@@ -1,46 +1,49 @@
-#include "rwte/luastate.h"
+#include "lua/state.h"
 
-LuaState::LuaState() :
+namespace lua
+{
+
+State::State() :
     m_L(luaL_newstate()),
     m_owns(true)
 { }
 
-LuaState::LuaState(lua_State *L) :
+State::State(lua_State *L) :
     m_L(L),
     m_owns(false)
 { }
 
-LuaState::~LuaState()
+State::~State()
 {
     if (m_owns)
         lua_close(m_L);
 }
 
-void LuaState::openlibs()
+void State::openlibs()
 { luaL_openlibs(m_L); }
 
-int LuaState::loadfile(const char *filename)
+int State::loadfile(const char *filename)
 { return luaL_loadfile(m_L, filename); }
 
-void LuaState::call(int nargs, int nresults)
+void State::call(int nargs, int nresults)
 { lua_call(m_L, nargs, nresults); }
 
-int LuaState::pcall(int nargs, int nresults, int msgh)
+int State::pcall(int nargs, int nresults, int msgh)
 { return lua_pcall(m_L, nargs, nresults, msgh); }
 
-void LuaState::pop(int n /* = 1 */)
+void State::pop(int n /* = 1 */)
 { lua_pop(m_L, n); }
 
-void LuaState::remove(int index)
+void State::remove(int index)
 { lua_remove(m_L, index); }
 
-void LuaState::pushvalue(int index)
+void State::pushvalue(int index)
 { lua_pushvalue(m_L, index); }
 
-int LuaState::gettop()
+int State::gettop()
 { return lua_gettop(m_L); }
 
-void LuaState::newlib(const luaL_Reg *l, int entries /* = 0 */)
+void State::newlib(const luaL_Reg *l, int entries /* = 0 */)
 {
     // if entries was not specified, assume the library
     // is nothing but functions, and they're all in l
@@ -56,91 +59,91 @@ void LuaState::newlib(const luaL_Reg *l, int entries /* = 0 */)
     luaL_setfuncs(m_L, l, 0);
 }
 
-void LuaState::setfuncs(const luaL_Reg *l, int nup /* = 0 */)
+void State::setfuncs(const luaL_Reg *l, int nup /* = 0 */)
 { luaL_setfuncs(m_L, l, nup); }
 
-void LuaState::requiref(const char *modname, lua_CFunction openf, bool glb)
+void State::requiref(const char *modname, lua_CFunction openf, bool glb)
 { luaL_requiref(m_L, modname, openf, glb? 1 : 0); }
 
-void LuaState::pushlightuserdata(void *p)
+void State::pushlightuserdata(void *p)
 { lua_pushlightuserdata(m_L, p); }
 
-void *LuaState::touserdata(int index)
+void *State::touserdata(int index)
 { return lua_touserdata(m_L, index); }
 
-void LuaState::pushcclosure(int (*fn)(lua_State *), int n)
+void State::pushcclosure(int (*fn)(lua_State *), int n)
 { lua_pushcclosure(m_L, fn, n); }
 
-int LuaState::upvalueindex(int i)
+int State::upvalueindex(int i)
 { return lua_upvalueindex(i); }
 
-void LuaState::newtable()
+void State::newtable()
 { lua_newtable(m_L); }
 
-void LuaState::setmetatable(int index)
+void State::setmetatable(int index)
 { lua_setmetatable(m_L, index); }
 
-bool LuaState::newmetatable(const char *tname)
+bool State::newmetatable(const char *tname)
 { return luaL_newmetatable(m_L, tname) != 0; }
 
-void LuaState::setmetatable(const char *tname)
+void State::setmetatable(const char *tname)
 { luaL_setmetatable(m_L, tname); }
 
-int LuaState::getglobal(const char *name)
+int State::getglobal(const char *name)
 { return lua_getglobal(m_L, name); }
 
-void LuaState::setglobal(const char *name)
+void State::setglobal(const char *name)
 { lua_setglobal(m_L, name); }
 
-void LuaState::concat(int n)
+void State::concat(int n)
 { lua_concat(m_L, n); }
 
-int LuaState::type(int index)
+int State::type(int index)
 { return lua_type(m_L, index); }
 
-bool LuaState::isnil(int index)
+bool State::isnil(int index)
 { return lua_isnil(m_L, index) != 0; }
 
-bool LuaState::istable(int index)
+bool State::istable(int index)
 { return lua_istable(m_L, index) != 0; }
 
-int LuaState::getfield(int index, const char *k)
+int State::getfield(int index, const char *k)
 { return lua_getfield(m_L, index, k); }
 
-void LuaState::setfield(int index, const char *k)
+void State::setfield(int index, const char *k)
 { return lua_setfield(m_L, index, k); }
 
-int LuaState::geti(int index, int i)
+int State::geti(int index, int i)
 { return lua_geti(m_L, index, i); }
 
-void LuaState::seti(int index, int n)
+void State::seti(int index, int n)
 { lua_seti(m_L, index, n); }
 
-const char *LuaState::tostring(int index)
+const char *State::tostring(int index)
 { return lua_tostring(m_L, index); }
 
-const char *LuaState::tolstring(int index, size_t *len)
+const char *State::tolstring(int index, size_t *len)
 { return lua_tolstring(m_L, index, len); }
 
-const char *LuaState::checkstring(int arg)
+const char *State::checkstring(int arg)
 { return luaL_checkstring(m_L, arg); }
 
-const char *LuaState::checklstring(int arg, size_t *l)
+const char *State::checklstring(int arg, size_t *l)
 { return luaL_checklstring(m_L, arg, l); }
 
-void LuaState::pushstring(const char *s)
+void State::pushstring(const char *s)
 { lua_pushstring(m_L, s); }
 
-void LuaState::pushstring(const std::string& s)
+void State::pushstring(const std::string& s)
 { lua_pushlstring(m_L, s.c_str(), s.size()); }
 
-int LuaState::tointeger(int index)
+int State::tointeger(int index)
 { return lua_tointeger(m_L, index); }
 
-int LuaState::tointegerx(int index, int *isnum)
+int State::tointegerx(int index, int *isnum)
 { return lua_tointegerx(m_L, index, isnum); }
 
-int LuaState::tointegerdef(int index, int def)
+int State::tointegerdef(int index, int def)
 {
     int isnum = 0;
     int val = tointegerx(index, &isnum);
@@ -150,19 +153,19 @@ int LuaState::tointegerdef(int index, int def)
         return def;
 }
 
-int LuaState::checkinteger(int arg)
+int State::checkinteger(int arg)
 { return luaL_checkinteger(m_L, arg); }
 
-void LuaState::pushinteger(int n)
+void State::pushinteger(int n)
 { lua_pushinteger(m_L, n); }
 
-float LuaState::tonumber(int index)
+float State::tonumber(int index)
 { return lua_tonumber(m_L, index); }
 
-float LuaState::tonumberx(int index, int *isnum)
+float State::tonumberx(int index, int *isnum)
 { return lua_tonumberx(m_L, index, isnum); }
 
-float LuaState::tonumberdef(int index, float def)
+float State::tonumberdef(int index, float def)
 {
     int isnum = 0;
     float val = tonumberx(index, &isnum);
@@ -172,10 +175,10 @@ float LuaState::tonumberdef(int index, float def)
         return def;
 }
 
-bool LuaState::tobool(int index)
+bool State::tobool(int index)
 { return lua_toboolean(m_L, index) != 0; }
 
-bool LuaState::tobooldef(int index, bool def)
+bool State::tobooldef(int index, bool def)
 {
     if (isnil(index))
         return def;
@@ -183,10 +186,10 @@ bool LuaState::tobooldef(int index, bool def)
         return tobool(index);
 }
 
-void LuaState::pushbool(bool b)
+void State::pushbool(bool b)
 { lua_pushboolean(m_L, b? 1 : 0); }
 
-void LuaState::setobjfuncs(const char *tname, const luaL_Reg *funcs)
+void State::setobjfuncs(const char *tname, const luaL_Reg *funcs)
 {
     newmetatable(tname); // create metatable for obj
     pushvalue(-1); // push metatable
@@ -195,7 +198,7 @@ void LuaState::setobjfuncs(const char *tname, const luaL_Reg *funcs)
     pop(); // pop new metatable
 }
 
-int LuaState::setfuncref(int arg, int oldref /* = LUA_NOREF */)
+int State::setfuncref(int arg, int oldref /* = LUA_NOREF */)
 {
     luaL_argcheck(m_L, lua_isnil(m_L, arg) || lua_isfunction(m_L, arg),
             arg, "should be nil or a function");
@@ -207,7 +210,7 @@ int LuaState::setfuncref(int arg, int oldref /* = LUA_NOREF */)
     return luaL_ref(m_L, LUA_REGISTRYINDEX);
 }
 
-bool LuaState::pushfuncref(int ref)
+bool State::pushfuncref(int ref)
 {
     if (ref != LUA_NOREF && ref != LUA_REFNIL)
     {
@@ -220,3 +223,4 @@ bool LuaState::pushfuncref(int ref)
     return false;
 }
 
+} // namespace lua

@@ -9,8 +9,8 @@
 #include "rwte/term.h"
 #include "rwte/utf8.h"
 #include "rwte/rwte.h"
-#include "rwte/luaconfig.h"
-#include "rwte/luastate.h"
+#include "lua/config.h"
+#include "lua/state.h"
 #include "rwte/selection.h"
 
 #define LOGGER() (logging::get("renderer"))
@@ -57,7 +57,7 @@ static unique_font_desc create_font_desc()
     if (font.empty())
     {
         // get font from lua config
-        font = luaconfig::get_string("font");
+        font = lua::config::get_string("font");
         if (font.empty())
             LOGGER()->fatal("config.font is invalid");
     }
@@ -123,13 +123,13 @@ static void set_cairo_color(cairo_t *cr, uint32_t color)
 static int get_border_px()
 {
     // if invalid, default to 2
-    return luaconfig::get_int("border_px", 2);
+    return lua::config::get_int("border_px", 2);
 }
 
 static int get_cursor_thickness()
 {
     // if invalid, default to 2
-    return luaconfig::get_int("cursor_thickness", 2);
+    return lua::config::get_int("cursor_thickness", 2);
 }
 
 class Surface

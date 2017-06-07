@@ -3,8 +3,13 @@
 
 // lua log integration
 
-class LuaState;
+namespace lua
+{
 
-void register_lualogging(LuaState *L);
+class State;
+
+void register_lualogging(State *L);
+
+} // namespace lua
 
 #endif // LUALOGGING_H

@@ -1,5 +1,5 @@
-#include "rwte/luastate.h"
-#include "rwte/lualogging.h"
+#include "lua/state.h"
+#include "lua/logging.h"
 #include "rwte/logging.h"
 
 #define LUALOG "LUALOG*"
@@ -9,7 +9,7 @@ struct LuaLogStruct
     std::shared_ptr<logging::Logger> logger;
 };
 
-static inline std::shared_ptr<logging::Logger> tologger(LuaState& L)
+static inline std::shared_ptr<logging::Logger> tologger(lua::State& L)
 {
     auto p = L.checkobj<LuaLogStruct>(1, LUALOG);
     return p->logger;
@@ -17,7 +17,7 @@ static inline std::shared_ptr<logging::Logger> tologger(LuaState& L)
 
 static int logger_log(lua_State *l)
 {
-    LuaState L(l);
+    lua::State L(l);
     auto logger = tologger(L);
 
     auto level = (logging::level_enum) L.checkinteger(2);
@@ -57,7 +57,7 @@ static int logger_log(lua_State *l)
 
 static void call_log(lua_State *l, logging::level_enum level)
 {
-    LuaState L(l);
+    lua::State L(l);
     auto logger = tologger(L);
 
     if (level < logger->level())
@@ -92,7 +92,7 @@ LOGGER_FUNC(fatal)
 
 static int logger_level(lua_State *l)
 {
-    LuaState L(l);
+    lua::State L(l);
     auto logger = tologger(L);
 
     // if we got a second arg, try to set level
@@ -108,7 +108,7 @@ static int logger_level(lua_State *l)
 
 static int logger_gc(lua_State *l)
 {
-    LuaState(l).delobj<LuaLogStruct>(1, LUALOG);
+    lua::State(l).delobj<LuaLogStruct>(1, LUALOG);
     return 0;
 }
 
@@ -129,7 +129,7 @@ static const luaL_Reg logger_funcs[] = {
 static int logging_get(lua_State *l)
 {
     // get the name before doing any allocation
-    LuaState L(l);
+    lua::State L(l);
     const char *name = L.checkstring(1);
 
     // alloc and init
@@ -146,7 +146,7 @@ static const luaL_Reg logging_funcs[] = {
 
 static int logging_openf(lua_State *l)
 {
-    LuaState L(l);
+    lua::State L(l);
 
     // make the lib (1 func, 7 values)
     L.newlib(logging_funcs, 8);
@@ -173,7 +173,7 @@ static int logging_openf(lua_State *l)
 	return 1;
 }
 
-void register_lualogging(LuaState *L)
+void lua::register_lualogging(lua::State *L)
 {
     L->requiref("logging", logging_openf, true);
     L->pop();

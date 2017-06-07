@@ -1,8 +1,11 @@
 #include "rwte/rwte.h"
-#include "rwte/luastate.h"
-#include "rwte/luaconfig.h"
+#include "lua/state.h"
+#include "lua/config.h"
 
-int luaconfig::get_int(const char *name, int def)
+namespace lua {
+namespace config {
+
+int get_int(const char *name, int def)
 {
     auto L = rwte.lua();
     L->getglobal("config");
@@ -13,7 +16,7 @@ int luaconfig::get_int(const char *name, int def)
     return val;
 }
 
-float luaconfig::get_float(const char *name, float def)
+float get_float(const char *name, float def)
 {
     auto L = rwte.lua();
     L->getglobal("config");
@@ -24,7 +27,7 @@ float luaconfig::get_float(const char *name, float def)
     return val;
 }
 
-bool luaconfig::get_bool(const char *name, bool def)
+bool get_bool(const char *name, bool def)
 {
     auto L = rwte.lua();
     L->getglobal("config");
@@ -35,7 +38,7 @@ bool luaconfig::get_bool(const char *name, bool def)
     return val;
 }
 
-std::string luaconfig::get_string(const char *name)
+std::string get_string(const char *name)
 {
     std::string val;
 
@@ -49,3 +52,6 @@ std::string luaconfig::get_string(const char *name)
 
     return val;
 }
+
+} // namespace config
+} // namespace lua

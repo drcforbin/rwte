@@ -27,9 +27,9 @@
 #include "rwte/tty.h"
 #include "rwte/utf8.h"
 #include "rwte/window.h"
-#include "rwte/luaconfig.h"
-#include "rwte/luastate.h"
-#include "rwte/luawindow.h"
+#include "lua/config.h"
+#include "lua/state.h"
+#include "lua/window.h"
 #include "rwte/selection.h"
 
 #define LOGGER() (logging::get("window"))
@@ -43,7 +43,7 @@
 static int get_border_px()
 {
     // if invalid, default to 2
-    return luaconfig::get_int("border_px", 2);
+    return lua::config::get_int("border_px", 2);
 }
 
 // main structure for window data
@@ -313,7 +313,7 @@ void WindowImpl::draw()
 
 static std::string get_term_name()
 {
-    auto name = luaconfig::get_string("term_name");
+    auto name = lua::config::get_string("term_name");
     if (name.empty())
         LOGGER()->fatal("config.term_name is not valid");
     return name;
@@ -683,7 +683,7 @@ void WindowImpl::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
     }
 
     auto L = rwte.lua();
-    if (luawindow_key_press(L.get(), ksym, m_keymod))
+    if (lua::window::call_key_press(L.get(), ksym, m_keymod))
         return;
 
     if (len == 1 && m_keymod[MOD_ALT])

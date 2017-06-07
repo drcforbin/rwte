@@ -4,12 +4,15 @@
 #include <string>
 #include <lua.hpp>
 
-class LuaState
+namespace lua
+{
+
+class State
 {
 public:
-    LuaState();
-    LuaState(lua_State *L);
-    ~LuaState();
+    State();
+    State(lua_State *L);
+    ~State();
 
     lua_State *state() const { return m_L; }
 
@@ -112,5 +115,7 @@ private:
     lua_State *m_L;
     bool m_owns;
 };
+
+} // namespace lua
 
 #endif // LUASTATE_H

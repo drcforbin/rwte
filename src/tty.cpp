@@ -19,7 +19,7 @@
 #include "rwte/tty.h"
 #include "rwte/utf8.h"
 #include "rwte/window.h"
-#include "rwte/luastate.h"
+#include "lua/state.h"
 
 #define LOGGER() (logging::get("tty"))
 

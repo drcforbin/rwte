@@ -16,11 +16,11 @@
 #include "rwte/term.h"
 #include "rwte/tty.h"
 #include "rwte/window.h"
-#include "rwte/luaconfig.h"
-#include "rwte/luastate.h"
-#include "rwte/lualogging.h"
-#include "rwte/luaterm.h"
-#include "rwte/luawindow.h"
+#include "lua/config.h"
+#include "lua/state.h"
+#include "lua/logging.h"
+#include "lua/term.h"
+#include "lua/window.h"
 #include "rwte/version.h"
 
 // globals
@@ -47,7 +47,7 @@ Options::Options() :
 { }
 
 Rwte::Rwte() :
-    m_lua(std::make_shared<LuaState>())
+    m_lua(std::make_shared<lua::State>())
 {
     m_lua->openlibs();
 
@@ -89,7 +89,7 @@ void Rwte::start_blink()
 {
     if (!m_blink.is_active())
     {
-        float rate = luaconfig::get_float(
+        float rate = lua::config::get_float(
                 "blink_rate", DEFAULT_BLINK_RATE);
 
         m_blink.start(rate, rate);
@@ -128,7 +128,7 @@ void Rwte::blinkcb(ev::timer &, int)
     g_term->blink();
 }
 
-static void add_to_search_path(LuaState *L, const std::vector<std::string>& searchpaths, bool for_lua)
+static void add_to_search_path(lua::State *L, const std::vector<std::string>& searchpaths, bool for_lua)
 {
     if (L->type(-1) != LUA_TSTRING)
     {
@@ -171,7 +171,7 @@ static void add_to_search_path(LuaState *L, const std::vector<std::string>& sear
     }
 }
 
-static bool run_file(LuaState *L, const char *path)
+static bool run_file(lua::State *L, const char *path)
 {
     if (L->loadfile(path) || L->pcall(0, 0, 0))
     {
@@ -183,7 +183,7 @@ static bool run_file(LuaState *L, const char *path)
         return true;
 }
 
-static bool run_config(LuaState *L, xdgHandle *xdg, const char *confpatharg)
+static bool run_config(lua::State *L, xdgHandle *xdg, const char *confpatharg)
 {
     // try specified path first
     if (confpatharg)

@@ -13,9 +13,9 @@
 #include "rwte/tty.h"
 #include "rwte/utf8.h"
 #include "rwte/window.h"
-#include "rwte/luaconfig.h"
-#include "rwte/luastate.h"
-#include "rwte/luawindow.h"
+#include "lua/config.h"
+#include "lua/state.h"
+#include "lua/window.h"
 #include "rwte/selection.h"
 
 #define LOGGER() (logging::get("term"))
@@ -108,7 +108,7 @@ static const int DEFAULT_TCLICK_TIMEOUT = 600;
 
 static cursor_type get_cursor_type()
 {
-    auto cursor_type = luaconfig::get_string("cursor_type");
+    auto cursor_type = lua::config::get_string("cursor_type");
 
     if (cursor_type == "blink block")
         return CURSOR_BLINK_BLOCK;
@@ -133,7 +133,7 @@ static bool allow_alt_screen()
         return false;
 
     // option not set, check lua config
-    return luaconfig::get_bool("allow_alt_screen", true);
+    return lua::config::get_bool("allow_alt_screen", true);
 }
 
 class TermImpl
@@ -399,7 +399,7 @@ void TermImpl::resize(int cols, int rows)
 
     if (cols > m_cols)
     {
-        int tab_spaces = luaconfig::get_int(
+        int tab_spaces = lua::config::get_int(
                 "tab_spaces", DEFAULT_TAB_SPACES);
 
         // point to end of old size
@@ -903,7 +903,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
 
             // todo: this call originates from term, when it really
             // makes a lot more sense to be called from window
-            if (luawindow_mouse_press(L.get(), col, row, button, mod))
+            if (lua::window::call_mouse_press(L.get(), col, row, button, mod))
                 return;
 
             // start selection?
@@ -1432,7 +1432,7 @@ void TermImpl::controlcode(unsigned char ascii)
                 window.seturgent(true);
 
             // default bell_volume to 0 if invalid
-            int bell_volume = luaconfig::get_int( "bell_volume", 0);
+            int bell_volume = lua::config::get_int( "bell_volume", 0);
             LIMIT(bell_volume, -100, 100);
 
             if (bell_volume)
@@ -1495,7 +1495,7 @@ void TermImpl::controlcode(unsigned char ascii)
         break;
     case 0x9a:   // DECID -- Identify Terminal
         {
-            auto term_id = luaconfig::get_string("term_id");
+            auto term_id = lua::config::get_string("term_id");
             g_tty->write(term_id);
         }
         break;
@@ -1566,7 +1566,7 @@ bool TermImpl::eschandle(unsigned char ascii)
         break;
     case 'Z': // DECID -- Identify Terminal
         {
-            auto term_id = luaconfig::get_string("term_id");
+            auto term_id = lua::config::get_string("term_id");
             g_tty->write(term_id);
         }
         break;
@@ -1889,7 +1889,7 @@ void TermImpl::csihandle()
     case 'c': // DA -- Device Attributes
         if (m_csiesc.arg[0] == 0)
         {
-            auto term_id = luaconfig::get_string("term_id");
+            auto term_id = lua::config::get_string("term_id");
             g_tty->write(term_id);
         }
         break;

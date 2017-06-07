@@ -6,13 +6,22 @@
 
 // lua window integration
 
-class LuaState;
+namespace lua
+{
 
-void register_luawindow(LuaState *L);
+class State;
 
-bool luawindow_mouse_press(LuaState *L, int col, int row, int button,
+void register_luawindow(State *L);
+
+namespace window
+{
+
+bool call_mouse_press(State *L, int col, int row, int button,
         const keymod_state& mods);
-bool luawindow_key_press(LuaState *L, int keysym,
+bool call_key_press(State *L, int keysym,
         const keymod_state& mods);
+
+} // namespace window
+} // namespace lua
 
 #endif // LUAWINDOW_H

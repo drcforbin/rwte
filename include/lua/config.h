@@ -3,7 +3,9 @@
 
 #include <string>
 
-namespace luaconfig
+namespace lua
+{
+namespace config
 {
 
 // helper functions for global lua config.
@@ -16,6 +18,7 @@ float get_float(const char *name, float def);
 bool get_bool(const char *name, bool def);
 std::string get_string(const char *name);
 
-} // ns config
+} // namespace config
+} // namespace lua
 
 #endif // LUACONFIG_H

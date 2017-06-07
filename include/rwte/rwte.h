@@ -8,7 +8,10 @@
 
 #include <ev++.h>
 
-class LuaState;
+namespace lua
+{
+class State;
+} // namespace lua
 
 class Options
 {
@@ -41,7 +44,7 @@ public:
     void start_blink();
     void stop_blink();
 
-    std::shared_ptr<LuaState> lua() { return m_lua; }
+    std::shared_ptr<lua::State> lua() { return m_lua; }
 
 private:
     void childcb(ev::child &w, int);
@@ -52,7 +55,7 @@ private:
     ev::timer m_flush;
     ev::timer m_blink;
 
-    std::shared_ptr<LuaState> m_lua;
+    std::shared_ptr<lua::State> m_lua;
 };
 
 extern Rwte rwte;

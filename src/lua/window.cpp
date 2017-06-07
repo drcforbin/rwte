@@ -1,8 +1,8 @@
 #include <xkbcommon/xkbcommon-keysyms.h>
 
 #include "rwte/window.h"
-#include "rwte/luastate.h"
-#include "rwte/luawindow.h"
+#include "lua/state.h"
+#include "lua/window.h"
 #include "rwte/logging.h"
 
 #define LOGGER() (logging::get("luawindow"))
@@ -12,14 +12,14 @@ static int window_key_press_ref = LUA_NOREF;
 
 static int luawindow_mouse_press(lua_State *l)
 {
-    LuaState L(l);
+    lua::State L(l);
     window_mouse_press_ref = L.setfuncref(1, window_mouse_press_ref);
     return 0;
 }
 
 static int luawindow_key_press(lua_State *l)
 {
-    LuaState L(l);
+    lua::State L(l);
     window_key_press_ref = L.setfuncref(1, window_key_press_ref);
     return 0;
 }
@@ -48,7 +48,7 @@ static const luaL_Reg window_funcs[] = {
 
 static int window_openf(lua_State *l)
 {
-    LuaState L(l);
+    lua::State L(l);
 
     // make the lib (4 funcs, 1 value)
     L.newlib(window_funcs, 5);
@@ -216,13 +216,13 @@ static int window_openf(lua_State *l)
 	return 1;
 }
 
-void register_luawindow(LuaState *L)
+void lua::register_luawindow(lua::State *L)
 {
     L->requiref("window", window_openf, true);
     L->pop();
 }
 
-bool luawindow_mouse_press(LuaState *L, int col, int row, int button,
+bool lua::window::call_mouse_press(lua::State *L, int col, int row, int button,
         const keymod_state& mods)
 {
     // first, try to push the mouse_press ref
@@ -257,7 +257,7 @@ bool luawindow_mouse_press(LuaState *L, int col, int row, int button,
     }
 }
 
-bool luawindow_key_press(LuaState *L, int keysym,
+bool lua::window::call_key_press(lua::State *L, int keysym,
         const keymod_state& mods)
 {
     // first, try to push the key_press ref

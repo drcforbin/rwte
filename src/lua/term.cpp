@@ -1,5 +1,5 @@
-#include "rwte/luastate.h"
-#include "rwte/luaterm.h"
+#include "lua/state.h"
+#include "lua/term.h"
 #include "rwte/logging.h"
 #include "rwte/term.h"
 
@@ -7,7 +7,7 @@
 
 static int luaterm_mode(lua_State *l)
 {
-    LuaState L(l);
+    lua::State L(l);
     auto mode = (term_mode_enum) L.checkinteger(1);
     L.pushbool(g_term->mode()[mode]);
     return 1;
@@ -15,7 +15,7 @@ static int luaterm_mode(lua_State *l)
 
 static int luaterm_send(lua_State *l)
 {
-    LuaState L(l);
+    lua::State L(l);
     size_t len = 0;
     const char * buffer = L.checklstring(1, &len);
     g_term->send(buffer, len);
@@ -38,7 +38,7 @@ static const luaL_Reg term_funcs[] = {
 
 static int term_openf(lua_State *l)
 {
-    LuaState L(l);
+    lua::State L(l);
 
     // make the lib (3 funcs, 1 values)
     L.newlib(term_funcs, 4);
@@ -76,7 +76,7 @@ static int term_openf(lua_State *l)
 	return 1;
 }
 
-void register_luaterm(LuaState *L)
+void lua::register_luaterm(lua::State *L)
 {
     L->requiref("term", term_openf, true);
     L->pop();
