@@ -468,6 +468,9 @@ Tty::~Tty()
 void Tty::resize()
 { impl->resize(); }
 
+void Tty::write(const std::string& data)
+{ impl->write(data.c_str(), data.size()); }
+
 void Tty::write(const char *data, std::size_t len)
 { impl->write(data, len); }
 

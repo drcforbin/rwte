@@ -2,6 +2,7 @@
 #define TTY_H
 
 #include <memory>
+#include <string>
 
 class TtyImpl;
 
@@ -13,7 +14,9 @@ public:
 
     void resize();
 
+    void write(const std::string& data);
     void write(const char *data, std::size_t len);
+
     void print(const char *data, std::size_t len);
 
     void hup();
