@@ -880,13 +880,13 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
         {
             std::string seq = fmt::format("\033[<{};{};{}{:c}",
                     cb, col+1, row+1, (evt == MOUSE_RELEASE)? 'm' : 'M');
-            g_tty->write(seq.c_str(), seq.size());
+            g_tty->write(seq);
         }
         else if (col < 223 && row < 223)
         {
             std::string seq = fmt::format("\033[M{:c}{:c}{:c}",
                     (char) (32+cb), (char) (32+col+1), (char) (32+row+1));
-            g_tty->write(seq.c_str(), seq.size());
+            g_tty->write(seq);
         }
         else
         {
@@ -1496,7 +1496,7 @@ void TermImpl::controlcode(unsigned char ascii)
     case 0x9a:   // DECID -- Identify Terminal
         {
             auto term_id = luaconfig::get_string("term_id");
-            g_tty->write(term_id.c_str(), term_id.size());
+            g_tty->write(term_id);
         }
         break;
     case 0x9b:   // TODO: CSI
@@ -1567,7 +1567,7 @@ bool TermImpl::eschandle(unsigned char ascii)
     case 'Z': // DECID -- Identify Terminal
         {
             auto term_id = luaconfig::get_string("term_id");
-            g_tty->write(term_id.c_str(), term_id.size());
+            g_tty->write(term_id);
         }
         break;
     case 'c': // RIS -- Reset to inital state
@@ -1890,7 +1890,7 @@ void TermImpl::csihandle()
         if (m_csiesc.arg[0] == 0)
         {
             auto term_id = luaconfig::get_string("term_id");
-            g_tty->write(term_id.c_str(), term_id.size());
+            g_tty->write(term_id);
         }
         break;
     case 'C': // CUF -- Cursor <n> Forward
@@ -2022,7 +2022,7 @@ void TermImpl::csihandle()
             std::string seq = fmt::format(
                     "\033[{};{}R",
                     m_cursor.row+1, m_cursor.col+1);
-            g_tty->write(seq.c_str(), seq.size());
+            g_tty->write(seq);
         }
         break;
     case 'r': // DECSTBM -- Set Scrolling Region
