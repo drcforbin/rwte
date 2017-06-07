@@ -27,6 +27,7 @@
 #include "rwte/tty.h"
 #include "rwte/utf8.h"
 #include "rwte/window.h"
+#include "rwte/luaconfig.h"
 #include "rwte/luastate.h"
 #include "rwte/luawindow.h"
 #include "rwte/selection.h"
@@ -42,13 +43,7 @@
 static int get_border_px()
 {
     // if invalid, default to 2
-    auto L = rwte.lua();
-    L->getglobal("config");
-    L->getfield(-1, "border_px");
-    int border_px = L->tointegerdef(-1, 2);
-    L->pop(2);
-
-    return border_px;
+    return luaconfig::get_int("border_px", 2);
 }
 
 // main structure for window data
@@ -318,14 +313,9 @@ void WindowImpl::draw()
 
 static std::string get_term_name()
 {
-    auto L = rwte.lua();
-    L->getglobal("config");
-    L->getfield(-1, "term_name");
-    const char * s = L->tostring(-1);
-    if (!s)
+    auto name = luaconfig::get_string("term_name");
+    if (name.empty())
         LOGGER()->fatal("config.term_name is not valid");
-    std::string name = s;
-    L->pop(2);
     return name;
 }
 

@@ -9,6 +9,7 @@
 #include "rwte/term.h"
 #include "rwte/utf8.h"
 #include "rwte/rwte.h"
+#include "rwte/luaconfig.h"
 #include "rwte/luastate.h"
 #include "rwte/selection.h"
 
@@ -56,17 +57,9 @@ static unique_font_desc create_font_desc()
     if (font.empty())
     {
         // get font from lua config
-        auto L = rwte.lua();
-        L->getglobal("config");
-        L->getfield(-1, "font");
-
-        const char * s = L->tostring(-1);
-        if (!s)
+        font = luaconfig::get_string("font");
+        if (font.empty())
             LOGGER()->fatal("config.font is invalid");
-        else
-            font = s;
-
-        L->pop(2);
     }
 
     unique_font_desc fontdesc(pango_font_description_from_string(font.c_str()));
@@ -130,25 +123,13 @@ static void set_cairo_color(cairo_t *cr, uint32_t color)
 static int get_border_px()
 {
     // if invalid, default to 2
-    auto L = rwte.lua();
-    L->getglobal("config");
-    L->getfield(-1, "border_px");
-    int border_px = L->tointegerdef(-1, 2);
-    L->pop(2);
-
-    return border_px;
+    return luaconfig::get_int("border_px", 2);
 }
 
 static int get_cursor_thickness()
 {
     // if invalid, default to 2
-    auto L = rwte.lua();
-    L->getglobal("config");
-    L->getfield(-1, "cursor_thickness");
-    int cursor_thickness = L->tointegerdef(-1, 2);
-    L->pop(2);
-
-    return cursor_thickness;
+    return luaconfig::get_int("cursor_thickness", 2);
 }
 
 class Surface

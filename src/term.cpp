@@ -13,6 +13,7 @@
 #include "rwte/tty.h"
 #include "rwte/utf8.h"
 #include "rwte/window.h"
+#include "rwte/luaconfig.h"
 #include "rwte/luastate.h"
 #include "rwte/luawindow.h"
 #include "rwte/selection.h"
@@ -107,11 +108,7 @@ static const int DEFAULT_TCLICK_TIMEOUT = 600;
 
 static cursor_type get_cursor_type()
 {
-    auto L = rwte.lua();
-    L->getglobal("config");
-    L->getfield(-1, "cursor_type");
-    std::string cursor_type = L->tostring(-1);
-    L->pop(2);
+    auto cursor_type = luaconfig::get_string("cursor_type");
 
     if (cursor_type == "blink block")
         return CURSOR_BLINK_BLOCK;
@@ -136,20 +133,7 @@ static bool allow_alt_screen()
         return false;
 
     // option not set, check lua config
-    auto L = rwte.lua();
-    L->getglobal("config");
-    L->getfield(-1, "allow_alt_screen");
-
-    // if the field is missing, default to true
-    bool allow;
-    if (L->isnil(-1))
-        allow = true;
-    else
-        allow = L->tobool(-1);
-
-    L->pop(2);
-
-    return allow;
+    return luaconfig::get_bool("allow_alt_screen", true);
 }
 
 class TermImpl
@@ -415,11 +399,8 @@ void TermImpl::resize(int cols, int rows)
 
     if (cols > m_cols)
     {
-        auto L = rwte.lua();
-        L->getglobal("config");
-        L->getfield(-1, "tab_spaces");
-        int tab_spaces = L->tointegerdef(-1, DEFAULT_TAB_SPACES);
-        L->pop(2);
+        int tab_spaces = luaconfig::get_int(
+                "tab_spaces", DEFAULT_TAB_SPACES);
 
         // point to end of old size
         auto bp = m_tabs.begin() + m_cols;
@@ -1451,12 +1432,8 @@ void TermImpl::controlcode(unsigned char ascii)
                 window.seturgent(true);
 
             // default bell_volume to 0 if invalid
-            auto L = rwte.lua();
-            L->getglobal("config");
-            L->getfield(-1, "bell_volume");
-            int bell_volume = L->tointegerdef(-1, 0);
+            int bell_volume = luaconfig::get_int( "bell_volume", 0);
             LIMIT(bell_volume, -100, 100);
-            L->pop(2);
 
             if (bell_volume)
                 window.bell(bell_volume);
@@ -1518,12 +1495,8 @@ void TermImpl::controlcode(unsigned char ascii)
         break;
     case 0x9a:   // DECID -- Identify Terminal
         {
-            auto L = rwte.lua();
-            L->getglobal("config");
-            L->getfield(-1, "term_id");
-            const char * term_id = L->tostring(-1);
-            g_tty->write(term_id, std::strlen(term_id));
-            L->pop(2);
+            auto term_id = luaconfig::get_string("term_id");
+            g_tty->write(term_id.c_str(), term_id.size());
         }
         break;
     case 0x9b:   // TODO: CSI
@@ -1593,12 +1566,8 @@ bool TermImpl::eschandle(unsigned char ascii)
         break;
     case 'Z': // DECID -- Identify Terminal
         {
-            auto L = rwte.lua();
-            L->getglobal("config");
-            L->getfield(-1, "term_id");
-            const char * term_id = L->tostring(-1);
-            g_tty->write(term_id, std::strlen(term_id));
-            L->pop(2);
+            auto term_id = luaconfig::get_string("term_id");
+            g_tty->write(term_id.c_str(), term_id.size());
         }
         break;
     case 'c': // RIS -- Reset to inital state
@@ -1920,12 +1889,8 @@ void TermImpl::csihandle()
     case 'c': // DA -- Device Attributes
         if (m_csiesc.arg[0] == 0)
         {
-            auto L = rwte.lua();
-            L->getglobal("config");
-            L->getfield(-1, "term_id");
-            const char * term_id = L->tostring(-1);
-            g_tty->write(term_id, std::strlen(term_id));
-            L->pop(2);
+            auto term_id = luaconfig::get_string("term_id");
+            g_tty->write(term_id.c_str(), term_id.size());
         }
         break;
     case 'C': // CUF -- Cursor <n> Forward

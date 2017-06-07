@@ -16,6 +16,7 @@
 #include "rwte/term.h"
 #include "rwte/tty.h"
 #include "rwte/window.h"
+#include "rwte/luaconfig.h"
 #include "rwte/luastate.h"
 #include "rwte/lualogging.h"
 #include "rwte/luaterm.h"
@@ -88,15 +89,8 @@ void Rwte::start_blink()
 {
     if (!m_blink.is_active())
     {
-        m_lua->getglobal("config");
-        m_lua->getfield(-1, "blink_rate");
-
-        int isnum = 0;
-        float rate = m_lua->tonumberx(-1, &isnum);
-        if (!isnum)
-            rate = DEFAULT_BLINK_RATE;
-
-        m_lua->pop(2);
+        float rate = luaconfig::get_float(
+                "blink_rate", DEFAULT_BLINK_RATE);
 
         m_blink.start(rate, rate);
     }
