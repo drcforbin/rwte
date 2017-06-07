@@ -162,8 +162,26 @@ float LuaState::tonumber(int index)
 float LuaState::tonumberx(int index, int *isnum)
 { return lua_tonumberx(m_L, index, isnum); }
 
+float LuaState::tonumberdef(int index, float def)
+{
+    int isnum = 0;
+    float val = tonumberx(index, &isnum);
+    if (isnum)
+        return val;
+    else
+        return def;
+}
+
 bool LuaState::tobool(int index)
 { return lua_toboolean(m_L, index) != 0; }
+
+bool LuaState::tobooldef(int index, bool def)
+{
+    if (isnil(index))
+        return def;
+    else
+        return tobool(index);
+}
 
 void LuaState::pushbool(bool b)
 { lua_pushboolean(m_L, b? 1 : 0); }

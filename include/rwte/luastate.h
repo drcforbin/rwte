@@ -65,8 +65,10 @@ public:
 
     float tonumber(int index);
     float tonumberx(int index, int *isnum);
+    float tonumberdef(int index, float def);
 
     bool tobool(int index);
+    bool tobooldef(int index, bool def);
     void pushbool(bool b);
 
     void setobjfuncs(const char *tname, const luaL_Reg *funcs);
