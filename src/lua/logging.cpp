@@ -90,20 +90,35 @@ LOGGER_FUNC(warn)
 LOGGER_FUNC(err)
 LOGGER_FUNC(fatal)
 
-static int logger_level(lua_State *l)
+static int logger_index(lua_State *l)
 {
     lua::State L(l);
     auto logger = tologger(L);
 
-    // if we got a second arg, try to set level
-    if (L.gettop() > 1)
+    const char * key = L.checkstring(2);
+
+    if (std::strcmp(key, "level") == 0)
+        L.pushinteger(logger->level());
+    else
+        L.pushnil();
+
+    return 1;
+}
+
+static int logger_newindex(lua_State *l)
+{
+    lua::State L(l);
+    auto logger = tologger(L);
+
+    const char * key = L.checkstring(2);
+
+    if (std::strcmp(key, "level") == 0)
     {
-        auto level = (logging::level_enum) L.checkinteger(2);
+        auto level = (logging::level_enum) L.checkinteger(3);
         logger->level(level);
     }
 
-    L.pushinteger(logger->level());
-    return 1;
+    return 0;
 }
 
 static int logger_gc(lua_State *l)
@@ -121,7 +136,8 @@ static const luaL_Reg logger_funcs[] = {
     {"warn", logger_warn},
     {"err", logger_err},
     {"fatal", logger_fatal},
-    {"level", logger_level},
+    {"__index", logger_index},
+    {"__newindex", logger_newindex},
     {"__gc", logger_gc},
     {NULL, NULL},
 };
