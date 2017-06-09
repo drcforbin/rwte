@@ -36,6 +36,18 @@ static int luawindow_selpaste(lua_State *l)
     return 0;
 }
 
+static int luawindow_index(lua_State *l)
+{
+    lua::State L(l);
+    const char * key = L.checkstring(2);
+
+    if (std::strcmp(key, "id") == 0)
+        L.pushinteger(window.windowid());
+    else
+        L.pushnil();
+
+    return 1;
+}
 
 // functions for window library
 static const luaL_Reg window_funcs[] = {
@@ -213,7 +225,14 @@ static int window_openf(lua_State *l)
 #undef PUSH_ENUM_FIELD
     L.setfield(-2, "keys");
 
-	return 1;
+    // set lib's metatable, including an __index
+    // function so window.x can be used
+    L.newtable();
+    L.pushcfunction(luawindow_index);
+    L.setfield(-2, "__index");
+    L.setmetatable(-2);
+
+    return 1;
 }
 
 void lua::register_luawindow(lua::State *L)
