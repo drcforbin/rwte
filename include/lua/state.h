@@ -28,7 +28,9 @@ public:
     void newlib(const luaL_Reg *l, int entries = 0);
     void setfuncs(const luaL_Reg *l, int nup = 0);
     void requiref(const char *modname, lua_CFunction openf, bool glb);
+    void pushcfunction(lua_CFunction f);
 
+    void pushnil();
     void pushlightuserdata(void *p);
     void *touserdata(int index);
     void pushcclosure(int (*fn)(lua_State *), int n);

@@ -65,6 +65,12 @@ void State::setfuncs(const luaL_Reg *l, int nup /* = 0 */)
 void State::requiref(const char *modname, lua_CFunction openf, bool glb)
 { luaL_requiref(m_L, modname, openf, glb? 1 : 0); }
 
+void State::pushcfunction(lua_CFunction f)
+{ lua_pushcfunction(m_L, f); }
+
+void State::pushnil()
+{ lua_pushnil(m_L); }
+
 void State::pushlightuserdata(void *p)
 { lua_pushlightuserdata(m_L, p); }
 
