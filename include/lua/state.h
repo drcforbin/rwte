@@ -91,7 +91,7 @@ public:
     template <typename T>
     T *checkobj(int arg, const char *tname)
     {
-        return reinterpret_cast<T *>(
+        return static_cast<T *>(
             luaL_checkudata(m_L, arg, tname));
     }
 
