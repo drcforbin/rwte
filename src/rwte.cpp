@@ -441,9 +441,6 @@ int main(int argc, char *argv[])
         L->pop();
     }
 
-    // get ready, loop!
-    ev::default_loop main_loop;
-
     // get cols and rows, default to 80x24
     if (cols == 0 || rows == 0)
     {
@@ -457,6 +454,9 @@ int main(int argc, char *argv[])
 
     cols = MAX(cols, 1);
     rows = MAX(rows, 1);
+
+    // get ready, loop!
+    ev::default_loop main_loop;
 
     g_term = std::make_unique<Term>(cols, rows);
 
