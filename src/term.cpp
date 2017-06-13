@@ -604,41 +604,40 @@ void TermImpl::putc(Rune u)
                 return;
             }
             m_esc.set(ESC_STR_END);
-            goto check_control_code;
         }
-
-
-        if (m_mode[MODE_SIXEL])
+        else
         {
-            // TODO: implement sixel mode
+            if (m_mode[MODE_SIXEL])
+            {
+                // TODO: implement sixel mode
+                return;
+            }
+
+            if (m_esc[ESC_DCS] && m_stresc.len == 0 && u == 'q')
+                m_mode.set(MODE_SIXEL);
+
+            if (m_stresc.len+len >= sizeof(m_stresc.buf)-1)
+            {
+                // Here is a bug in terminals. If the user never sends
+                // some code to stop the str or esc command, then we
+                // will stop responding. But this is better than
+                // silently failing with unknown characters. At least
+                // then users will report back.
+                //
+                // In the case users ever get fixed, here is the code:
+                //
+                // m_esc.reset();
+                // strhandle();
+                //
+                return;
+            }
+
+            std::memmove(&m_stresc.buf[m_stresc.len], c, len);
+            m_stresc.len += len;
             return;
         }
-
-        if (m_esc[ESC_DCS] && m_stresc.len == 0 && u == 'q')
-            m_mode.set(MODE_SIXEL);
-
-        if (m_stresc.len+len >= sizeof(m_stresc.buf)-1)
-        {
-            // Here is a bug in terminals. If the user never sends
-            // some code to stop the str or esc command, then we
-            // will stop responding. But this is better than
-            // silently failing with unknown characters. At least
-            // then users will report back.
-            //
-            // In the case users ever get fixed, here is the code:
-            //
-            // m_esc.reset();
-            // strhandle();
-            //
-            return;
-        }
-
-        std::memmove(&m_stresc.buf[m_stresc.len], c, len);
-        m_stresc.len += len;
-        return;
     }
 
-check_control_code:
     // Actions of control codes must be performed as soon they arrive
     // because they can be embedded inside a control sequence, and
     // they must not cause conflicts with sequences.
