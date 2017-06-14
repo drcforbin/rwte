@@ -291,7 +291,7 @@ int main(int argc, char *argv[])
     }
     L->setglobal("args");
 
-    static struct option long_options[] =
+    static const struct option long_options[] =
     {
         {"config", required_argument, nullptr, 'c'},
         {"winclass", required_argument, nullptr, 'w'},
