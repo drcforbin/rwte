@@ -477,7 +477,6 @@ void WindowImpl::register_atoms()
 
 void WindowImpl::setup_xkb()
 {
-    static uint8_t xkb_base_error; // todo: work this out in the event loop
     if (xkb_x11_setup_xkb_extension(connection,
             XKB_X11_MIN_MAJOR_XKB_VERSION,
             XKB_X11_MIN_MINOR_XKB_VERSION,
@@ -485,7 +484,7 @@ void WindowImpl::setup_xkb()
             NULL,
             NULL,
             &xkb_base_event,
-            &xkb_base_error) != 1)
+            NULL) != 1)
         LOGGER()->fatal("could not setup XKB extension.");
 
     const uint16_t required_map_parts =
