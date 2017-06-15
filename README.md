@@ -4,7 +4,6 @@ xcb terminal emulator, with lua, cairo, and pango
 
 ## Todo
 
-* Commit a working config file
 * Shifted function/insert/del/end/etc keys, like what's done in urxvt
 * Implement urgent and bell in Window
 * Look into XEMBED
