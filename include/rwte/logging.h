@@ -10,7 +10,7 @@
 namespace logging
 {
 
-typedef enum
+using level_enum = enum
 {
     trace = 0,
     debug = 1,
@@ -19,7 +19,7 @@ typedef enum
     err = 4,
     fatal = 5,
     off = 6
-} level_enum;
+};
 
 class Logger
 {

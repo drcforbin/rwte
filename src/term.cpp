@@ -57,7 +57,7 @@ enum escape_state_enum
     ESC_LAST = ESC_DCS
 };
 
-typedef std::bitset<ESC_LAST+1> escape_state;
+using escape_state = std::bitset<ESC_LAST+1>;
 
 enum cursor_movement
 {

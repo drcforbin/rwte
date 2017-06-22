@@ -23,20 +23,20 @@
 #define GREENBYTE(c) ((c & 0x00FF00) >> 8)
 #define BLUEBYTE(c) (c & 0x0000FF)
 
-typedef std::shared_ptr<cairo_font_options_t> shared_font_options;
+using shared_font_options = std::shared_ptr<cairo_font_options_t>;
 
 struct font_desc_deleter {
     void operator()(PangoFontDescription* fontdesc) { if (fontdesc) pango_font_description_free(fontdesc); }
 };
-typedef std::unique_ptr<PangoFontDescription, font_desc_deleter> unique_font_desc;
+using unique_font_desc = std::unique_ptr<PangoFontDescription, font_desc_deleter>;
 
 struct layout_deleter {
     void operator()(PangoLayout* layout) { if (layout) g_object_unref(layout); }
 };
-typedef std::unique_ptr<PangoLayout, layout_deleter> unique_layout;
+using unique_layout = std::unique_ptr<PangoLayout, layout_deleter>;
 
-typedef std::shared_ptr<cairo_surface_t> shared_surface;
-typedef std::shared_ptr<cairo_t> shared_cairo;
+using shared_surface = std::shared_ptr<cairo_surface_t>;
+using shared_cairo = std::shared_ptr<cairo_t>;
 
 static shared_font_options create_font_options()
 {

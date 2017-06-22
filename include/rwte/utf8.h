@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-typedef uint_least32_t Rune;
+using Rune = uint_least32_t;
 
 const int utf_size = 4;
 const Rune utf_invalid = 0xFFFD;

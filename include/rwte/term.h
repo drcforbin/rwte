@@ -20,7 +20,7 @@ enum keymod_state_enum
     MOD_LAST = MOD_LOGO
 };
 
-typedef std::bitset<MOD_LAST+1> keymod_state;
+using keymod_state = std::bitset<MOD_LAST+1>;
 
 enum glyph_attribute_enum
 {
@@ -39,7 +39,7 @@ enum glyph_attribute_enum
     // ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
 };
 
-typedef std::bitset<ATTR_LAST+1> glyph_attribute;
+using glyph_attribute = std::bitset<ATTR_LAST+1>;
 
 enum term_mode_enum
 {
@@ -69,13 +69,13 @@ enum term_mode_enum
     MODE_LAST = MODE_SIXEL
 };
 
-typedef std::bitset<MODE_LAST+1> term_mode;
+using term_mode = std::bitset<MODE_LAST+1>;
 
 const term_mode mouse_modes(
         1 << MODE_MOUSEBTN | 1 << MODE_MOUSEMOTION |
         1 << MODE_MOUSEX10 | 1 << MODE_MOUSEMANY);
 
-typedef uint_least32_t Rune;
+using Rune = uint_least32_t;
 
 struct Glyph
 {
