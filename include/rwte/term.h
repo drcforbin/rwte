@@ -1,5 +1,5 @@
-#ifndef TERM_H
-#define TERM_H
+#ifndef RWTE_TERM_H
+#define RWTE_TERM_H
 
 #include <memory>
 #include <bitset>
@@ -157,4 +157,4 @@ private:
 
 extern std::unique_ptr<Term> g_term;
 
-#endif // TERM_H
+#endif // RWTE_TERM_H

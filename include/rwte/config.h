@@ -1,5 +1,5 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef RWTE_CONFIG_H
+#define RWTE_CONFIG_H
 
 // selection type key modifier masks
 // if all the modifiers in the mask are set, the type will be used
@@ -29,4 +29,4 @@
 
 #define DOUBLE_BUFFER false
 
-#endif // CONFIG_H
+#endif // RWTE_CONFIG_H

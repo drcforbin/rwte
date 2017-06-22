@@ -1,5 +1,5 @@
-#ifndef TTY_H
-#define TTY_H
+#ifndef RWTE_TTY_H
+#define RWTE_TTY_H
 
 #include <memory>
 #include <string>
@@ -27,4 +27,4 @@ private:
 
 extern std::unique_ptr<Tty> g_tty;
 
-#endif // TTY_H
+#endif // RWTE_TTY_H

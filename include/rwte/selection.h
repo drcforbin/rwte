@@ -1,5 +1,5 @@
-#ifndef SELECTION_H
-#define SELECTION_H
+#ifndef RWTE_SELECTION_H
+#define RWTE_SELECTION_H
 
 #include <time.h>
 #include <memory>
@@ -52,4 +52,4 @@ struct Selection
 	struct timespec tclick2;
 };
 
-#endif // SELECTION_H
+#endif // RWTE_SELECTION_H

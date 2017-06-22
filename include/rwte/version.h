@@ -1,6 +1,6 @@
-#ifndef VERSION_H
-#define VERSION_H
+#ifndef RWTE_VERSION_H
+#define RWTE_VERSION_H
 
 const char *version_string();
 
-#endif // VERSION_H
+#endif // RWTE_VERSION_H

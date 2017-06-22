@@ -1,5 +1,5 @@
-#ifndef SCREEN_H
-#define SCREEN_H
+#ifndef RWTE_WINDOW_H
+#define RWTE_WINDOW_H
 
 #include <memory>
 
@@ -47,4 +47,4 @@ private:
 
 extern Window window;
 
-#endif // SCREEN_H
+#endif // RWTE_WINDOW_H

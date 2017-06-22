@@ -1,5 +1,5 @@
-#ifndef UTF8_H
-#define UTF8_H
+#ifndef RWTE_UTF8_H
+#define RWTE_UTF8_H
 
 #include <cstdint>
 
@@ -13,4 +13,4 @@ std::size_t utf8decode(const char *c, Rune *u, std::size_t clen);
 std::size_t utf8encode(Rune u, char *c);
 const char * utf8strchr(const char *s, Rune u);
 
-#endif // UTF8_H
+#endif // RWTE_UTF8_H

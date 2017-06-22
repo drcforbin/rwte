@@ -1,5 +1,5 @@
-#ifndef LOG_H
-#define LOG_H
+#ifndef RWTE_LOGGING_H
+#define RWTE_LOGGING_H
 
 #include <memory>
 #include <string>
@@ -206,4 +206,4 @@ inline void logging::Logger::fatal(const T& msg)
     log(logging::fatal, msg);
 }
 
-#endif // LOG_H
+#endif // RWTE_LOGGING_H

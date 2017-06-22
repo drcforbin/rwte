@@ -1,5 +1,5 @@
-#ifndef RENDER_H
-#define RENDER_H
+#ifndef RWTE_RENDERER_H
+#define RWTE_RENDERER_H
 
 #include <memory>
 
@@ -32,4 +32,4 @@ private:
     std::unique_ptr<RendererImpl> impl;
 };
 
-#endif // RENDER_H
+#endif // RWTE_RENDERER_H

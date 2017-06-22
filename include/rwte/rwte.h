@@ -1,5 +1,5 @@
-#ifndef RWTE_H
-#define RWTE_H
+#ifndef RWTE_RWTE_H
+#define RWTE_RWTE_H
 
 #include <sys/types.h>
 #include <cstdint>
@@ -60,4 +60,4 @@ private:
 
 extern Rwte rwte;
 
-#endif // RWTE_H
+#endif // RWTE_RWTE_H

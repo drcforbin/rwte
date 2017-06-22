@@ -1,5 +1,5 @@
-#ifndef SIGWATCHER_H
-#define SIGWATCHER_H
+#ifndef RWTE_SIGWATCHER_H
+#define RWTE_SIGWATCHER_H
 
 #include <ev++.h>
 
@@ -18,4 +18,4 @@ class SigWatcher
         ev::sig m_sig_hup;
 };
 
-#endif // SIGWATCHER_H
+#endif // RWTE_SIGWATCHER_H
