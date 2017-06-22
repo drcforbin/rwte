@@ -32,7 +32,7 @@ bool get_bool(const char *name, bool def)
     auto L = rwte.lua();
     L->getglobal("config");
     L->getfield(-1, name);
-    float val = L->tobooldef(-1, def);
+    bool val = L->tobooldef(-1, def);
     L->pop(2);
 
     return val;
