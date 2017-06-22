@@ -1,5 +1,5 @@
-#ifndef LUASTATE_H
-#define LUASTATE_H
+#ifndef LUA_STATE_H
+#define LUA_STATE_H
 
 #include <string>
 #include <lua.hpp>
@@ -120,4 +120,4 @@ private:
 
 } // namespace lua
 
-#endif // LUASTATE_H
+#endif // LUA_STATE_H

@@ -1,5 +1,5 @@
-#ifndef LUACONFIG_H
-#define LUACONFIG_H
+#ifndef LUA_CONFIG_H
+#define LUA_CONFIG_H
 
 #include <string>
 
@@ -21,4 +21,4 @@ std::string get_string(const char *name);
 } // namespace config
 } // namespace lua
 
-#endif // LUACONFIG_H
+#endif // LUA_CONFIG_H

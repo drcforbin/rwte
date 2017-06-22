@@ -1,5 +1,5 @@
-#ifndef LUATERM_H
-#define LUATERM_H
+#ifndef LUA_TERM_H
+#define LUA_TERM_H
 
 // lua term integration
 
@@ -12,4 +12,4 @@ void register_luaterm(State *L);
 
 } // namespace lua
 
-#endif // LUATERM_H
+#endif // LUA_TERM_H

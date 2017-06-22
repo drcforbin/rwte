@@ -1,5 +1,5 @@
-#ifndef LUALOGGING_H
-#define LUALOGGING_H
+#ifndef LUA_LOGGING_H
+#define LUA_LOGGING_H
 
 // lua log integration
 
@@ -12,4 +12,4 @@ void register_lualogging(State *L);
 
 } // namespace lua
 
-#endif // LUALOGGING_H
+#endif // LUA_LOGGING_H
