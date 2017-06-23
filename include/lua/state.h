@@ -1,8 +1,8 @@
 #ifndef LUA_STATE_H
 #define LUA_STATE_H
 
-#include <string>
 #include <lua.hpp>
+#include <string>
 
 namespace lua
 {

@@ -1,5 +1,5 @@
-#include "lua/state.h"
 #include "lua/logging.h"
+#include "lua/state.h"
 #include "rwte/logging.h"
 
 #define LUALOG "LUALOG*"

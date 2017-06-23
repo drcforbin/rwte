@@ -1,27 +1,27 @@
-#include <xcb/xcb.h>
-#include <cstdio>
-#include <ev++.h>
-#include <cstring>
-#include <memory>
-#include <wordexp.h>
-#include <basedir.h>
-#include <basedir_fs.h>
-#include <getopt.h>
-
+#include "lua/config.h"
+#include "lua/logging.h"
+#include "lua/state.h"
+#include "lua/term.h"
+#include "lua/window.h"
 #include "rwte/config.h"
+#include "rwte/logging.h"
 #include "rwte/renderer.h"
 #include "rwte/rwte.h"
-#include "rwte/logging.h"
 #include "rwte/sigwatcher.h"
 #include "rwte/term.h"
 #include "rwte/tty.h"
-#include "rwte/window.h"
-#include "lua/config.h"
-#include "lua/state.h"
-#include "lua/logging.h"
-#include "lua/term.h"
-#include "lua/window.h"
 #include "rwte/version.h"
+#include "rwte/window.h"
+
+#include <basedir.h>
+#include <basedir_fs.h>
+#include <cstdio>
+#include <cstring>
+#include <ev++.h>
+#include <getopt.h>
+#include <memory>
+#include <wordexp.h>
+#include <xcb/xcb.h>
 
 // globals
 Window window;

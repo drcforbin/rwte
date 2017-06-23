@@ -1,7 +1,7 @@
-#include <cstring>
-
-#include "rwte/utf8.h"
 #include "rwte/term.h"
+#include "rwte/utf8.h"
+
+#include <cstring>
 
 #define LEN(a) (sizeof(a) / sizeof(a)[0])
 

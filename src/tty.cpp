@@ -1,25 +1,25 @@
-#include <cstdlib>
-#include <unistd.h>
-#include <sys/types.h>
-#include <pwd.h>
-#include <cstdint>
-#include <csignal>
-#include <limits.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <pty.h>
-#include <sys/wait.h>
-#include <cctype>
-#include <ev++.h>
-
+#include "lua/state.h"
 #include "rwte/config.h"
-#include "rwte/rwte.h"
 #include "rwte/logging.h"
+#include "rwte/rwte.h"
 #include "rwte/term.h"
 #include "rwte/tty.h"
 #include "rwte/utf8.h"
 #include "rwte/window.h"
-#include "lua/state.h"
+
+#include <cctype>
+#include <csignal>
+#include <cstdint>
+#include <cstdlib>
+#include <ev++.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <pty.h>
+#include <pwd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #define LOGGER() (logging::get("tty"))
 

@@ -1,22 +1,21 @@
-#include <limits.h>
-#include <cstdint>
-#include <cstring>
-#include <vector>
-#include <time.h>
-
 #include "fmt/format.h"
-
+#include "lua/config.h"
+#include "lua/state.h"
+#include "lua/window.h"
 #include "rwte/config.h"
-#include "rwte/rwte.h"
 #include "rwte/logging.h"
+#include "rwte/rwte.h"
+#include "rwte/selection.h"
 #include "rwte/term.h"
 #include "rwte/tty.h"
 #include "rwte/utf8.h"
 #include "rwte/window.h"
-#include "lua/config.h"
-#include "lua/state.h"
-#include "lua/window.h"
-#include "rwte/selection.h"
+
+#include <cstdint>
+#include <cstring>
+#include <limits.h>
+#include <time.h>
+#include <vector>
 
 #define LOGGER() (logging::get("term"))
 

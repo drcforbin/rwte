@@ -1,11 +1,23 @@
+#include "lua/config.h"
+#include "lua/state.h"
+#include "lua/window.h"
+#include "rwte/config.h"
+#include "rwte/logging.h"
+#include "rwte/renderer.h"
+#include "rwte/rwte.h"
+#include "rwte/selection.h"
+#include "rwte/term.h"
+#include "rwte/tty.h"
+#include "rwte/utf8.h"
+#include "rwte/window.h"
+
+#include <cairo/cairo-xcb.h>
 #include <cstdint>
 #include <cstdio>
-#include <unistd.h>
 #include <limits.h>
-
+#include <unistd.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_aux.h>
-#include <cairo/cairo-xcb.h>
 
 // xkb uses explicit as a field name. ugh.
 #pragma clang diagnostic push
@@ -15,22 +27,9 @@
 #undef explicit
 #pragma clang diagnostic pop
 
-#include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-compose.h>
 #include <xkbcommon/xkbcommon-x11.h>
-
-#include "rwte/config.h"
-#include "rwte/renderer.h"
-#include "rwte/logging.h"
-#include "rwte/rwte.h"
-#include "rwte/term.h"
-#include "rwte/tty.h"
-#include "rwte/utf8.h"
-#include "rwte/window.h"
-#include "lua/config.h"
-#include "lua/state.h"
-#include "lua/window.h"
-#include "rwte/selection.h"
+#include <xkbcommon/xkbcommon.h>
 
 #define LOGGER() (logging::get("window"))
 

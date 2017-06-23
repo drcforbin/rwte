@@ -1,6 +1,6 @@
-#include <cstring>
-
 #include "rwte/selection.h"
+
+#include <cstring>
 
 Selection::Selection() :
 	nb{0,0},

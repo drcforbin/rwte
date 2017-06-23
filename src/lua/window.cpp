@@ -1,9 +1,9 @@
-#include <xkbcommon/xkbcommon-keysyms.h>
-
-#include "rwte/window.h"
 #include "lua/state.h"
 #include "lua/window.h"
 #include "rwte/logging.h"
+#include "rwte/window.h"
+
+#include <xkbcommon/xkbcommon-keysyms.h>
 
 #define LOGGER() (logging::get("luawindow"))
 

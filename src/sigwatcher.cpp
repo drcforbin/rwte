@@ -1,9 +1,9 @@
+#include "rwte/logging.h"
+#include "rwte/rwte.h"
+#include "rwte/sigwatcher.h"
+
 #include <ev++.h>
 #include <sys/wait.h>
-
-#include "rwte/rwte.h"
-#include "rwte/logging.h"
-#include "rwte/sigwatcher.h"
 
 #define LOGGER() (logging::get("sigwatcher"))
 

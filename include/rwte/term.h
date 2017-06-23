@@ -1,8 +1,8 @@
 #ifndef RWTE_TERM_H
 #define RWTE_TERM_H
 
-#include <memory>
 #include <bitset>
+#include <memory>
 
 enum mouse_event_enum
 {

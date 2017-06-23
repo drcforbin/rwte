@@ -1,8 +1,8 @@
 #ifndef RWTE_SELECTION_H
 #define RWTE_SELECTION_H
 
-#include <time.h>
 #include <memory>
+#include <time.h>
 
 enum selection_mode
 {

@@ -1,11 +1,11 @@
 #ifndef RWTE_LOGGING_H
 #define RWTE_LOGGING_H
 
+#include "fmt/format.h"
+
+#include <chrono>
 #include <memory>
 #include <string>
-#include <chrono>
-
-#include "fmt/format.h"
 
 namespace logging
 {

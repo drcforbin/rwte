@@ -1,7 +1,7 @@
+#include "rwte/logging.h"
+
 #include <ctime>
 #include <unordered_map>
-
-#include "rwte/logging.h"
 
 // global logger map
 static std::unordered_map<std::string, std::shared_ptr<logging::Logger>> g_loggers;

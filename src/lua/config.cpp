@@ -1,6 +1,6 @@
-#include "rwte/rwte.h"
-#include "lua/state.h"
 #include "lua/config.h"
+#include "lua/state.h"
+#include "rwte/rwte.h"
 
 namespace lua {
 namespace config {

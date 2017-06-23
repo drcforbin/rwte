@@ -1,12 +1,11 @@
 #ifndef RWTE_RWTE_H
 #define RWTE_RWTE_H
 
-#include <sys/types.h>
 #include <cstdint>
-#include <string>
-#include <memory>
-
 #include <ev++.h>
+#include <memory>
+#include <string>
+#include <sys/types.h>
 
 namespace lua
 {
