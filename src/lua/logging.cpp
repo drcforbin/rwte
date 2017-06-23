@@ -20,7 +20,7 @@ static int logger_log(lua_State *l)
     lua::State L(l);
     auto logger = tologger(L);
 
-    auto level = (logging::level_enum) L.checkinteger(2);
+    auto level = static_cast<logging::level_enum>(L.checkinteger(2));
     if (level < logger->level())
         return 0;
 
@@ -114,7 +114,7 @@ static int logger_newindex(lua_State *l)
 
     if (std::strcmp(key, "level") == 0)
     {
-        auto level = (logging::level_enum) L.checkinteger(3);
+        auto level = static_cast<logging::level_enum>(L.checkinteger(3));
         logger->level(level);
     }
 
@@ -139,7 +139,7 @@ static const luaL_Reg logger_funcs[] = {
     {"__index", logger_index},
     {"__newindex", logger_newindex},
     {"__gc", logger_gc},
-    {NULL, NULL},
+    {nullptr, nullptr},
 };
 
 static int logging_get(lua_State *l)
@@ -157,7 +157,7 @@ static int logging_get(lua_State *l)
 // functions for logging library
 static const luaL_Reg logging_funcs[] = {
     {"get", logging_get},
-    {NULL, NULL}
+    {nullptr, nullptr}
 };
 
 static int logging_openf(lua_State *l)

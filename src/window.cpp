@@ -181,7 +181,7 @@ WindowImpl::WindowImpl() :
 
 bool WindowImpl::create(int cols, int rows)
 {
-    connection = xcb_connect(NULL, &m_scrno);
+    connection = xcb_connect(nullptr, &m_scrno);
     if (xcb_connection_has_error(connection))
         LOGGER()->fatal("Could not connect to X11 server");
 
@@ -239,7 +239,7 @@ bool WindowImpl::create(int cols, int rows)
             values );   // mask
 
     xcb_generic_error_t *err;
-    if ((err = xcb_request_check(connection, cookie)) != NULL)
+    if ((err = xcb_request_check(connection, cookie)) != nullptr)
     {
         LOGGER()->error("could not create window, code: {}", err->error_code);
         return false;
@@ -373,7 +373,7 @@ void WindowImpl::setsel()
 {
     xcb_set_selection_owner(connection, win, XCB_ATOM_PRIMARY, XCB_CURRENT_TIME);
     xcb_get_selection_owner_reply_t *reply = xcb_get_selection_owner_reply(connection,
-                xcb_get_selection_owner(connection, XCB_ATOM_PRIMARY), NULL);
+                xcb_get_selection_owner(connection, XCB_ATOM_PRIMARY), nullptr);
     if (reply)
     {
         if (reply->owner != win)
@@ -396,7 +396,7 @@ void WindowImpl::setclip()
 {
     xcb_set_selection_owner(connection, win, m_clipboard, XCB_CURRENT_TIME);
     xcb_get_selection_owner_reply_t *reply = xcb_get_selection_owner_reply(connection,
-                xcb_get_selection_owner(connection, m_clipboard), NULL);
+                xcb_get_selection_owner(connection, m_clipboard), nullptr);
     if (reply)
     {
         if (reply->owner != win)
@@ -452,7 +452,7 @@ void WindowImpl::register_atoms()
     for ( int i = 0; i < num_atoms; i++ )
     {
         auto reply = xcb_intern_atom_reply(
-                connection, cookies[i], 0);
+                connection, cookies[i], nullptr);
         if (reply)
         {
             atoms[i] = reply->atom;
@@ -481,10 +481,10 @@ void WindowImpl::setup_xkb()
             XKB_X11_MIN_MAJOR_XKB_VERSION,
             XKB_X11_MIN_MINOR_XKB_VERSION,
             XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS,
-            NULL,
-            NULL,
+            nullptr,
+            nullptr,
             &xkb_base_event,
-            NULL) != 1)
+            nullptr) != 1)
         LOGGER()->fatal("could not setup XKB extension.");
 
     const uint16_t required_map_parts =
@@ -509,7 +509,7 @@ void WindowImpl::setup_xkb()
         required_events,
         required_map_parts,
         required_map_parts,
-        0);
+        nullptr);
 
     /// load initial keymap or exit
     if (!load_keymap())
@@ -533,9 +533,9 @@ void WindowImpl::setup_xkb()
 // translate keypresses to utf-8.
 bool WindowImpl::load_keymap()
 {
-    if (xkb_context == NULL)
+    if (xkb_context == nullptr)
     {
-        if ((xkb_context = xkb_context_new((xkb_context_flags) 0)) == NULL)
+        if ((xkb_context = xkb_context_new((xkb_context_flags) 0)) == nullptr)
         {
             LOGGER()->error("could not create xkbcommon context");
             return false;
@@ -547,7 +547,7 @@ bool WindowImpl::load_keymap()
     int32_t device_id = xkb_x11_get_core_keyboard_device_id(connection);
     LOGGER()->debug("device = {}", device_id);
     if ((xkb_keymap = xkb_x11_keymap_new_from_device(xkb_context, connection,
-            device_id, (xkb_keymap_compile_flags) 0)) == NULL)
+            device_id, (xkb_keymap_compile_flags) 0)) == nullptr)
     {
         LOGGER()->error("xkb_x11_keymap_new_from_device failed");
         return false;
@@ -555,7 +555,8 @@ bool WindowImpl::load_keymap()
 
     struct xkb_state *new_state =
         xkb_x11_state_new_from_device(xkb_keymap, connection, device_id);
-    if (new_state == NULL) {
+    if (new_state == nullptr)
+    {
         LOGGER()->error("xkb_x11_state_new_from_device failed");
         return false;
     }
@@ -577,7 +578,7 @@ bool WindowImpl::load_compose_table(const char *locale)
     xkb_compose_table_unref(xkb_compose_table);
 
     if ((xkb_compose_table = xkb_compose_table_new_from_locale(xkb_context,
-            locale, (xkb_compose_compile_flags) 0)) == NULL)
+            locale, (xkb_compose_compile_flags) 0)) == nullptr)
     {
         LOGGER()->error("xkb_compose_table_new_from_locale failed");
         return false;
@@ -585,7 +586,7 @@ bool WindowImpl::load_compose_table(const char *locale)
 
     struct xkb_compose_state *new_compose_state = xkb_compose_state_new(
             xkb_compose_table, (xkb_compose_state_flags) 0);
-    if (new_compose_state == NULL)
+    if (new_compose_state == nullptr)
     {
         LOGGER()->error("xkb_compose_state_new failed");
         return false;
@@ -924,7 +925,7 @@ void WindowImpl::handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t *event)
 
     // get the initial mapped size
     xcb_get_geometry_reply_t *geo = xcb_get_geometry_reply(connection,
-                xcb_get_geometry(connection, win), NULL);
+                xcb_get_geometry(connection, win), nullptr);
     if (geo)
     {
         int width = geo->width;
@@ -1073,7 +1074,7 @@ void WindowImpl::selnotify(xcb_atom_t property, bool propnotify)
     }
 
     xcb_get_property_reply_t *reply = xcb_get_property_reply(connection,
-            xcb_get_property(connection, 0, win, property, XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX), NULL);
+            xcb_get_property(connection, 0, win, property, XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX), nullptr);
     if (reply)
     {
         int len = xcb_get_property_value_length(reply);
@@ -1144,7 +1145,7 @@ void WindowImpl::checkcb(ev::check &w, int)
 {
     xcb_generic_event_t *event;
 
-    while ((event = xcb_poll_for_event(connection)) != NULL)
+    while ((event = xcb_poll_for_event(connection)) != nullptr)
     {
         if (event->response_type == 0)
         {

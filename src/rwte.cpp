@@ -29,7 +29,7 @@ Options options;
 Rwte rwte;
 std::unique_ptr<Term> g_term;
 std::unique_ptr<Tty> g_tty;
-lua_State * g_L = NULL;
+lua_State * g_L = nullptr;
 
 #define LOGGER() (logging::get("rwte"))
 
@@ -41,7 +41,7 @@ lua_State * g_L = NULL;
 static const float DEFAULT_BLINK_RATE = 0.6;
 
 Options::Options() :
-    cmd(0),
+    cmd(nullptr),
     title("rwte"),
     noalt(false)
 { }
@@ -317,7 +317,7 @@ int main(int argc, char *argv[])
     bool got_bench = false;
     bool got_title = false;
     while ((opt = getopt_long(argc, argv, "-c:w:af:g:t:n:o:l:hbve:",
-                long_options, NULL)) != -1)
+                long_options, nullptr)) != -1)
     {
         switch (opt)
         {

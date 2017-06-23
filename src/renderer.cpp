@@ -17,11 +17,11 @@
 
 #define LIMIT(x, a, b)  ((x) = (x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
 #define IS_TRUECOL(x)  (1 << 24 & (x))
-#define TRUECOL(r,g,b) (1 << 24 | (r & 0xFF) << 16 | (g & 0xFF) << 8 | (b & 0xFF))
+#define TRUECOL(r,g,b) (1 << 24 | ((r) & 0xFF) << 16 | ((g) & 0xFF) << 8 | ((b) & 0xFF))
 
-#define REDBYTE(c) ((c & 0xFF0000) >> 16)
-#define GREENBYTE(c) ((c & 0x00FF00) >> 8)
-#define BLUEBYTE(c) (c & 0x0000FF)
+#define REDBYTE(c) (((c) & 0xFF0000) >> 16)
+#define GREENBYTE(c) (((c) & 0x00FF00) >> 8)
+#define BLUEBYTE(c) ((c) & 0x0000FF)
 
 using shared_font_options = std::shared_ptr<cairo_font_options_t>;
 
@@ -138,7 +138,7 @@ public:
     Surface(cairo_surface_t *surface, shared_font_options fo, int width, int height) :
         m_surface(surface, cairo_surface_destroy),
         m_surfcr(cairo_create(surface), cairo_destroy),
-        m_fo(fo),
+        m_fo(std::move(fo)),
         m_drawsurf(nullptr),
         m_drawcr(nullptr)
     {
@@ -262,9 +262,9 @@ private:
     shared_font_options m_fo;
     std::unique_ptr<Surface> m_surface;
 
-    int m_cw, m_ch;
-    int m_width, m_height;
-    int m_lastcurrow, m_lastcurcol;
+    int m_cw = 0, m_ch = 0;
+    int m_width = 0, m_height = 0;
+    int m_lastcurrow = 0, m_lastcurcol = 0;
 
     unique_font_desc m_fontdesc;
     int m_border_px;
@@ -272,9 +272,6 @@ private:
 
 RendererImpl::RendererImpl() :
     m_fo(create_font_options()),
-    m_cw(0), m_ch(0),
-    m_width(0), m_height(0),
-    m_lastcurrow(0), m_lastcurcol(0),
     m_fontdesc(create_font_desc()),
     // initial border_px value; we'll keep it semi-fresh as
     // calls are made to public funcs
@@ -737,8 +734,7 @@ Renderer::Renderer() :
     impl(std::make_unique<RendererImpl>())
 { }
 
-Renderer::~Renderer()
-{ }
+Renderer::~Renderer() = default;
 
 void Renderer::load_font(cairo_surface_t *root_surface)
 { impl->load_font(root_surface); }

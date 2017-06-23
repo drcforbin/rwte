@@ -55,7 +55,7 @@ static const luaL_Reg window_funcs[] = {
     {"key_press", luawindow_key_press},
     {"clippaste", luawindow_clippaste},
     {"selpaste", luawindow_selpaste},
-    {NULL, NULL}
+    {nullptr, nullptr}
 };
 
 static int window_openf(lua_State *l)

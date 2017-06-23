@@ -90,5 +90,5 @@ const char * utf8strchr(const char *s, Rune u)
             return &(s[i]);
     }
 
-    return NULL;
+    return nullptr;
 }

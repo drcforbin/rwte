@@ -79,7 +79,8 @@ static void execsh()
     errno = 0;
 
     const struct passwd *pw;
-    if ((pw = getpwuid(getuid())) == NULL) {
+    if ((pw = getpwuid(getuid())) == nullptr)
+    {
         if (errno)
             LOGGER()->fatal("getpwuid failed: {}", strerror(errno));
         else
@@ -140,7 +141,7 @@ static void execsh()
     const char **args;
     const char *progags[2] = {
         prog,
-        0
+        nullptr
     };
     args = (options.cmd) ? options.cmd : progags;
 
@@ -261,7 +262,7 @@ TtyImpl::TtyImpl() :
     // open pseudoterminal
     int parent, child;
     struct winsize w = {(uint16_t) g_term->rows(), (uint16_t) g_term->cols(), 0, 0};
-    if (openpty(&parent, &child, NULL, NULL, &w) < 0)
+    if (openpty(&parent, &child, nullptr, nullptr, &w) < 0)
         LOGGER()->fatal("openpty failed: {}", strerror(errno));
 
     pid_t pid;
@@ -275,7 +276,7 @@ TtyImpl::TtyImpl() :
         dup2(child, STDIN_FILENO);
         dup2(child, STDOUT_FILENO);
         dup2(child, STDERR_FILENO);
-        if (ioctl(child, TIOCSCTTY, NULL) < 0)
+        if (ioctl(child, TIOCSCTTY, nullptr) < 0)
             LOGGER()->fatal("ioctl TIOCSCTTY failed: {}", strerror(errno));
         close(child);
         close(parent);

@@ -79,7 +79,7 @@ public:
     void setobjfuncs(const char *tname, const luaL_Reg *funcs);
 
     template <typename T>
-    T *newobj(const char *tname = 0)
+    T *newobj(const char *tname = nullptr)
     {
         auto buf = lua_newuserdata(m_L, sizeof(T));
         auto p = new (buf) T();
@@ -114,8 +114,8 @@ public:
     bool pushfuncref(int ref);
 
 private:
-    lua_State *m_L;
-    bool m_owns;
+    lua_State *m_L = nullptr;
+    bool m_owns = false;
 };
 
 } // namespace lua

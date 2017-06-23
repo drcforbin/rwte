@@ -8,7 +8,7 @@
 static int luaterm_mode(lua_State *l)
 {
     lua::State L(l);
-    auto mode = (term_mode_enum) L.checkinteger(1);
+    auto mode = static_cast<term_mode_enum>(L.checkinteger(1));
     L.pushbool(g_term->mode()[mode]);
     return 1;
 }
@@ -33,7 +33,7 @@ static const luaL_Reg term_funcs[] = {
     {"mode", luaterm_mode},
     {"send", luaterm_send},
     {"clipcopy", luaterm_clipcopy},
-    {NULL, NULL}
+    {nullptr, nullptr}
 };
 
 static int term_openf(lua_State *l)

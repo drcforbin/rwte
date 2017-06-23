@@ -79,10 +79,10 @@ using Rune = uint_least32_t;
 
 struct Glyph
 {
-    Rune u;           // character code
+    Rune u = ' ';           // character code
     glyph_attribute attr;    // attribute flags
-    uint32_t fg;      // foreground
-    uint32_t bg;      // background
+    uint32_t fg = 0;      // foreground
+    uint32_t bg = 0;      // background
 };
 
 enum cursor_type
@@ -98,8 +98,8 @@ enum cursor_type
 struct Cursor
 {
     Glyph attr; // current char attributes
-    int row, col;
-    char state;
+    int row = 0, col = 0;
+    char state = 0;
 };
 
 struct Selection;

@@ -35,7 +35,7 @@ void logging::details::log_message(const logging::details::Message& msg)
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         msg.ts.time_since_epoch()).count();
 
-    std::tm ltm;
+    std::tm ltm = {0};
     localtime_r(&ts, &ltm);
 
     char timestr[sizeof "YYYY-MM-DDTHH:MM:SS.NNN"];

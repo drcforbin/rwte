@@ -24,7 +24,7 @@ using level_enum = enum
 class Logger
 {
     public:
-        Logger(const std::string& name) : m_name(name), m_level(logging::trace) { }
+        Logger(std::string name) : m_name(std::move(name)), m_level(logging::trace) { }
 
         virtual ~Logger();
         Logger(const Logger&) = delete;
@@ -73,8 +73,8 @@ struct Message
     Message& operator=(Message&& other) = delete;
     Message(Message&& other) = delete;
 
-    const std::string *logname;
-    level_enum level;
+    const std::string *logname = nullptr;
+    level_enum level = trace;
     std::chrono::system_clock::time_point ts;
 
     fmt::MemoryWriter msg;
@@ -83,7 +83,7 @@ struct Message
 void log_message(const Message& msg);
 
 } // namespace details
-} // namespace log
+} // namespace logging
 
 // impl bits:
 

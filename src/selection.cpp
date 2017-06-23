@@ -3,14 +3,10 @@
 #include "rwte/selection.h"
 
 Selection::Selection() :
-    mode(SEL_IDLE),
-	type(0),
-	snap(0),
 	nb{0,0},
 	ne{0,0},
 	ob{-1,0},
-	oe{0,0},
-	alt(false)
+	oe{0,0}
 {
     std::memset(&tclick1, 0, sizeof(tclick1));
     std::memset(&tclick2, 0, sizeof(tclick2));

@@ -31,9 +31,9 @@ struct Selection
     bool empty() const;
     bool selected(int col, int row) const;
 
-	int mode;
-	int type;
-	int snap;
+	int mode = SEL_IDLE;
+	int type = 0;
+	int snap = 0;
 
 	// Selection variables:
 	// nb – normalized coordinates of the beginning of the selection
@@ -47,9 +47,9 @@ struct Selection
 	std::shared_ptr<char> primary;
     std::shared_ptr<char> clipboard;
 
-	bool alt;
-	struct timespec tclick1;
-	struct timespec tclick2;
+	bool alt = false;
+	struct timespec tclick1 = {0};
+	struct timespec tclick2 = {0};
 };
 
 #endif // RWTE_SELECTION_H

@@ -26,8 +26,8 @@
 #define DEFAULT(a, b)  (a) = (a) ? (a) : (b)
 
 #define TIMEDIFF(t1, t2) \
-        ((t1.tv_sec-t2.tv_sec)*1000 + \
-         (t1.tv_nsec-t2.tv_nsec)/1E6)
+        (((t1).tv_sec-(t2).tv_sec)*1000 + \
+         ((t1).tv_nsec-(t2).tv_nsec)/1E6)
 
 static const keymod_state EMPTY_MASK; // no mods
 static const keymod_state SHIFT_MASK(1 << MOD_SHIFT);
@@ -225,7 +225,7 @@ private:
     void csiparse();
     void csihandle();
     std::string csidump();
-    void setattr(int *attr, int l);
+    void setattr(int *attr, int len);
     void settmode(bool priv, bool set, int *args, int narg);
     void getbuttoninfo(int col, int row, const keymod_state& mod);
     std::shared_ptr<char> getsel();
@@ -553,7 +553,7 @@ static bool isdelim(Rune c)
     // if word_delimiters is missing, it'll select whole line
     bool delim = false;
     if (word_delimiters)
-        delim = utf8strchr(word_delimiters, c) != NULL;
+        delim = utf8strchr(word_delimiters, c) != nullptr;
 
     L->pop(2);
     return delim;
@@ -562,7 +562,8 @@ static bool isdelim(Rune c)
 void TermImpl::putc(Rune u)
 {
     char c[utf_size];
-    int width, len;
+    int width;
+    size_t len;
 
     bool control = iscontrol(u);
 
@@ -690,7 +691,7 @@ void TermImpl::putc(Rune u)
     if (m_mode[MODE_WRAP] && (m_cursor.state & CURSOR_WRAPNEXT))
     {
         gp->attr.set(ATTR_WRAP);
-        newline(1);
+        newline(true);
         gp = &m_lines[m_cursor.row][m_cursor.col];
     }
 
@@ -699,7 +700,7 @@ void TermImpl::putc(Rune u)
 
     if (m_cursor.col+width > m_cols)
     {
-        newline(1);
+        newline(true);
         gp = &m_lines[m_cursor.row][m_cursor.col];
     }
 
@@ -1018,7 +1019,7 @@ void TermImpl::scrollup(int orig, int n)
     clearregion(0, orig, m_cols-1, orig+n-1);
     setdirty(orig+n, m_bot);
 
-    for (int i = orig; i <= m_bot-n; i++)
+    for (size_t i = orig; i <= m_bot-n; i++)
         std::swap(m_lines[i], m_lines[i+n]);
 
     selscroll(orig, -n);
@@ -1247,9 +1248,9 @@ void TermImpl::setchar(Rune u, const Glyph& attr, int col, int row)
 {
     const char *vt100_0[62] = { // 0x41 - 0x7e
         "↑", "↓", "→", "←", "█", "▚", "☃", // A - G
-        0, 0, 0, 0, 0, 0, 0, 0, // H - O
-        0, 0, 0, 0, 0, 0, 0, 0, // P - W
-        0, 0, 0, 0, 0, 0, 0, " ", // X - _
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, // H - O
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, // P - W
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, " ", // X - _
         "◆", "▒", "␉", "␌", "␍", "␊", "°", "±", // ` - g
         "␤", "␋", "┘", "┐", "┌", "└", "┼", "⎺", // h - o
         "⎻", "─", "⎼", "⎽", "├", "┤", "┴", "┬", // p - w
@@ -1378,7 +1379,7 @@ void TermImpl::deftran(char ascii)
     const int vcs[] = {CS_GRAPHIC0, CS_USA};
 
     char *p;
-    if ((p = strchr(cs, ascii)) == NULL)
+    if ((p = strchr(cs, ascii)) == nullptr)
         LOGGER()->error("esc unhandled charset: ESC ( {}", ascii);
     else
         m_trantbl[m_icharset] = vcs[p - cs];
@@ -1467,7 +1468,7 @@ void TermImpl::controlcode(unsigned char ascii)
     case 0x84:   // TODO: IND
         break;
     case 0x85:   // NEL -- Next line
-        newline(1); // always go to first col
+        newline(true); // always go to first col
         break;
     case 0x86:   // TODO: SSA
     case 0x87:   // TODO: ESA
@@ -1552,7 +1553,7 @@ bool TermImpl::eschandle(unsigned char ascii)
             moveto(m_cursor.col, m_cursor.row+1);
         break;
     case 'E': // NEL -- Next line
-        newline(1); // always go to first col
+        newline(true); // always go to first col
         break;
     case 'H': // HTS -- Horizontal tab stop
         m_tabs[m_cursor.col] = true;
@@ -1673,7 +1674,7 @@ int32_t hexcolor(const char *src)
 
 void TermImpl::strhandle()
 {
-    char *p = NULL;
+    char *p = nullptr;
     int j, narg, par;
 
     m_esc.reset(ESC_STR_END);
@@ -1699,7 +1700,7 @@ void TermImpl::strhandle()
                 int32_t color;
                 if ((color = hexcolor(m_stresc.args[1])) >= 0)
                 {
-                    m_defbg = (uint32_t) color;
+                    m_defbg = static_cast<uint32_t>(color);
                     // todo...doesn't fully repaint?!?
                     // oh, I bet we need to reset the color on
                     // glyphs that are already set to something
@@ -1769,7 +1770,7 @@ std::string TermImpl::strdump()
         if (c == '\0')
             return msg.str(); // early exit
         else if (isprint(c))
-            msg << (char) c;
+            msg << static_cast<char>(c);
         else if (c == '\n')
             msg << "(\\n)";
         else if (c == '\r')
@@ -1828,7 +1829,7 @@ void TermImpl::csiparse()
     m_csiesc.buf[m_csiesc.len] = '\0';
     while (p < m_csiesc.buf+m_csiesc.len)
     {
-        np = NULL;
+        np = nullptr;
         v = strtol(p, &np, 10);
         if (np == p)
             v = 0;
@@ -1913,7 +1914,7 @@ void TermImpl::csihandle()
         switch (m_csiesc.arg[0])
         {
         case 0: // clear current tab stop
-            m_tabs[m_cursor.col] = 0;
+            m_tabs[m_cursor.col] = false;
             break;
         case 3: // clear all the tabs
             for (auto it = m_tabs.begin(); it != m_tabs.end(); it++)
@@ -2095,7 +2096,7 @@ std::string TermImpl::csidump()
     {
         unsigned int c = m_csiesc.buf[i] & 0xff;
         if (isprint(c))
-            msg << (char) c;
+            msg << static_cast<char>(c);
         else if (c == '\n')
             msg << "(\\n)";
         else if (c == '\r')
@@ -2362,7 +2363,7 @@ void TermImpl::getbuttoninfo(int col, int row, const keymod_state& mod)
     selnormalize();
 
 #define X(m, t) \
-    {if ((mod & m) == m) { m_sel.type = t; return; }}
+    {if ((mod & (m)) == (m)) { m_sel.type = (t); return; }}
     SEL_MASKS
 #undef X
 
@@ -2425,8 +2426,7 @@ Term::Term(int cols, int rows) :
     impl(std::make_unique<TermImpl>(cols, rows))
 { }
 
-Term::~Term()
-{ }
+Term::~Term() = default;
 
 const Glyph& Term::glyph(int col, int row) const
 { return impl->glyph(col, row); }
