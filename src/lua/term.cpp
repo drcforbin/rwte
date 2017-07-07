@@ -63,8 +63,9 @@ static int term_openf(lua_State *l)
     // make the lib (3 funcs, 1 values)
     L.newlib(term_funcs, 4);
 
-    /// Mode flag table.
-    // @field modes Table mapping mode flags to their integer value
+    /// Mode flag table; maps mode flags to their integer value.
+    // @class field
+    // @name modes
     L.newtable();
 #define PUSH_ENUM_FIELD(nm)\
     L.pushinteger(nm); L.setfield(-2, #nm)

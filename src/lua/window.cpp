@@ -49,7 +49,7 @@ static int luawindow_mouse_press(lua_State *l)
 // falsy otherwise.
 //
 // @function key_press
-// @int sym	Key symbol. See values in @{keys}
+// @int sym Key symbol. See values in @{keys}
 // @tab mod Keyboard modifier flags
 // @bool mod.shift Shift key
 // @bool mod.ctrl Ctrl key
@@ -94,8 +94,12 @@ static int luawindow_selpaste(lua_State *l)
     return 0;
 }
 
-/// Window ID.
-// @field id Window identifier
+/// Window identifier.
+//
+// (implemented via `__index`)
+//
+// @class field
+// @name id
 static int luawindow_index(lua_State *l)
 {
     lua::State L(l);
@@ -129,8 +133,9 @@ static int window_openf(lua_State *l)
     // incomplete; there's no reason for this other than
     // laziness
 
-    /// Key symbol table.
-    // @field keys Table mapping key names to key symbols
+    /// Key symbol table; maps key names to key symbols.
+    // @class field
+    // @name keys
     L.newtable();
 #define PUSH_ENUM_FIELD(nm)\
     L.pushinteger(XKB_KEY_##nm); L.setfield(-2, #nm)
