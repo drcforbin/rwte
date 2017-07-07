@@ -26,8 +26,6 @@ Borrows code and ideas from all over
 
 * [Introduction](#introduction)
 * [config](#config)
-* [term](#term)
-* [window](#window)
 * [logging](#logging)
 
 ### Introduction
@@ -46,164 +44,14 @@ benchmarking.
 The config file is expected to assign to set a global `config` object, and may
 also connect event handlers for `window` / `term` events.
 
+See also: [API docs](https://drcforbin.github.io/rwte/)
+
 ### config
 
 `config` is a global lua table, assigned in the config file. Values in `config`
 may be overridden by command line args to rwte. The expected contents and
 possible values for fields in `config` are documented by comments in the example
 `config.lua`.
-
-### term
-
-`term` represents the global terminal object.
-
-#### term.mode
-
-**syntax:** *val = term.mode(mode)*
-
-Returns whether a terminal mode is set.
-
-Example:
-```lua
- is_crlf = term.mode(term.modes.MODE_CRLF)
-```
-
-#### term.modes
-
-**syntax:** *val = term.modes.TERM_xxx*
-
-Mode flags for used with `term.mode`
-
-*todo: document term.modes.MODE_xxx*
-
-#### term.send
-
-**syntax:** *term.send(s)*
-
-Sends a string to the terminal.
-
-Example:
-```lua
- term.send("\025")
-```
-
-#### term.clipcopy
-
-**syntax:** *term.clipcopy()*
-
-Initiates copy of the terminal selection to the system clipboard.
-
-Example:
-```lua
- term.clipcopy()
-```
-
-### window
-
-`window` represents the global window object.
-
-#### window.mouse_press
-
-**syntax:** *window.mouse_press(func)*
-
-Sets the function to be called when a mouse button is pressed (except
-when the mouse button is handled internally, such as for selection).
-
-The function passed to `mouse_press` will be called with arguments as follows:
-
-| name     | desc |
-| -------- | ---- |
-| `col`    | Terminal column where the event occurred |
-| `row`    | Terminal row where the event occurred |
-| `button` | Mouse button (integer, 1-5) |
-| `mod`    | Keyboard modifiers; this is a table containing `shift`, `ctrl`, `alt` and `logo` bool fields. |
-
-The function should return true if the mouse press was handled, something
-falsy otherwise.
-
-Example:
-```lua
- window.mouse_press(function(col, row, button, mod)
-     if button == 4 then -- mouse wheel up
-         logging.get("example"):info("WHEEEEEL UP!")
-         return true
-     end
- end)
-```
-
-#### window.key_press
-
-**syntax:** *window.key_press(func)*
-
-Sets the function to be called when a key is pressed (except when the key
-button is handled internally).
-
-The function passed to `key_press` will be called with arguments as follows:
-
-| name  | desc |
-| ----- | ---- |
-| `sym` | Key symbol. See values in `window.keys`. |
-| `mod` | Keyboard modifiers; this is a table containing `shift`, `ctrl`, `alt` and `logo` bool fields. |
-
-The function should return true if the key press was handled, something
-falsy otherwise.
-
-Example:
-```lua
- window.key_press(function(sym, mod)
-     -- check for special commands
-     if mod.shift then
-         if sym == window.keys.Q then
-             logging.get("example"):info("Q!!!")
-             return true
-         elseif sym == window.keys.W then
-             logging.get("example"):info("W!!")
-             return true
-         end
-     end
- end)
-```
-
-#### window.clippaste
-
-**syntax:** *window.clippaste()*
-
-Initiates paste of the system clipboard to the terminal.
-
-Example:
-```lua
- window.clippaste()
-```
-
-#### window.selpaste
-
-**syntax:** *window.selpaste()*
-
-Initiates paste of the system selection to the terminal.
-
-Example:
-```lua
- window.selpaste()
-```
-
-#### window.keys
-
-**syntax:** *val = window.keys.xxx*
-
-Key symbols for use in `window.key_press` handler.
-
-*todo: document window.keys.xxx*
-
-#### window.id
-
-**syntax:** *val = window.id*
-
-Returns current window id as an integer.
-
-Example:
-```lua
- id = window.id
-```
 
 ### logging
 
