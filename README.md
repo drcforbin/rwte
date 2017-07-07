@@ -53,7 +53,3 @@ may be overridden by command line args to rwte. The expected contents and
 possible values for fields in `config` are documented by comments in the example
 `config.lua`.
 
-### logging
-
-*todo: document logging*
-

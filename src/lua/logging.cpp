@@ -5,6 +5,9 @@
 /// Logging module; this is the api for logging.
 // @module logging
 
+/// Logger class.
+// @type Logger
+
 #define LUALOG "LUALOG*"
 
 struct LuaLogStruct
@@ -18,6 +21,10 @@ static inline std::shared_ptr<logging::Logger> tologger(lua::State& L)
     return p->logger;
 }
 
+/// Writes log entry with specified level.
+// @function log
+// @int level Log level
+// @param ... Values to include in the entry (`tostring` will be called for each)
 static int logger_log(lua_State *l)
 {
     lua::State L(l);
@@ -86,12 +93,36 @@ static void call_log(lua_State *l, logging::level_enum level)
     static int logger_##levelname(lua_State *L) \
     { call_log(L, logging::levelname); return 0; }
 
+/// Writes trace level log entry.
+// @function trace
+// @param ... Values to include in the entry (`tostring` will be called for each)
 LOGGER_FUNC(trace)
+/// Writes debug level log entry.
+// @function debug
+// @param ... Values to include in the entry (`tostring` will be called for each)
 LOGGER_FUNC(debug)
+/// Writes info level log entry.
+// @function info
+// @param ... Values to include in the entry (`tostring` will be called for each)
 LOGGER_FUNC(info)
+/// Writes warn level log entry.
+// @function warn
+// @param ... Values to include in the entry (`tostring` will be called for each)
 LOGGER_FUNC(warn)
+/// Writes error level log entry.
+// @function err
+// @param ... Values to include in the entry (`tostring` will be called for each)
 LOGGER_FUNC(err)
+/// Writes fatal level log entry.
+// @function fatal
+// @param ... Values to include in the entry (`tostring` will be called for each)
 LOGGER_FUNC(fatal)
+
+/// Log level for this logger.
+//
+// (implemented via `__index` / `__newindex`)
+// @class field
+// @name level
 
 static int logger_index(lua_State *l)
 {
@@ -145,6 +176,14 @@ static const luaL_Reg logger_funcs[] = {
     {nullptr, nullptr},
 };
 
+/// Functions
+// @section functions
+
+/// Retrieves a named @{Logger} instance.
+//
+// @function logging.get
+// @string nm Name of the logger to create/retrieve.
+// @usage logger = logging.get("config")
 static int logging_get(lua_State *l)
 {
     // get the name before doing any allocation
@@ -170,26 +209,49 @@ static int logging_openf(lua_State *l)
     // make the lib (1 func, 7 values)
     L.newlib(logging_funcs, 8);
 
-    // add log levels
+    /// Fields
+    // @section fields
+
+    /// Trace level
+    // @class field
+    // @name trace
     L.pushinteger(logging::trace);
     L.setfield(-2, "trace");
+    /// Debug level
+    // @class field
+    // @name debug
     L.pushinteger(logging::debug);
     L.setfield(-2, "debug");
+    /// Info level
+    // @class field
+    // @name info
     L.pushinteger(logging::info);
     L.setfield(-2, "info");
+    /// Warn level
+    // @class field
+    // @name warn
     L.pushinteger(logging::warn);
     L.setfield(-2, "warn");
+    /// Error level
+    // @class field
+    // @name err
     L.pushinteger(logging::err);
     L.setfield(-2, "err");
+    /// Fatal level
+    // @class field
+    // @name fatal
     L.pushinteger(logging::fatal);
     L.setfield(-2, "fatal");
+    /// Logging off
+    // @class field
+    // @name off
     L.pushinteger(logging::off);
     L.setfield(-2, "off");
 
     // add LUALOG object
     L.setobjfuncs(LUALOG, logger_funcs);
 
-	return 1;
+    return 1;
 }
 
 void lua::register_lualogging(lua::State *L)
