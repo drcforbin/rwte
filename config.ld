@@ -11,3 +11,5 @@ title = "rwte Lua Documentation"
 description = "rwte lua"
 
 dir = "docs"
+format = "markdown"
+topics = {}
