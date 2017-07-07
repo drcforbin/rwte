@@ -3,8 +3,17 @@
 #include "rwte/logging.h"
 #include "rwte/term.h"
 
+/// Term module; `term` is the global terminal object.
+// @module term
+
 #define LOGGER() (logging::get("luaterm"))
 
+/// Returns whether a terminal mode is set.
+//
+// @function mode
+// @int mode Mode flag. See values in @{modes}
+// @usage
+// is_crlf = term.mode(term.modes.MODE_CRLF)
 static int luaterm_mode(lua_State *l)
 {
     lua::State L(l);
@@ -13,6 +22,12 @@ static int luaterm_mode(lua_State *l)
     return 1;
 }
 
+/// Sends a string to the terminal.
+//
+// @function send
+// @string s String to send
+// @usage
+// term.send("\025")
 static int luaterm_send(lua_State *l)
 {
     lua::State L(l);
@@ -22,6 +37,11 @@ static int luaterm_send(lua_State *l)
     return 0;
 }
 
+/// Initiates copy of the terminal selection to the system clipboard.
+//
+// @function clipcopy
+// @usage
+// term.clipcopy()
 static int luaterm_clipcopy(lua_State *l)
 {
     g_term->clipcopy();
@@ -43,7 +63,8 @@ static int term_openf(lua_State *l)
     // make the lib (3 funcs, 1 values)
     L.newlib(term_funcs, 4);
 
-    // add modes table
+    /// Mode flag table.
+    // @field modes Table mapping mode flags to their integer value
     L.newtable();
 #define PUSH_ENUM_FIELD(nm)\
     L.pushinteger(nm); L.setfield(-2, #nm)

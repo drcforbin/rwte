@@ -5,11 +5,36 @@
 
 #include <xkbcommon/xkbcommon-keysyms.h>
 
+/// Window module; `window` is the global window object.
+// @module window
+
 #define LOGGER() (logging::get("luawindow"))
 
 static int window_mouse_press_ref = LUA_NOREF;
 static int window_key_press_ref = LUA_NOREF;
 
+/// Sets the function to be called when a mouse button is pressed
+// (except when the mouse button is handled internally, such as for selection).
+//
+// The function should return true if the mouse press was handled, something
+// falsy otherwise.
+//
+// @function mouse_press
+// @int col Terminal column where the event occurred
+// @int row Terminal row where the event occurred
+// @int button Mouse button (integer, 1-5)
+// @tab mod Keyboard modifier flags
+// @bool mod.shift Shift key
+// @bool mod.ctrl Ctrl key
+// @bool mod.alt Alt key
+// @bool mod.logo Logo key
+// @usage
+// window.mouse_press(function(col, row, button, mod)
+//     if button == 4 then -- mouse wheel up
+//         logging.get("example"):info("WHEEEEEL UP!")
+//         return true
+//     end
+// end)
 static int luawindow_mouse_press(lua_State *l)
 {
     lua::State L(l);
@@ -17,6 +42,31 @@ static int luawindow_mouse_press(lua_State *l)
     return 0;
 }
 
+/// Sets the function to be called when a key is pressed (except when
+// the key button is handled internally).
+//
+// The function should return true if the key press was handled, something
+// falsy otherwise.
+//
+// @function key_press
+// @int sym	Key symbol. See values in @{keys}
+// @tab mod Keyboard modifier flags
+// @bool mod.shift Shift key
+// @bool mod.ctrl Ctrl key
+// @bool mod.alt Alt key
+// @bool mod.logo Logo key
+// @usage
+// window.key_press(function(sym, mod)
+//     if mod.shift then
+//         if sym == window.keys.Q then
+//             logging.get("example"):info("Q!!!")
+//             return true
+//         elseif sym == window.keys.W then
+//             logging.get("example"):info("W!!")
+//             return true
+//         end
+//     end
+// end)
 static int luawindow_key_press(lua_State *l)
 {
     lua::State L(l);
@@ -24,18 +74,28 @@ static int luawindow_key_press(lua_State *l)
     return 0;
 }
 
+/// Initiates paste of the system clipboard to the terminal.
+//
+// @function clippaste
+// @usage window.clippaste()
 static int luawindow_clippaste(lua_State *l)
 {
     window.clippaste();
     return 0;
 }
 
+/// Initiates paste of the system selection to the terminal.
+//
+// @function selpaste
+// @usage window.selpaste()
 static int luawindow_selpaste(lua_State *l)
 {
     window.selpaste();
     return 0;
 }
 
+/// Window ID.
+// @field id Window identifier
 static int luawindow_index(lua_State *l)
 {
     lua::State L(l);
@@ -68,6 +128,9 @@ static int window_openf(lua_State *l)
     // add keys table. Note that this table is quite
     // incomplete; there's no reason for this other than
     // laziness
+
+    /// Key symbol table.
+    // @field keys Table mapping key names to key symbols
     L.newtable();
 #define PUSH_ENUM_FIELD(nm)\
     L.pushinteger(XKB_KEY_##nm); L.setfield(-2, #nm)

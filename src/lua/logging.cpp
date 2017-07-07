@@ -2,6 +2,9 @@
 #include "lua/state.h"
 #include "rwte/logging.h"
 
+/// Logging module; this is the api for logging.
+// @module logging
+
 #define LUALOG "LUALOG*"
 
 struct LuaLogStruct
