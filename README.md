@@ -26,7 +26,6 @@ Borrows code and ideas from all over
 
 * [Introduction](#introduction)
 * [config](#config)
-* [logging](#logging)
 
 ### Introduction
 
