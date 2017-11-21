@@ -435,7 +435,7 @@ void TtyImpl::write_ready()
         m_wbuflen -= written;
 
         // anything left to write?
-        if (m_wbuflen)
+        if (!m_wbuflen)
         {
             // nope.
             std::free(m_wbuffer);
