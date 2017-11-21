@@ -1,6 +1,7 @@
 CXX = clang++
 
 SRCDIR := src
+INCDIR := include
 BUILDDIR := build
 TARGETDIR := bin
 
@@ -13,21 +14,22 @@ INSTALLBINDIR := x
 
 # Code Lists
 SRCEXT := cpp
+HEADERS := $(shell find $(INCDIR) -type f -name *.h)
 SOURCES := $(shell find $(SRCDIR) -type f -name *.$(SRCEXT))
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 
 # Folder Lists
 # Note: Intentionally excludes the root of the include folder so the lists are clean
-INCDIRS := $(shell find include/**/* -name '*.h' -exec dirname {} \; | sort | uniq)
+INCDIRS := $(shell find $(INCDIR)/**/* -name '*.h' -exec dirname {} \; | sort | uniq)
 #INCLIST := $(patsubst include/%,-I include/%,$(INCDIRS))
 BUILDLIST := $(patsubst include/%,$(BUILDDIR)/%,$(INCDIRS))
 
 # Shared Compiler Flags
 #INC := -I include $(INCLIST) -I /usr/local/include
 INC := -I include -I /usr/local/include
-CFLAGS = -c -Wall -pedantic -std=c++14 -g `pkg-config --cflags xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua`
+CFLAGS = -c -Wall -pedantic -std=c++14 -O3 `pkg-config --cflags xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua`
 # eventually, -O2 rather than -g
-LDFLAGS= -lev -lutil -lxdg-basedir `pkg-config --libs xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua`
+LDFLAGS= -O3 -lev -lutil -lxdg-basedir `pkg-config --libs xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua`
 
 $(TARGET): $(OBJECTS)
 	@mkdir -p $(TARGETDIR)
@@ -37,6 +39,10 @@ $(TARGET): $(OBJECTS)
 $(BUILDDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)
 	@mkdir -p $(BUILDLIST)
 	@echo "Compiling $<..."; $(CXX) $(CFLAGS) $(INC) -c -o $@ $<
+
+.PHONY: docs
+docs: $(HEADERS) $(SOURCES)
+	@ldoc .
 
 clean:
 	@echo "Cleaning $(TARGET)..."; $(RM) -r $(BUILDDIR) $(TARGET)
