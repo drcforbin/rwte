@@ -75,11 +75,9 @@ const term_mode mouse_modes(
         1 << MODE_MOUSEBTN | 1 << MODE_MOUSEMOTION |
         1 << MODE_MOUSEX10 | 1 << MODE_MOUSEMANY);
 
-using Rune = uint_least32_t;
-
 struct Glyph
 {
-    Rune u = ' ';           // character code
+    char32_t u = ' ';           // character code
     glyph_attribute attr;    // attribute flags
     uint32_t fg = 0;      // foreground
     uint32_t bg = 0;      // background
@@ -130,7 +128,7 @@ public:
     void setdirty();
     void cleardirty(int row);
 
-    void putc(Rune u);
+    void putc(char32_t u);
     void mousereport(int col, int row, mouse_event_enum evt, int button,
             const keymod_state& mod);
 

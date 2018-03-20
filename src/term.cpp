@@ -159,7 +159,7 @@ public:
     void setdirty() { setdirty(0, m_rows-1); }
     void cleardirty(int row) { m_dirty[row] = false; }
 
-    void putc(Rune u);
+    void putc(char32_t u);
     void mousereport(int col, int row, mouse_event_enum evt, int button,
             const keymod_state& mod);
 
@@ -204,7 +204,7 @@ private:
 
     void selsnap(int *col, int *row, int direction);
 
-    void setchar(Rune u, const Glyph& attr, int col, int row);
+    void setchar(char32_t u, const Glyph& attr, int col, int row);
     void defutf8(char ascii);
     void selscroll(int orig, int n);
     void selnormalize();
@@ -527,22 +527,22 @@ void TermImpl::cursor(int mode)
     }
 }
 
-static bool iscontrolc0(Rune c)
+static bool iscontrolc0(char32_t c)
 {
     return c <= 0x1f || c == '\177';
 }
 
-static bool iscontrolc1(Rune c)
+static bool iscontrolc1(char32_t c)
 {
     return 0x80 <= c && c <= 0x9f;
 }
 
-static bool iscontrol(Rune c)
+static bool iscontrol(char32_t c)
 {
     return iscontrolc0(c) || iscontrolc1(c);
 }
 
-static bool isdelim(Rune c)
+static bool isdelim(char32_t c)
 {
     auto L = rwte.lua();
     L->getglobal("config");
@@ -558,7 +558,7 @@ static bool isdelim(Rune c)
     return delim;
 }
 
-void TermImpl::putc(Rune u)
+void TermImpl::putc(char32_t u)
 {
     char c[utf_size];
     int width;
@@ -1243,7 +1243,7 @@ void TermImpl::send(const char *data, std::size_t len)
     g_tty->write(data, len);
 }
 
-void TermImpl::setchar(Rune u, const Glyph& attr, int col, int row)
+void TermImpl::setchar(char32_t u, const Glyph& attr, int col, int row)
 {
     const char *vt100_0[62] = { // 0x41 - 0x7e
         "↑", "↓", "→", "←", "█", "▚", "☃", // A - G
@@ -2463,7 +2463,7 @@ void Term::setdirty()
 void Term::cleardirty(int row)
 { impl->cleardirty(row); }
 
-void Term::putc(Rune u)
+void Term::putc(char32_t u)
 { impl->putc(u); }
 
 void Term::mousereport(int col, int row, mouse_event_enum evt, int button,

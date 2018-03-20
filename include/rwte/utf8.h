@@ -3,14 +3,12 @@
 
 #include <cstdint>
 
-using Rune = uint_least32_t;
-
 const int utf_size = 4;
-const Rune utf_invalid = 0xFFFD;
+const char32_t utf_invalid = 0xFFFD;
 
-std::size_t utf8validate(Rune *u, std::size_t i);
-std::size_t utf8decode(const char *c, Rune *u, std::size_t clen);
-std::size_t utf8encode(Rune u, char *c);
-const char * utf8strchr(const char *s, Rune u);
+std::size_t utf8validate(char32_t *u, std::size_t i);
+std::size_t utf8decode(const char *c, char32_t *u, std::size_t clen);
+std::size_t utf8encode(char32_t u, char *c);
+const char * utf8strchr(const char *s, char32_t u);
 
 #endif // RWTE_UTF8_H

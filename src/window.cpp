@@ -690,7 +690,7 @@ void WindowImpl::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
         if (mode[MODE_8BIT])
         {
             if (*buffer < 0177) {
-                Rune c = *buffer | 0x80;
+                char32_t c = *buffer | 0x80;
                 len = utf8encode(c, buffer);
             }
         }

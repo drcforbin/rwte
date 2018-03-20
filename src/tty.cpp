@@ -379,7 +379,7 @@ void TtyImpl::read_ready()
 {
     char *ptr = &m_rbuffer[0];
     int charsize; // size of utf8 char in bytes
-    Rune unicodep;
+    char32_t unicodep;
 
     // append read bytes to unprocessed bytes
     int ret;

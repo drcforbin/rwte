@@ -254,7 +254,7 @@ private:
             int row, int col);
     void drawglyphs(cairo_t *cr, PangoLayout *layout,
             const glyph_attribute& attr, uint32_t fg, uint32_t bg,
-            const std::vector<Rune>& runes, int row, int col);
+            const std::vector<char32_t>& runes, int row, int col);
     void drawcursor(cairo_t *cr, PangoLayout *layout);
     void load_font(cairo_t *cr);
     cairo_font_options_t *get_font_options();
@@ -335,7 +335,7 @@ void RendererImpl::drawregion(int row1, int col1, int row2, int col2)
     auto& sel = g_term->sel();
     bool ena_sel = !sel.empty() && sel.alt == g_term->mode()[MODE_ALTSCREEN];
 
-    std::vector<Rune> runes;
+    std::vector<char32_t> runes;
     for (int row = row1; row < row2; row++)
     {
         if (!g_term->isdirty(row))
@@ -415,13 +415,13 @@ void RendererImpl::clear(cairo_t *cr, int x1, int y1, int x2, int y2)
 void RendererImpl::drawglyph(cairo_t *cr, PangoLayout *layout, const Glyph& glyph,
         int row, int col)
 {
-    const std::vector<Rune> rune {glyph.u};
+    const std::vector<char32_t> rune {glyph.u};
     drawglyphs(cr, layout, glyph.attr, glyph.fg, glyph.bg, rune, row, col);
 }
 
 void RendererImpl::drawglyphs(cairo_t *cr, PangoLayout *layout,
         const glyph_attribute& attr, uint32_t fg, uint32_t bg,
-        const std::vector<Rune>& runes, int row, int col)
+        const std::vector<char32_t>& runes, int row, int col)
 {
     int charlen = runes.size() * (attr[ATTR_WIDE] ? 2 : 1);
     int winx = m_border_px + col * m_cw;

@@ -7,10 +7,10 @@
 
 static const unsigned char utfbyte[utf_size + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
 static const unsigned char utfmask[utf_size + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
-static const Rune utfmin[utf_size + 1] = {       0,    0,  0x80,  0x800,  0x10000};
-static const Rune utfmax[utf_size + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
+static const char32_t utfmin[utf_size + 1] = {       0,    0,  0x80,  0x800,  0x10000};
+static const char32_t utfmax[utf_size + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
 
-std::size_t utf8validate(Rune *u, std::size_t i)
+std::size_t utf8validate(char32_t *u, std::size_t i)
 {
     if (*u < utfmin[i] || utfmax[i] < *u || (0xD800 <= *u && *u <= 0xDFFF))
         *u = utf_invalid;
@@ -19,7 +19,7 @@ std::size_t utf8validate(Rune *u, std::size_t i)
     return i;
 }
 
-static Rune utf8decodebyte(char c, std::size_t *i)
+static char32_t utf8decodebyte(char c, std::size_t *i)
 {
     for (*i = 0; *i < LEN(utfmask); ++(*i))
         if (((unsigned char)c & utfmask[*i]) == utfbyte[*i])
@@ -28,14 +28,14 @@ static Rune utf8decodebyte(char c, std::size_t *i)
     return 0;
 }
 
-std::size_t utf8decode(const char *c, Rune *u, std::size_t clen)
+std::size_t utf8decode(const char *c, char32_t *u, std::size_t clen)
 {
     *u = utf_invalid;
     if (!clen)
         return 0;
 
     std::size_t len;
-    Rune udecoded = utf8decodebyte(c[0], &len);
+    char32_t udecoded = utf8decodebyte(c[0], &len);
     if (len < 1 || utf_size < len)
         return 1;
 
@@ -57,12 +57,12 @@ std::size_t utf8decode(const char *c, Rune *u, std::size_t clen)
     return len;
 }
 
-static char utf8encodebyte(Rune u, size_t i)
+static char utf8encodebyte(char32_t u, size_t i)
 {
     return utfbyte[i] | (u & ~utfmask[i]);
 }
 
-size_t utf8encode(Rune u, char *c)
+size_t utf8encode(char32_t u, char *c)
 {
     size_t len = utf8validate(&u, 0);
     if (len > utf_size)
@@ -78,9 +78,9 @@ size_t utf8encode(Rune u, char *c)
     return len;
 }
 
-const char * utf8strchr(const char *s, Rune u)
+const char * utf8strchr(const char *s, char32_t u)
 {
-    Rune r;
+    char32_t r;
     size_t len = std::strlen(s);
     for (size_t i = 0, j = 0; i < len; i += j)
     {
