@@ -1018,7 +1018,7 @@ void TermImpl::scrollup(int orig, int n)
     clearregion(0, orig, m_cols-1, orig+n-1);
     setdirty(orig+n, m_bot);
 
-    for (size_t i = orig; i <= m_bot-n; i++)
+    for (int i = orig; i <= m_bot-n; i++)
         std::swap(m_lines[i], m_lines[i+n]);
 
     selscroll(orig, -n);
