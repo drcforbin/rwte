@@ -52,65 +52,6 @@ private:
 
 extern const unsigned char UTF8_TRANSITIONS[8][256];
 
-/*
-unsigned char get_trans(utf8_state_enum state, unsigned char b)
-{
-    switch (state)
-    {
-    case UTF8_GROUND:
-        if (b <= 0x7F)
-            return (ACT_EMIT << 4) | UTF8_GROUND;
-        if (0xC2 <= b && b <= 0xDF)
-            return (ACT_SET_BYTE2_TOP << 4) | UTF8_TAIL1;
-        if (b == 0xE0)
-            return (ACT_NOOP << 4) | UTF8_U3_B2_E0;
-        if (0xE1 <= b && b <= 0xEC)
-            return (ACT_SET_BYTE3_TOP << 4) | UTF8_TAIL2;
-        if (b == 0xED)
-            return (ACT_SET_BYTE3_TOP << 4) | UTF8_U3_B2_ED;
-        if (0xEE <= b && b <= 0xEF)
-            return (ACT_SET_BYTE3_TOP << 4) | UTF8_TAIL2;
-        if (b == 0xF0)
-            return (ACT_SET_BYTE4_TOP << 4) | UTF8_U4_B3_F0;
-        if (0xF1 <= b && b <= 0xF3)
-            return (ACT_SET_BYTE4_TOP << 4) | UTF8_TAIL3;
-        if (0xF4 <= b && b <= 0xF4)
-            return (ACT_SET_BYTE4_TOP << 4) | UTF8_U4_B3_F4;
-        break;
-    case UTF8_U3_B2_E0:
-        if (0xA0 <= b && b <= 0xBF)
-            return (ACT_SET_BYTE2 << 4) | UTF8_TAIL1;
-        break;
-    case UTF8_U3_B2_ED:
-        if (0x80 <= b && b <= 0x9F)
-            return (ACT_SET_BYTE2 << 4) | UTF8_TAIL1;
-        break;
-    case UTF8_U4_B3_F0:
-        if (0x90 <= b && b <= 0xBF)
-            return (ACT_SET_BYTE3 << 4) | UTF8_TAIL2;
-        break;
-    case UTF8_U4_B3_F4:
-        if (0x80 <= b && b <= 0x8F)
-            return (ACT_SET_BYTE3 << 4) | UTF8_TAIL2;
-        break;
-    case UTF8_TAIL1:
-        if (0x80 <= b && b <= 0xBF)
-            return (ACT_SET_BYTE1_EMIT << 4) | UTF8_GROUND;
-        break;
-    case UTF8_TAIL2:
-        if (0x80 <= b && b <= 0xBF)
-            return (ACT_SET_BYTE2 << 4) | UTF8_TAIL1;
-        break;
-    case UTF8_TAIL3:
-        if (0x80 <= b && b <= 0xBF)
-            return (ACT_SET_BYTE3 << 4) | UTF8_TAIL2;
-        break;
-    }
-
-    return (ACT_INVALID << 4) | UTF8_GROUND;
-}
-*/
-
 utf8_result Utf8Decoder::feed(unsigned char b, char32_t *cp)
 {
     unsigned char chg = UTF8_TRANSITIONS[m_state][b];
