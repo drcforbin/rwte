@@ -478,15 +478,15 @@ void RendererImpl::drawglyphs(cairo_t *cr, PangoLayout *layout,
             bg = TRUECOL(~REDBYTE(bg), ~GREENBYTE(bg), ~BLUEBYTE(bg));
     }
 
-    if (attr[ATTR_REVERSE])
-        std::swap(fg, bg);
-
     // todo: this assumes darker is fainter
     if (attr[ATTR_FAINT])
     {
         fg = lookup_color(fg);
         fg = TRUECOL(REDBYTE(fg) / 2, GREENBYTE(fg) / 2, BLUEBYTE(fg) / 2);
     }
+
+    if (attr[ATTR_REVERSE])
+        std::swap(fg, bg);
 
     if (attr[ATTR_BLINK] && g_term->mode()[MODE_BLINK])
         fg = bg;
