@@ -552,9 +552,12 @@ static bool isdelim(char32_t c)
     const char * word_delimiters = L->tostring(-1);
 
     // if word_delimiters is missing, it'll select whole line
+    // TODO: look to replacing utf8strchr with wcschr
+    // (that's what st did)
+    // their default word_delimiters is just " " by default
     bool delim = false;
     if (word_delimiters)
-        delim = utf8strchr(word_delimiters, c) != nullptr;
+        delim = c != 0 && utf8strchr(word_delimiters, c) != nullptr;
 
     L->pop(2);
     return delim;
@@ -1779,7 +1782,10 @@ void TermImpl::strhandle()
             /*
             todo: color
             if (xsetcolorname(j, p)) {
-                fprintf(stderr, "erresc: invalid color %s\n", p);
+                if (p == 104 && narg <= 1)
+                    return; // color reset without parameter
+                fprintf(stderr, "erresc: invalid color j=%d, p=%s\n",
+                    j, p? p : "(null)");
             } else {
                 // todo...doesn't fully repaint?!?
                 // oh, I bet we need to reset the color on

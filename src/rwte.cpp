@@ -93,10 +93,10 @@ void Rwte::stop_blink()
 
 void Rwte::childcb(ev::child &w, int)
 {
-    if (!WIFEXITED(w.rstatus) || WEXITSTATUS(w.rstatus))
-        LOGGER()->warn("child finished with error {}", w.rstatus);
-    else
-        LOGGER()->info("child exited");
+    if (WIFEXITED(w.rstatus) && WEXITSTATUS(w.rstatus))
+        LOGGER()->warn("child exited with status {}", WEXITSTATUS(w.rstatus));
+    else if (WIFSIGNALED(w.rstatus))
+        LOGGER()->info("child terminated to to signal {}", WTERMSIG(w.rstatus));
     w.loop.break_loop(ev::ALL);
 }
 

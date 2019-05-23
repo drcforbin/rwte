@@ -20,12 +20,12 @@ void Selection::clear()
 
 bool Selection::empty() const
 {
-    return ob.col == -1;
+    return mode == SEL_EMPTY || ob.col == -1;
 }
 
 bool Selection::selected(int col, int row) const
 {
-    if (mode == SEL_EMPTY)
+    if (empty())
         return false;
 
     if (type == SEL_RECTANGULAR)
