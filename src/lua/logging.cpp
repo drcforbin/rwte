@@ -121,6 +121,7 @@ LOGGER_FUNC(fatal)
 /// Log level for this logger.
 //
 // (implemented via `__index` / `__newindex`)
+//
 // @class field
 // @name level
 
