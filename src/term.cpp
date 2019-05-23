@@ -24,6 +24,8 @@
 #define LIMIT(x, a, b)  ((x) = (x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
 #define DEFAULT(a, b)  (a) = (a) ? (a) : (b)
 
+#define TRUECOL(r,g,b) (1 << 24 | ((r) & 0xFF) << 16 | ((g) & 0xFF) << 8 | ((b) & 0xFF))
+
 #define TIMEDIFF(t1, t2) \
         (((t1).tv_sec-(t2).tv_sec)*1000 + \
          ((t1).tv_nsec-(t2).tv_nsec)/1E6)
@@ -1650,6 +1652,49 @@ void TermImpl::strparse()
     }
 }
 
+static uint32_t defcolor(int *attr, int *npar, int l)
+{
+    int32_t idx = -1;
+    uint r, g, b;
+
+    switch (attr[*npar + 1]) {
+    case 2: // direct color in RGB space
+        if (*npar + 4 >= l) {
+            LOGGER()->error("erresc(38): Incorrect number of parameters ({})", *npar);
+            break;
+        }
+        r = attr[*npar + 2];
+        g = attr[*npar + 3];
+        b = attr[*npar + 4];
+        *npar += 4;
+        if (!(0 <= r && r <= 255) || !(0 <= g && g <= 255) || !(0 <= b && b <= 255))
+            LOGGER()->error("erresc: bad rgb color ({},{},{})", r, g, b);
+        else
+            idx = TRUECOL(r, g, b);
+        break;
+    case 5: // indexed color
+        if (*npar + 2 >= l) {
+            LOGGER()->error("erresc(38): Incorrect number of parameters ({})", *npar);
+            break;
+        }
+        *npar += 2;
+        if (!(0 <= attr[*npar] && attr[*npar] <= 255))
+            LOGGER()->error("erresc: bad fgcolor {}", attr[*npar]);
+        else
+            idx = attr[*npar];
+        break;
+    case 0: /* implemented defined (only foreground) */
+    case 1: /* transparent */
+    case 3: /* direct color in CMY space */
+    case 4: /* direct color in CMYK space */
+    default:
+        LOGGER()->error("erresc(38): gfx attr {} unknown", attr[*npar]);
+        break;
+    }
+
+    return idx;
+}
+
 // todo: move me
 int32_t hexcolor(const char *src)
 {
@@ -2175,26 +2220,22 @@ void TermImpl::setattr(int *attr, int len)
             m_cursor.attr.attr.reset(ATTR_STRUCK);
             break;
         case 38:
-            // todo: remove temp dump
-            LOGGER()->debug("change fg: {}", strdump());
-            /*
-             todo: color
-            if ((int idx = tdefcolor(attr, &i, l)) >= 0)
-                m_cursor.attr.fg = idx;
-                */
+        {
+            auto color = defcolor(attr, &i, len);
+            if (color >= 0)
+                m_cursor.attr.fg = color;
             break;
+        }
         case 39:
             m_cursor.attr.fg = m_deffg;
             break;
         case 48:
-            // todo: remove temp dump
-            LOGGER()->debug("change bg: {}", strdump());
-            /*
-             todo: color
-            if ((int idx = tdefcolor(attr, &i, l)) >= 0)
-                m_cursor.attr.bg = idx;
-                */
+        {
+            auto color = defcolor(attr, &i, len);
+            if (color >= 0)
+                m_cursor.attr.bg = color;
             break;
+        }
         case 49:
             m_cursor.attr.bg = m_defbg;
             break;

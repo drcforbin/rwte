@@ -68,6 +68,11 @@ static unique_font_desc create_font_desc()
     return fontdesc;
 }
 
+static uint16_t sixd_to_16bit(int x)
+{
+	return x == 0 ? 0 : 0x3737 + 0x2828 * x;
+}
+
 static uint32_t lookup_color(uint32_t color)
 {
     // only need to lookup color if the magic bit is set
@@ -83,22 +88,45 @@ static uint32_t lookup_color(uint32_t color)
         // look up color
         L->geti(-1, color);
         int isnum = 0;
-        color = L->tointegerx(-1, &isnum);
-        if (!isnum)
+        uint32_t t = L->tointegerx(-1, &isnum);
+        if (isnum)
         {
-            // no match...find out what the black index is
-            L->getfield(-3, "black_idx");
-            color = L->tointegerx(-1, &isnum);
-            if (!isnum)
-                LOGGER()->fatal("config.black_idx is not an integer");
+            // it's valid, we can use it
+            color = t;
+        }
+        else
+        {
+		    if (16 <= color && color <= 255)
+            {
+                // 256 color
+                if (color < 6*6*6+16)
+                {
+                    // same colors as xterm
+                    color = TRUECOL(sixd_to_16bit( ((color-16)/36)%6 ),
+                            sixd_to_16bit( ((color-16)/6) %6 ),
+                            sixd_to_16bit( ((color-16)/1) %6 ));
+                } else {
+                    // greyscale
+                    int val = 0x0808 + 0x0a0a * (color - (6*6*6+16));
+                    color = TRUECOL(val, val, val);
+                }
+            }
+            else
+            {
+                // no match...find out what the black index is
+                L->getfield(-3, "black_idx");
+                color = L->tointegerx(-1, &isnum);
+                if (!isnum)
+                    LOGGER()->fatal("config.black_idx is not an integer");
 
-            // now look up black
-            L->geti(-3, color);
-            color = L->tointegerx(-1, &isnum);
-            if (!isnum)
-                LOGGER()->fatal("config.black_idx is not an valid index");
+                // now look up black
+                L->geti(-3, color);
+                color = L->tointegerx(-1, &isnum);
+                if (!isnum)
+                    LOGGER()->fatal("config.black_idx is not an valid index");
 
-            L->pop(2);
+                L->pop(2);
+            }
         }
 
         L->pop(3);
