@@ -61,8 +61,6 @@ public:
     uint16_t height() const { return m_height; }
     uint16_t rows() const { return m_rows; }
     uint16_t cols() const { return m_cols; }
-    uint16_t tw() const { return m_tw; }
-    uint16_t th() const { return m_th; }
 
     void draw();
     void set_wm_class();
@@ -142,7 +140,6 @@ private:
     void setup_xkb();
     bool load_compose_table(const char *locale);
 
-    uint16_t m_tw, m_th;
     uint16_t m_width, m_height;
     uint16_t m_rows, m_cols;
 
@@ -294,9 +291,6 @@ void WindowImpl::resize(uint16_t width, uint16_t height)
 
     m_cols = (width - 2 * border_px) / cw;
     m_rows = (height - 2 * border_px) / ch;
-
-    m_tw = MAX(1, m_cols * cw);
-    m_th = MAX(1, m_rows * ch);
 
     m_renderer->resize(width, height);
     LOGGER()->info("resize to {}x{}", width, height);
@@ -1197,12 +1191,6 @@ uint16_t Window::rows() const
 
 uint16_t Window::cols() const
 { return impl->cols(); }
-
-uint16_t Window::tw() const
-{ return impl->tw(); }
-
-uint16_t Window::th() const
-{ return impl->th(); }
 
 void Window::draw()
 { impl->draw(); }

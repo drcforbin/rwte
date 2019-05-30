@@ -26,10 +26,6 @@ public:
     uint16_t rows() const;
     uint16_t cols() const;
 
-    // todo: see if really needed
-    uint16_t tw() const;
-    uint16_t th() const;
-
     void draw();
 
     void settitle(const std::string& name);

@@ -416,8 +416,8 @@ void TtyImpl::resize()
     struct winsize w {
         (uint16_t) g_term->rows(),
         (uint16_t) g_term->cols(),
-        window.tw(),
-        window.th()
+        // unused
+        0, 0
     };
 
     if (ioctl(fd(), TIOCSWINSZ, &w) < 0)
