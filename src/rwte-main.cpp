@@ -21,7 +21,6 @@
 
 #define LOGGER() (logging::get("rwte-main"))
 
-#define MIN(a, b) ((a) < (b)? (a) : (b))
 #define MAX(a, b) ((a) < (b)? (b) : (a))
 
 
@@ -257,8 +256,8 @@ int main(int argc, char *argv[])
             exit_version();
             break;
         case 'e':
-            // todo: handle -e
             LOGGER()->info("exe: {}", optarg);
+            options.cmd.push_back(optarg);
             got_exe = true;
             break;
         case 1:
@@ -269,12 +268,17 @@ int main(int argc, char *argv[])
         }
     }
 
-    // todo: handle these with -e
     if (optind < argc)
     {
         LOGGER()->info("non-option args:");
-        while (optind < argc)
-            LOGGER()->info("{}", argv[optind++]);
+        for (; optind < argc; optind++)
+        {
+            LOGGER()->info("{}", argv[optind]);
+
+            // capture args with we had -e
+            if (got_exe)
+                options.cmd.push_back(argv[optind]);
+        }
     }
 
     {

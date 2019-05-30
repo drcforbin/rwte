@@ -73,23 +73,34 @@ static void execsh()
     L->getglobal("config");
     bool sh_on_stack = false;
 
-    // check env first...
-    const char *sh = std::getenv("SHELL");
-    if (!sh)
+    // check options for shell. use options.cmd if
+    // it has been set, otherwise try fallbacks
+    std::vector<const char *> args = options.cmd;
+    if (args.empty())
     {
-        // check value in /etc/passwd
-        if (pw->pw_shell[0])
-            sh = pw->pw_shell;
-        else
+        // check env next...
+        const char *sh = std::getenv("SHELL");
+        if (!sh)
         {
-            // still couldn't find it. check config
-            L->getfield(-1, "default_shell");
-            sh = L->tostring(-1);
-            if (!sh)
-                LOGGER()->fatal("config.default_shell is not valid");
-            sh_on_stack = true;
+            // check value in /etc/passwd
+            if (pw->pw_shell[0])
+                sh = pw->pw_shell;
+            else
+            {
+                // still couldn't find it. check config
+                L->getfield(-1, "default_shell");
+                sh = L->tostring(-1);
+                if (!sh)
+                    LOGGER()->fatal("config.default_shell is not valid");
+                sh_on_stack = true;
+            }
         }
+
+        args.push_back(sh);
     }
+
+    // needs a null sentinel
+    args.push_back(nullptr);
 
     L->getfield(sh_on_stack? -2 : -1, "term_name");
     const char * term_name = L->tostring(-1);
@@ -101,7 +112,7 @@ static void execsh()
     unsetenv("TERMCAP");
     setenv("LOGNAME", pw->pw_name, 1);
     setenv("USER", pw->pw_name, 1);
-    setenv("SHELL", sh, 1);
+    setenv("SHELL", args[0], 1);
     setenv("HOME", pw->pw_dir, 1);
     setenv("TERM", term_name, 1);
     setenv_windowid();
@@ -113,21 +124,7 @@ static void execsh()
     signal(SIGTERM, SIG_DFL);
     signal(SIGALRM, SIG_DFL);
 
-
-    const char *prog;
-    if (options.cmd)
-        prog = options.cmd[0];
-    else
-        prog = sh;
-
-    const char **args;
-    const char *progags[2] = {
-        prog,
-        nullptr
-    };
-    args = (options.cmd) ? options.cmd : progags;
-
-    execvp(prog, const_cast<char* const*>(args));
+    execvp(args[0], const_cast<char* const*>(args.data()));
     LOGGER()->fatal("execvp failed: {}", strerror(errno));
 
     // yeah, we aren't popping the lua stack, but
@@ -154,7 +151,7 @@ static void stty()
     char *q = cmd + len;
     size_t siz = sizeof(cmd) - len;
     const char *s;
-    for (const char **p = options.cmd; p && (s = *p); ++p)
+    for (const char **p = options.cmd.data(); p && (s = *p); ++p)
     {
         if ((len = strlen(s)) > siz-1)
             LOGGER()->fatal("config.stty_args parameter length too long");

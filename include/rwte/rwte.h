@@ -5,6 +5,7 @@
 #include <ev++.h>
 #include <memory>
 #include <string>
+#include <vector>
 #include <sys/types.h>
 
 namespace lua
@@ -17,7 +18,7 @@ class Options
 public:
     Options();
 
-    const char ** cmd;
+    std::vector<const char *> cmd;
 
     std::string title;
     std::string winname;

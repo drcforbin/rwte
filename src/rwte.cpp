@@ -23,7 +23,6 @@ lua_State * g_L = nullptr;
 static const float DEFAULT_BLINK_RATE = 0.6;
 
 Options::Options() :
-    cmd(nullptr),
     title("rwte"),
     noalt(false)
 { }

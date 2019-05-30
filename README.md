@@ -12,7 +12,6 @@ xcb terminal emulator, with lua, cairo, and pango
 * Numlock. I don't have a keypad.
 * Custom colors, color resetting
 * Media copy / 'print'
-* -e argument
 
 ## Notes
 
