@@ -48,24 +48,6 @@ static void log_write(bool initial, const char *data, size_t len)
     LOGGER()->trace("wrote '{}' ({}, {})", msg.str(), len, initial);
 }
 
-// todo: consider merging into print
-static ssize_t xwrite(int fd, const char *s, size_t len)
-{
-    size_t aux = len;
-    ssize_t r;
-
-    while (len > 0)
-    {
-        r = write(fd, s, len);
-        if (r < 0)
-            return r;
-        len -= r;
-        s += r;
-    }
-
-    return aux;
-}
-
 static void setenv_windowid()
 {
     char buf[sizeof(long) * 8 + 1];
@@ -188,30 +170,140 @@ static void stty()
 
 }
 
-class TtyImpl
+template <class T>
+class BufferedIO
 {
 public:
-    TtyImpl();
-    ~TtyImpl();
+    BufferedIO() :
+        m_fd(-1),
+        m_rbuflen(0),
+        m_wbuffer(nullptr),
+        m_wbuflen(0)
+    {
+        m_io.set<BufferedIO, &BufferedIO::iocb>(this);
+    }
 
-    void resize();
+    ~BufferedIO()
+    {
+        if (m_fd != -1)
+            close(m_fd);
 
-    void write(const char *data, std::size_t len);
-    void print(const char *data, std::size_t len);
+        if (m_wbuffer)
+            std::free(m_wbuffer);
+    }
 
-    void hup();
+    void setFd(int fd)
+    {
+        m_fd = fd;
+    }
+
+    int fd() const { return m_fd; }
+
+    void write(const char *data, std::size_t len)
+    {
+        // if nothing's pending for write, kick it off
+        if (m_wbuflen == 0)
+        {
+            ssize_t written = ::write(m_fd, data, MIN(len, max_write));
+            if (written < 0)
+                written = 0;
+
+            if (written > 0)
+                log_write(true, data, written);
+
+            if (written == len)
+                return;
+
+            data += written;
+            len  -= written;
+        }
+
+        // copy anything left into m_wbuffer
+        m_wbuffer = (char *) std::realloc(m_wbuffer, m_wbuflen + len);
+        std::memcpy(m_wbuffer + m_wbuflen, data, len);
+        m_wbuflen += len;
+
+        // now we want write events too
+        m_io.set(ev::READ | ev::WRITE);
+    }
+
+    void startRead()
+    {
+        m_io.start(m_fd, ev::READ);
+    }
 
 private:
-    void cmdiocb(ev::io &, int);
+    void iocb(ev::io &, int revents)
+    {
+        if (revents & ev::READ)
+            read_ready();
 
-    void read_ready();
-    void write_ready();
+        if (revents & ev::WRITE)
+            write_ready();
+    }
 
-    ev::io m_cmdio;
+    void read_ready()
+    {
+        char *ptr = &m_rbuffer[0];
 
-    pid_t m_pid;
-    int m_cmdfd;
-    int m_iofd;
+        // append read bytes to unprocessed bytes
+        int ret;
+        if ((ret = ::read(m_fd, ptr+m_rbuflen, m_rbuffer.size()-m_rbuflen)) < 0)
+        {
+            if (errno == EIO)
+            {
+                // child exiting?
+                m_io.stop();
+                return;
+            }
+            else
+                LOGGER()->fatal("could not read from shell ({}): {}", errno, strerror(errno));
+        }
+
+        m_rbuflen += ret;
+
+        m_rbuflen = static_cast<T*>(this)->onread(ptr, m_rbuflen);
+
+        // keep any uncomplete utf8 char for the next call
+        if (m_rbuflen > 0)
+            std::memmove(&m_rbuffer[0], ptr, m_rbuflen);
+    }
+
+    void write_ready()
+    {
+        int written = ::write(m_fd, m_wbuffer, MIN(m_wbuflen, max_write));
+        if (written > 0)
+        {
+            log_write(false, m_wbuffer, written);
+            m_wbuflen -= written;
+
+            // anything left to write?
+            if (!m_wbuflen)
+            {
+                // nope.
+                std::free(m_wbuffer);
+                m_wbuffer = nullptr;
+
+                // stop waiting for write events
+                m_io.set(ev::READ);
+                return;
+            }
+            else
+            {
+                // if anything's left, move it up front
+                std::memmove(m_wbuffer, m_wbuffer + written, m_wbuflen);
+            }
+        }
+        else if (written != -1 || (errno != EAGAIN && errno != EINTR))
+        {
+            // todo: better error handling
+            // for now, just stop waiting for write event
+            m_io.set(ev::READ);
+        }
+    }
+
+    int m_fd;
+    ev::io m_io;
 
     // fixed-size read buffer
     std::array<char, BUFSIZ> m_rbuffer;
@@ -222,17 +314,31 @@ private:
     std::size_t m_wbuflen;
 };
 
+class TtyImpl: public BufferedIO<TtyImpl>
+{
+public:
+    TtyImpl();
+    ~TtyImpl();
+
+    void resize();
+
+    void print(const char *data, std::size_t len);
+
+    void hup();
+
+private:
+    friend class BufferedIO<TtyImpl>;
+    std::size_t onread(const char *ptr, std::size_t len);
+
+    pid_t m_pid;
+    int m_iofd;
+};
+
 
 TtyImpl::TtyImpl() :
     m_pid(0),
-    m_cmdfd(-1),
-    m_iofd(-1),
-    m_rbuflen(0),
-    m_wbuffer(nullptr),
-    m_wbuflen(0)
+    m_iofd(-1)
 {
-    m_cmdio.set<TtyImpl,&TtyImpl::cmdiocb>(this);
-
     if (!options.io.empty())
     {
         LOGGER()->debug("logging to {}", options.io);
@@ -252,9 +358,12 @@ TtyImpl::TtyImpl() :
     {
         LOGGER()->debug("using line {}", options.line);
 
-        if ((m_cmdfd = open(options.line.c_str(), O_RDWR)) < 0)
+        int fd;
+        if ((fd = open(options.line.c_str(), O_RDWR)) < 0)
             LOGGER()->fatal("open line failed: {}", strerror(errno));
-        dup2(m_cmdfd, STDIN_FILENO);
+        dup2(fd, STDIN_FILENO);
+        setFd(fd);
+
         stty();
         return;
     }
@@ -288,8 +397,8 @@ TtyImpl::TtyImpl() :
         m_pid = pid;
         rwte.watch_child(pid);
 
-        m_cmdfd = parent;
-        m_cmdio.start(m_cmdfd, ev::READ);
+        setFd(parent);
+        startRead();
         break;
     }
 }
@@ -298,11 +407,6 @@ TtyImpl::~TtyImpl()
 {
     if (m_iofd)
         close(m_iofd);
-    if (m_cmdfd)
-        close(m_cmdfd);
-
-    if (m_wbuffer)
-        std::free(m_wbuffer);
 }
 
 void TtyImpl::resize()
@@ -316,46 +420,30 @@ void TtyImpl::resize()
         window.th()
     };
 
-    if (ioctl(m_cmdfd, TIOCSWINSZ, &w) < 0)
+    if (ioctl(fd(), TIOCSWINSZ, &w) < 0)
         LOGGER()->error("could not set window size: {}", strerror(errno));
-}
-
-void TtyImpl::write(const char *data, size_t len)
-{
-    // if nothing's pending for write, kick it off
-    if (m_wbuflen == 0)
-    {
-        ssize_t written = ::write(m_cmdfd, data, MIN(len, max_write));
-        if (written < 0)
-            written = 0;
-
-        if (written > 0)
-            log_write(true, data, written);
-
-        if (written == len)
-            return;
-
-        data += written;
-        len  -= written;
-    }
-
-    // copy anything left into m_wbuffer
-    m_wbuffer = (char *) std::realloc(m_wbuffer, m_wbuflen + len);
-    std::memcpy(m_wbuffer + m_wbuflen, data, len);
-    m_wbuflen += len;
-
-    // now we want write events too
-    m_cmdio.set(ev::READ | ev::WRITE);
 }
 
 void TtyImpl::print(const char *data, size_t len)
 {
-    if (m_iofd != -1 && xwrite(m_iofd, data, len) < 0)
+    if (m_iofd != -1 && len > 0)
     {
-        LOGGER()->error("error writing in {}: {}",
-                options.io, strerror(errno));
-        close(m_iofd);
-        m_iofd = -1;
+        ssize_t r;
+        while (len > 0)
+        {
+            r = ::write(m_iofd, data, len);
+            if (r < 0)
+            {
+                LOGGER()->error("error writing in {}: {}",
+                        options.io, strerror(errno));
+                close(m_iofd);
+                m_iofd = -1;
+                break;
+            }
+
+            len -= r;
+            data += r;
+        }
     }
 }
 
@@ -365,98 +453,34 @@ void TtyImpl::hup()
     kill(m_pid, SIGHUP);
 }
 
-void TtyImpl::cmdiocb(ev::io &, int revents)
+std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
 {
-    if (revents & ev::READ)
-        read_ready();
-
-    if (revents & ev::WRITE)
-        write_ready();
-}
-
-
-void TtyImpl::read_ready()
-{
-    char *ptr = &m_rbuffer[0];
-    int charsize; // size of utf8 char in bytes
-    char32_t unicodep;
-
-    // append read bytes to unprocessed bytes
-    int ret;
-    if ((ret = ::read(m_cmdfd, ptr+m_rbuflen, m_rbuffer.size()-m_rbuflen)) < 0)
-    {
-        if (errno == EIO)
-        {
-            // child exiting?
-            m_cmdio.stop();
-            return;
-        }
-        else
-            LOGGER()->fatal("could not read from shell ({}): {}", errno, strerror(errno));
-    }
-
-    m_rbuflen += ret;
-
     for (;;)
     {
         // UTF8 but not SIXEL
         if (g_term->mode()[MODE_UTF8] && !g_term->mode()[MODE_SIXEL])
         {
             // process a complete utf8 char
-            charsize = utf8decode(ptr, &unicodep, m_rbuflen);
+            char32_t unicodep;
+            int charsize = utf8decode(ptr, &unicodep, len);
             if (charsize == 0)
                 break; // incomplete char
 
             g_term->putc(unicodep);
             ptr += charsize;
-            m_rbuflen -= charsize;
+            len -= charsize;
         }
         else
         {
-            if (m_rbuflen <= 0)
+            if (len <= 0)
                 break;
 
             g_term->putc(*ptr++ & 0xFF);
-            m_rbuflen--;
+            len--;
         }
     }
 
-    // keep any uncomplete utf8 char for the next call
-    if (m_rbuflen > 0)
-        std::memmove(&m_rbuffer[0], ptr, m_rbuflen);
-}
-
-void TtyImpl::write_ready()
-{
-    int written = ::write(m_cmdfd, m_wbuffer, MIN(m_wbuflen, max_write));
-    if (written > 0)
-    {
-        log_write(false, m_wbuffer, written);
-        m_wbuflen -= written;
-
-        // anything left to write?
-        if (!m_wbuflen)
-        {
-            // nope.
-            std::free(m_wbuffer);
-            m_wbuffer = nullptr;
-
-            // stop waiting for write events
-            m_cmdio.set(ev::READ);
-            return;
-        }
-        else
-        {
-            // if anything's left, move it up front
-            std::memmove(m_wbuffer, m_wbuffer + written, m_wbuflen);
-        }
-    }
-    else if (written != -1 || (errno != EAGAIN && errno != EINTR))
-    {
-        // todo: better error handling
-        // for now, just stop waiting for write event
-        m_cmdio.set(ev::READ);
-    }
+    return len;
 }
 
 Tty::Tty() :
