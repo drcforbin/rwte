@@ -930,24 +930,21 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
                 selclear();
 
                 // begin a selection
-                m_sel.mode = SEL_EMPTY;
-                m_sel.type = SEL_REGULAR;
-                m_sel.oe.col = m_sel.ob.col = col;
-                m_sel.oe.row = m_sel.ob.row = row;
+                m_sel.begin(col, row);
 
                 // if the user clicks below predefined timeouts specific
                 // snapping behaviour is exposed.
                 if (TIMEDIFF(now, m_sel.tclick2) <= tclick_timeout)
-                    m_sel.snap = SNAP_LINE;
+                    m_sel.snap = Selection::Snap::Line;
                 else if (TIMEDIFF(now, m_sel.tclick1) <= dclick_timeout)
-                    m_sel.snap = SNAP_WORD;
+                    m_sel.snap = Selection::Snap::Word;
                 else
-                    m_sel.snap = 0;
+                    m_sel.snap = Selection::Snap::None;
 
                 selnormalize();
 
-                if (m_sel.snap != 0)
-                    m_sel.mode = SEL_READY;
+                if (m_sel.snap != Selection::Snap::None)
+                    m_sel.setmode(Selection::Mode::Ready);
                 setdirty(m_sel.nb.row, m_sel.ne.row);
                 m_sel.tclick2 = m_sel.tclick1;
                 m_sel.tclick1 = now;
@@ -959,7 +956,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
                 window.selpaste();
             else if (button == 1)
             {
-                if (m_sel.mode == SEL_READY)
+                if (m_sel.mode() == Selection::Mode::Ready)
                 {
                     getbuttoninfo(col, row, mod);
 
@@ -970,16 +967,16 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
                 else
                     selclear();
 
-                m_sel.mode = SEL_IDLE;
+                m_sel.setmode(Selection::Mode::Idle);
                 setdirty(m_sel.nb.row, m_sel.ne.row);
             }
         }
         else if (evt == MOUSE_MOTION)
         {
-            if (!m_sel.mode)
+            if (m_sel.mode() == Selection::Mode::Idle)
                 return;
 
-            m_sel.mode = SEL_READY;
+            m_sel.setmode(Selection::Mode::Ready);
             int olderow = m_sel.oe.row;
             int oldecol = m_sel.oe.col;
             int oldsbrow = m_sel.nb.row;
@@ -1142,7 +1139,7 @@ void TermImpl::selsnap(int *col, int *row, int direction)
 
     switch (m_sel.snap)
     {
-    case SNAP_WORD:
+    case Selection::Snap::Word:
         // Snap around if the word wraps around at the end or
         // beginning of a line.
 
@@ -1182,7 +1179,7 @@ void TermImpl::selsnap(int *col, int *row, int direction)
             prevdelim = delim;
         }
         break;
-    case SNAP_LINE:
+    case Selection::Snap::Line:
         // Snap around if the the previous line or the current one
         // has set ATTR_WRAP at its end. Then the whole next or
         // previous line will be selected.
@@ -1208,6 +1205,9 @@ void TermImpl::selsnap(int *col, int *row, int direction)
                 }
             }
         }
+        break;
+    default:
+        // noop
         break;
     }
 }
@@ -1312,7 +1312,7 @@ void TermImpl::selscroll(int orig, int n)
             selclear();
             return;
         }
-        if (m_sel.type == SEL_RECTANGULAR)
+        if (m_sel.rectangular())
         {
             if (m_sel.ob.row < m_top)
                 m_sel.ob.row = m_top;
@@ -1338,7 +1338,7 @@ void TermImpl::selscroll(int orig, int n)
 
 void TermImpl::selnormalize()
 {
-    if (m_sel.type == SEL_REGULAR && m_sel.ob.row != m_sel.oe.row)
+    if (!m_sel.rectangular() && m_sel.ob.row != m_sel.oe.row)
     {
         m_sel.nb.col = m_sel.ob.row < m_sel.oe.row ? m_sel.ob.col : m_sel.oe.col;
         m_sel.ne.col = m_sel.ob.row < m_sel.oe.row ? m_sel.oe.col : m_sel.ob.col;
@@ -1355,7 +1355,7 @@ void TermImpl::selnormalize()
     selsnap(&m_sel.ne.col, &m_sel.ne.row, +1);
 
     // expand selection over line breaks
-    if (m_sel.type == SEL_RECTANGULAR)
+    if (m_sel.rectangular())
         return;
     int i = linelen(m_sel.nb.row);
     if (i < m_sel.nb.col)
@@ -2408,12 +2408,10 @@ void TermImpl::getbuttoninfo(int col, int row, const keymod_state& mod)
     m_sel.oe.row = row;
     selnormalize();
 
-#define X(m, t) \
-    {if ((mod & (m)) == (m)) { m_sel.type = (t); return; }}
-    SEL_MASKS
-#undef X
-
-    m_sel.type = SEL_REGULAR;
+    // TODO: move to lua code?
+    // consider leaving it in the rectangular state if it
+    // was started with alt, but alt was released
+    m_sel.setrectangular((mod & ALT_MASK) == ALT_MASK);
 }
 
 std::shared_ptr<char> TermImpl::getsel()
@@ -2437,7 +2435,7 @@ std::shared_ptr<char> TermImpl::getsel()
             continue;
         }
 
-        if (m_sel.type == SEL_RECTANGULAR)
+        if (m_sel.rectangular())
         {
             gp = &m_lines[row][m_sel.nb.col];
             lastcol = m_sel.ne.col;

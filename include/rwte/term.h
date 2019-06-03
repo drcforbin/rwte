@@ -100,7 +100,7 @@ struct Cursor
     char state = 0;
 };
 
-struct Selection;
+class Selection;
 class TermImpl;
 
 class Term

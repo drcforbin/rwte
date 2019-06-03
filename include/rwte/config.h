@@ -1,13 +1,6 @@
 #ifndef RWTE_CONFIG_H
 #define RWTE_CONFIG_H
 
-// selection type key modifier masks
-// if all the modifiers in the mask are set, the type will be used
-// if no match is found, regular selection is used.
-#define SEL_MASKS \
-    /* mod mask, type */ \
-    X(ALT_MASK, SEL_RECTANGULAR)
-
 // masks to force mouse select, can be EMPTY_MASK to disable
 // IN CONFIG, NOT READING YET
 #define FORCE_SEL_MOD SHIFT_MASK

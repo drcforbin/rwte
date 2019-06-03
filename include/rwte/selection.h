@@ -4,36 +4,37 @@
 #include <memory>
 #include <time.h>
 
-enum selection_mode
+class Selection
 {
-	SEL_IDLE = 0,
-	SEL_EMPTY = 1,
-	SEL_READY = 2
-};
-
-enum selection_type
-{
-	SEL_REGULAR = 1,
-	SEL_RECTANGULAR = 2
-};
-
-enum selection_snap
-{
-	SNAP_WORD = 1,
-	SNAP_LINE = 2
-};
-
-struct Selection
-{
+public:
     Selection();
 
+    enum class Mode
+    {
+        Idle = 0,
+        Empty = 1,
+        Ready = 2
+    };
+
+    enum class Snap
+    {
+        None = 0,
+        Word = 1,
+        Line = 2
+    };
+
     void clear();
+    void begin(int col, int row);
     bool empty() const;
     bool selected(int col, int row) const;
 
-	int mode = SEL_IDLE;
-	int type = 0;
-	int snap = 0;
+    void setmode(Mode val) { m_mode = val; }
+    Mode mode() const { return m_mode; }
+
+    void setrectangular(bool val) { m_rectangular = val; }
+    bool rectangular() const { return m_rectangular; }
+
+	Snap snap = Snap::None;
 
 	// Selection variables:
 	// nb – normalized coordinates of the beginning of the selection
@@ -50,6 +51,10 @@ struct Selection
 	bool alt = false;
 	struct timespec tclick1 = {0};
 	struct timespec tclick2 = {0};
+
+private:
+    Mode m_mode = Mode::Idle;
+    bool m_rectangular = false;
 };
 
 #endif // RWTE_SELECTION_H

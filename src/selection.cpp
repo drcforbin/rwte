@@ -14,13 +14,22 @@ Selection::Selection() :
 
 void Selection::clear()
 {
-    mode = SEL_IDLE;
+    m_mode = Mode::Idle;
+    m_rectangular = false;
     ob.col = -1;
+}
+
+void Selection::begin(int col, int row)
+{
+    m_mode = Mode::Empty;
+    m_rectangular = false;
+    oe.col = ob.col = col;
+    oe.row = ob.row = row;
 }
 
 bool Selection::empty() const
 {
-    return mode == SEL_EMPTY || ob.col == -1;
+    return m_mode == Mode::Empty || ob.col == -1;
 }
 
 bool Selection::selected(int col, int row) const
@@ -28,7 +37,7 @@ bool Selection::selected(int col, int row) const
     if (empty())
         return false;
 
-    if (type == SEL_RECTANGULAR)
+    if (m_rectangular)
         return (nb.row <= row && row <= ne.row) &&
                 (nb.col <= col && col <= ne.col);
 
