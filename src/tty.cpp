@@ -73,8 +73,8 @@ static void execsh()
     L->getglobal("config");
     bool sh_on_stack = false;
 
-    // check options for shell. use options.cmd if
-    // it has been set, otherwise try fallbacks
+    // check options for shell; use options.cmd
+    // if set, otherwise try fallbacks
     std::vector<const char *> args = options.cmd;
     if (args.empty())
     {
