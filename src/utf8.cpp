@@ -3,6 +3,7 @@
 
 #include "rwte/catch.hpp"
 
+#include <array>
 #include <cstring>
 
 enum utf8_result
@@ -50,7 +51,7 @@ private:
 };
 
 
-extern const unsigned char UTF8_TRANSITIONS[8][256];
+extern const std::array<unsigned char, 256> UTF8_TRANSITIONS[8];
 
 utf8_result Utf8Decoder::feed(unsigned char b, char32_t *cp)
 {
@@ -432,4 +433,21 @@ Multi-character initial bytes not followed by enough continuation bytes
 Non-minimal multi-byte characters
 UTF-16 surrogates
 Invalid bytes (0xC0, 0xC1, 0xF5..0xFF)
+*/
+
+/*
+TEST_CASE( "dump", "[utf8]" ) {
+    for (int entry = 0; entry < 8; entry++)
+    {
+        for (int row = 0; row < 16; row++)
+        {
+            for (int col = 0; col < 16; col++)
+            {
+                printf("%02X ", UTF8_TRANSITIONS[entry][row * 16 + col]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+}
 */
