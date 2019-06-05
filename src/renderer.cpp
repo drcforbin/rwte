@@ -208,6 +208,8 @@ public:
     PangoLayout *layout() const { return m_layout.get(); }
 
 private:
+
+#if DOUBLE_BUFFER
     void init_draw_surface(int width, int height)
     {
         shared_surface newsurf(
@@ -229,6 +231,7 @@ private:
         m_layout = create_layout(m_drawcr.get());
         m_drawsurf = newsurf;
     }
+#endif
 
     unique_layout create_layout(cairo_t *cr)
     {
