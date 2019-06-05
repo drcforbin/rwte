@@ -122,11 +122,11 @@ private:
     bool mapped;
     bool focused;
 
-    xcb_atom_t wmprotocols;
-    xcb_atom_t wmdeletewin;
+    xcb_atom_t m_wmprotocols;
+    xcb_atom_t m_wmdeletewin;
 
-    xcb_atom_t xembed;
-    xcb_atom_t xtarget;
+    xcb_atom_t m_xembed;
+    xcb_atom_t m_xtarget;
 
     uint8_t xkb_base_event;
 
@@ -247,10 +247,10 @@ bool WindowImpl::create(int cols, int rows)
 
     // set WM_PROTOCOLS to WM_DELETE_WINDOW
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
-            wmprotocols, XCB_ATOM_ATOM, 32, 1, &wmdeletewin);
+            m_wmprotocols, XCB_ATOM_ATOM, 32, 1, &m_wmdeletewin);
 
-    if (xtarget == XCB_ATOM_NONE)
-        xtarget = XCB_ATOM_STRING;
+    if (m_xtarget == XCB_ATOM_NONE)
+        m_xtarget = XCB_ATOM_STRING;
 
     settitle(options.title);
 
@@ -382,7 +382,7 @@ void WindowImpl::selpaste()
 {
     // request primary sel as utf8 to m_xseldata
     xcb_convert_selection(connection, win, XCB_ATOM_PRIMARY,
-            xtarget, m_xseldata, XCB_CURRENT_TIME);
+            m_xtarget, m_xseldata, XCB_CURRENT_TIME);
 }
 
 void WindowImpl::setclip()
@@ -403,9 +403,9 @@ void WindowImpl::setclip()
 
 void WindowImpl::clippaste()
 {
-    // request primary sel as utf8 to m_xseldata
+    // request clipboard sel as utf8 to m_xseldata
     xcb_convert_selection(connection, win, m_clipboard,
-            xtarget, m_xseldata, XCB_CURRENT_TIME);
+            m_xtarget, m_xseldata, XCB_CURRENT_TIME);
 }
 
 void WindowImpl::set_wmmachine_name()
@@ -456,12 +456,12 @@ void WindowImpl::register_atoms()
     }
 
     // keep some atoms around
-    wmprotocols = atoms[0];
-    wmdeletewin = atoms[1];
-    xembed = atoms[2];
+    m_wmprotocols = atoms[0];
+    m_wmdeletewin = atoms[1];
+    m_xembed = atoms[2];
     m_netwmname = atoms[3];
     m_netwmpid = atoms[4];
-    xtarget = atoms[5];
+    m_xtarget = atoms[5];
     m_clipboard = atoms[6];
     m_incr = atoms[7];
     m_xseldata = atoms[8];
@@ -724,8 +724,8 @@ void WindowImpl::handle_client_message(ev::loop_ref& loop, xcb_client_message_ev
         }
     }
     else*/
-    if (event->type == wmprotocols &&
-            event->data.data32[0] == wmdeletewin)
+    if (event->type == m_wmprotocols &&
+            event->data.data32[0] == m_wmdeletewin)
     {
         LOGGER()->debug("wm_delete_window");
 
@@ -827,15 +827,15 @@ void WindowImpl::handle_selection_request(ev::loop_ref&, xcb_selection_request_e
 
         // respond with the supported type
         xcb_change_property(connection, XCB_PROP_MODE_REPLACE, event->requestor,
-                event->property, XCB_ATOM_ATOM, 32, 1, &xtarget);
+                event->property, XCB_ATOM_ATOM, 32, 1, &m_xtarget);
         property = event->property;
     }
-    else if (event->target == xtarget || event->target == XCB_ATOM_STRING)
+    else if (event->target == m_xtarget || event->target == XCB_ATOM_STRING)
     {
         if (LOGGER()->level() <= logging::debug)
         {
             const char *target_type;
-            if (event->target == xtarget)
+            if (event->target == m_xtarget)
                 target_type = "utf8";
             else
                 target_type = "other";
@@ -888,7 +888,7 @@ void WindowImpl::handle_selection_request(ev::loop_ref&, xcb_selection_request_e
     }
 
     // X11 events are all 32 bytes
-    uint8_t *buffer = new uint8_t[32];
+    uint8_t buffer[32];
     memset(buffer, 0, 32);
 
     auto ev = reinterpret_cast<xcb_selection_notify_event_t *>(buffer);
@@ -908,7 +908,6 @@ void WindowImpl::handle_selection_request(ev::loop_ref&, xcb_selection_request_e
 
     xcb_send_event(connection, false, event->requestor,
                 XCB_EVENT_MASK_NO_EVENT, (const char*) buffer);
-    delete[] buffer;
 }
 
 void WindowImpl::handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t *event)
