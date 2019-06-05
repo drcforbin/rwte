@@ -52,7 +52,7 @@ static void setenv_windowid()
 {
     char buf[sizeof(long) * 8 + 1];
 
-    snprintf(buf, sizeof(buf), "%u", window.windowid());
+    snprintf(buf, sizeof(buf), "%u", window->windowid());
     setenv("WINDOWID", buf, 1);
 }
 
@@ -69,7 +69,7 @@ static void execsh()
             LOGGER()->fatal("getpwuid failed for unknown reasons");
     }
 
-    auto L = rwte.lua();
+    auto L = rwte->lua();
     L->getglobal("config");
     bool sh_on_stack = false;
 
@@ -134,7 +134,7 @@ static void execsh()
 static void stty()
 {
     // get args from config
-    auto L = rwte.lua();
+    auto L = rwte->lua();
     L->getglobal("config");
     L->getfield(-1, "stty_args");
 
@@ -314,28 +314,32 @@ private:
 class TtyImpl: public BufferedIO<TtyImpl>
 {
 public:
-    TtyImpl();
+    TtyImpl(std::shared_ptr<RwteBus> bus);
     ~TtyImpl();
-
-    void resize();
 
     void print(const char *data, std::size_t len);
 
     void hup();
 
 private:
+    void onresize(const ResizeEvt& evt);
+
     friend class BufferedIO<TtyImpl>;
     std::size_t onread(const char *ptr, std::size_t len);
 
+    std::shared_ptr<RwteBus> m_bus;
     pid_t m_pid;
     int m_iofd;
 };
 
 
-TtyImpl::TtyImpl() :
+TtyImpl::TtyImpl(std::shared_ptr<RwteBus> bus) :
+    m_bus(std::move(bus)),
     m_pid(0),
     m_iofd(-1)
 {
+    m_bus->reg<ResizeEvt, TtyImpl, &TtyImpl::onresize>(this);
+
     if (!options.io.empty())
     {
         LOGGER()->debug("logging to {}", options.io);
@@ -392,7 +396,7 @@ TtyImpl::TtyImpl() :
         close(child);
 
         m_pid = pid;
-        rwte.watch_child(pid);
+        rwte->watch_child(pid);
 
         setFd(parent);
         startRead();
@@ -402,23 +406,10 @@ TtyImpl::TtyImpl() :
 
 TtyImpl::~TtyImpl()
 {
+    m_bus->unreg<ResizeEvt, TtyImpl, &TtyImpl::onresize>(this);
+
     if (m_iofd)
         close(m_iofd);
-}
-
-void TtyImpl::resize()
-{
-    LOGGER()->info("resize to {}x{}", g_term->cols(), g_term->rows());
-
-    struct winsize w {
-        (uint16_t) g_term->rows(),
-        (uint16_t) g_term->cols(),
-        // unused
-        0, 0
-    };
-
-    if (ioctl(fd(), TIOCSWINSZ, &w) < 0)
-        LOGGER()->error("could not set window size: {}", strerror(errno));
 }
 
 void TtyImpl::print(const char *data, size_t len)
@@ -448,6 +439,21 @@ void TtyImpl::hup()
 {
     // send SIGHUP to shell
     kill(m_pid, SIGHUP);
+}
+
+void TtyImpl::onresize(const ResizeEvt& evt)
+{
+    LOGGER()->info("resize to {}x{}", evt.cols, evt.rows);
+
+    struct winsize w {
+        (uint16_t) evt.rows,
+        (uint16_t) evt.cols,
+        // unused
+        0, 0
+    };
+
+    if (ioctl(fd(), TIOCSWINSZ, &w) < 0)
+        LOGGER()->error("could not set window size: {}", strerror(errno));
 }
 
 std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
@@ -480,15 +486,12 @@ std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
     return len;
 }
 
-Tty::Tty() :
-    impl(std::make_unique<TtyImpl>())
+Tty::Tty(std::shared_ptr<RwteBus> bus) :
+    impl(std::make_unique<TtyImpl>(std::move(bus)))
 { }
 
 Tty::~Tty()
 { }
-
-void Tty::resize()
-{ impl->resize(); }
 
 void Tty::write(const std::string& data)
 { impl->write(data.c_str(), data.size()); }

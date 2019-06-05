@@ -8,6 +8,8 @@
 #include <vector>
 #include <sys/types.h>
 
+#include "rwte/event.h"
+
 namespace lua
 {
 class State;
@@ -34,9 +36,8 @@ extern Options options;
 class Rwte
 {
 public:
-    Rwte();
+    Rwte(std::shared_ptr<RwteBus> bus);
 
-    void resize(uint16_t width, uint16_t height);
     void watch_child(pid_t pid);
 
     void refresh();
@@ -51,6 +52,8 @@ private:
     void flushcb(ev::timer &w, int);
     void blinkcb(ev::timer &w, int);
 
+    std::shared_ptr<RwteBus> m_bus;
+
     ev::child m_child;
     ev::timer m_flush;
     ev::timer m_blink;
@@ -58,6 +61,7 @@ private:
     std::shared_ptr<lua::State> m_lua;
 };
 
-extern Rwte rwte;
+// todo: refactor
+extern std::unique_ptr<Rwte> rwte;
 
 #endif // RWTE_RWTE_H

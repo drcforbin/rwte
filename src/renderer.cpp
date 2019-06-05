@@ -79,7 +79,7 @@ static uint32_t lookup_color(uint32_t color)
     if (!IS_TRUECOL(color))
     {
         // get colors lut
-        auto L = rwte.lua();
+        auto L = rwte->lua();
         L->getglobal("config");
         L->getfield(-1, "colors");
         if (!L->istable(-1))
@@ -717,7 +717,7 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
 
 void RendererImpl::load_font(cairo_t *cr)
 {
-    auto L = rwte.lua();
+    auto L = rwte->lua();
     L->getglobal("config");
 
     int isnum = 0;

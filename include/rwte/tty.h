@@ -4,15 +4,15 @@
 #include <memory>
 #include <string>
 
+#include "rwte/event.h"
+
 class TtyImpl;
 
 class Tty
 {
 public:
-    Tty();
+    Tty(std::shared_ptr<RwteBus> bus);
     ~Tty();
-
-    void resize();
 
     void write(const std::string& data);
     void write(const char *data, std::size_t len);

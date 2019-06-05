@@ -140,12 +140,12 @@ static bool allow_alt_screen()
 class TermImpl
 {
 public:
-    TermImpl(int cols, int rows);
+    TermImpl(std::shared_ptr<RwteBus> bus, int cols, int rows);
+    ~TermImpl();
 
     const Glyph& glyph(int col, int row) const { return m_lines[col][row]; }
 
     void reset();
-    void resize(int cols, int rows);
 
     void setprint();
 
@@ -183,6 +183,8 @@ public:
     void send(const char *data, std::size_t len);
 
 private:
+    void onresize(const ResizeEvt& evt);
+    void resizeCore(int cols, int rows);
     void start_blink();
 
     void moveto(int col, int row);
@@ -231,6 +233,8 @@ private:
     void getbuttoninfo(int col, int row, const keymod_state& mod);
     std::shared_ptr<char> getsel();
 
+    std::shared_ptr<RwteBus> m_bus;
+
     term_mode m_mode; // terminal mode
     escape_state m_esc; // escape mode
     int m_rows, m_cols; // size
@@ -255,10 +259,13 @@ private:
 };
 
 
-TermImpl::TermImpl(int cols, int rows) :
+TermImpl::TermImpl(std::shared_ptr<RwteBus> bus, int cols, int rows) :
+    m_bus(std::move(bus)),
     m_rows(0), m_cols(0),
     m_focused(false)
 {
+    m_bus->reg<ResizeEvt, TermImpl, &TermImpl::onresize>(this);
+
     Cursor c{};
     m_cursor = c;
 
@@ -267,8 +274,13 @@ TermImpl::TermImpl(int cols, int rows) :
 
     // only a few things are initialized here
     // the rest happens in resize and reset
-    resize(cols, rows);
+    resizeCore(cols, rows);
     reset();
+}
+
+TermImpl::~TermImpl()
+{
+    m_bus->unreg<ResizeEvt, TermImpl, &TermImpl::onresize>(this);
 }
 
 void TermImpl::reset()
@@ -277,7 +289,7 @@ void TermImpl::reset()
     int isnum = 0;
 
     // get config
-    auto L = rwte.lua();
+    auto L = rwte->lua();
     L->getglobal("config");
 
     L->getfield(-1, "default_fg");
@@ -357,7 +369,53 @@ void TermImpl::reset()
         start_blink();
 }
 
-void TermImpl::resize(int cols, int rows)
+void TermImpl::setprint()
+{
+    m_mode.set(MODE_PRINT);
+}
+
+void TermImpl::blink()
+{
+    bool need_blink = m_cursortype == CURSOR_BLINK_BLOCK ||
+            m_cursortype == CURSOR_BLINK_UNDER ||
+            m_cursortype == CURSOR_BLINK_BAR;
+
+    // see if we have anything blinking and mark blinking lines dirty
+    for (int i = 0; i < m_lines.size(); i++)
+    {
+        const auto& line = m_lines[i];
+        for (auto& g : line)
+        {
+            if (g.attr[ATTR_BLINK])
+            {
+                need_blink = true;
+                setdirty(i, i);
+                break;
+            }
+        }
+    }
+
+    if (need_blink)
+    {
+        // toggle blink
+        m_mode[MODE_BLINK] = !m_mode[MODE_BLINK];
+    }
+    else
+    {
+        // reset and stop blinking
+        m_mode[MODE_BLINK] = false;
+        rwte->stop_blink();
+    }
+
+    rwte->refresh();
+}
+
+void TermImpl::onresize(const ResizeEvt& evt)
+{
+    resizeCore(evt.cols, evt.rows);
+}
+
+void TermImpl::resizeCore(int cols, int rows)
 {
     LOGGER()->info("resize to {}x{}", cols, rows);
 
@@ -438,53 +496,12 @@ void TermImpl::resize(int cols, int rows)
     m_cursor = c;
 }
 
-void TermImpl::setprint()
-{
-    m_mode.set(MODE_PRINT);
-}
-
-void TermImpl::blink()
-{
-    bool need_blink = m_cursortype == CURSOR_BLINK_BLOCK ||
-            m_cursortype == CURSOR_BLINK_UNDER ||
-            m_cursortype == CURSOR_BLINK_BAR;
-
-    // see if we have anything blinking and mark blinking lines dirty
-    for (int i = 0; i < m_lines.size(); i++)
-    {
-        const auto& line = m_lines[i];
-        for (auto& g : line)
-        {
-            if (g.attr[ATTR_BLINK])
-            {
-                need_blink = true;
-                setdirty(i, i);
-                break;
-            }
-        }
-    }
-
-    if (need_blink)
-    {
-        // toggle blink
-        m_mode[MODE_BLINK] = !m_mode[MODE_BLINK];
-    }
-    else
-    {
-        // reset and stop blinking
-        m_mode[MODE_BLINK] = false;
-        rwte.stop_blink();
-    }
-
-    rwte.refresh();
-}
-
 void TermImpl::start_blink()
 {
     // reset mode every time this is called, so that the
     // cursor shows while the screen is being updated
     m_mode[MODE_BLINK] = false;
-    rwte.start_blink();
+    rwte->start_blink();
 }
 
 void TermImpl::moveto(int col, int row)
@@ -505,7 +522,7 @@ void TermImpl::moveto(int col, int row)
     m_cursor.col = LIMIT(col, 0, m_cols-1);
     m_cursor.row = LIMIT(row, minrow, maxrow);
 
-    rwte.refresh();
+    rwte->refresh();
 }
 
 // for absolute user moves, when decom is set
@@ -546,7 +563,7 @@ static bool iscontrol(char32_t c)
 
 static bool isdelim(char32_t c)
 {
-    auto L = rwte.lua();
+    auto L = rwte->lua();
     L->getglobal("config");
     L->getfield(-1, "word_delimiters");
     const char * word_delimiters = L->tostring(-1);
@@ -903,7 +920,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
     {
         if (evt == MOUSE_PRESS)
         {
-            auto L = rwte.lua();
+            auto L = rwte->lua();
 
             // todo: this call originates from term, when it really
             // makes a lot more sense to be called from window
@@ -953,7 +970,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
         else if (evt == MOUSE_RELEASE)
         {
             if (button == 2)
-                window.selpaste();
+                window->selpaste();
             else if (button == 1)
             {
                 if (m_sel.mode() == Selection::Mode::Ready)
@@ -962,7 +979,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
 
                     // set primary sel and tell window about it
                     m_sel.primary = getsel();
-                    window.setsel();
+                    window->setsel();
                 }
                 else
                     selclear();
@@ -1128,7 +1145,7 @@ void TermImpl::setdirty(int top, int bot)
     for (int i = top; i <= bot; i++)
         m_dirty[i] = true;
 
-    rwte.refresh();
+    rwte->refresh();
 }
 
 void TermImpl::selsnap(int *col, int *row, int direction)
@@ -1224,7 +1241,7 @@ void TermImpl::setfocused(bool focused)
             g_tty->write("\033[O", 3);
     }
 
-    rwte.refresh();
+    rwte->refresh();
 }
 
 void TermImpl::selclear()
@@ -1240,7 +1257,7 @@ void TermImpl::clipcopy()
 {
     // set clipboard sel and tell window about it
     m_sel.clipboard = getsel();
-    window.setclip();
+    window->setclip();
 }
 
 void TermImpl::send(const char *data, std::size_t len)
@@ -1288,7 +1305,7 @@ void TermImpl::setchar(char32_t u, const Glyph& attr, int col, int row)
     if (attr.attr[ATTR_BLINK])
         start_blink();
 
-    rwte.refresh();
+    rwte->refresh();
 }
 
 void TermImpl::defutf8(char ascii)
@@ -1433,14 +1450,14 @@ void TermImpl::controlcode(unsigned char ascii)
         else
         {
             if (!m_focused)
-                window.seturgent(true);
+                window->seturgent(true);
 
             // default bell_volume to 0 if invalid
             int bell_volume = lua::config::get_int( "bell_volume", 0);
             LIMIT(bell_volume, -100, 100);
 
             if (bell_volume)
-                window.bell(bell_volume);
+                window->bell(bell_volume);
         }
         break;
     case '\033': // ESC
@@ -1606,7 +1623,7 @@ bool TermImpl::eschandle(unsigned char ascii)
 
 void TermImpl::resettitle()
 {
-    window.settitle(options.title);
+    window->settitle(options.title);
 }
 
 void TermImpl::puttab(int n)
@@ -1739,7 +1756,7 @@ void TermImpl::strhandle()
         case 1:
         case 2:
             if (narg > 1)
-                window.settitle(m_stresc.args[1]);
+                window->settitle(m_stresc.args[1]);
             return;
         case 11:
             if (narg > 1)
@@ -1797,7 +1814,7 @@ void TermImpl::strhandle()
         }
         break;
     case 'k': // old title set compatibility
-        window.settitle(m_stresc.args[0]);
+        window->settitle(m_stresc.args[0]);
         return;
     case 'P': // DCS -- Device Control String
         m_esc.set(ESC_DCS);
@@ -2284,7 +2301,7 @@ void TermImpl::settmode(bool priv, bool set, int *args, int narg)
                 mode = m_mode;
                 m_mode.set(MODE_REVERSE, set);
                 if (mode != m_mode)
-                    rwte.refresh();
+                    rwte->refresh();
                 break;
             case 6: // DECOM -- Origin
                 if (set)
@@ -2424,6 +2441,7 @@ std::shared_ptr<char> TermImpl::getsel()
         return nullptr;
 
     bufsize = (m_cols+1) * (m_sel.ne.row-m_sel.nb.row+1) * utf_size;
+    // todo: look at using std::array or vector instead, w/ move
     ptr = str = new char[bufsize];
 
     // append every set & selected glyph to the selection
@@ -2466,8 +2484,8 @@ std::shared_ptr<char> TermImpl::getsel()
     return std::shared_ptr<char>(str, std::default_delete<char[]>());
 }
 
-Term::Term(int cols, int rows) :
-    impl(std::make_unique<TermImpl>(cols, rows))
+Term::Term(std::shared_ptr<RwteBus> bus, int cols, int rows) :
+    impl(std::make_unique<TermImpl>(std::move(bus), cols, rows))
 { }
 
 Term::~Term() = default;
@@ -2477,9 +2495,6 @@ const Glyph& Term::glyph(int col, int row) const
 
 void Term::reset()
 { impl->reset(); }
-
-void Term::resize(int cols, int rows)
-{ impl->resize(cols, rows); }
 
 void Term::setprint()
 { impl->setprint(); }

@@ -7,7 +7,7 @@ namespace config {
 
 int get_int(const char *name, int def)
 {
-    auto L = rwte.lua();
+    auto L = rwte->lua();
     L->getglobal("config");
     L->getfield(-1, name);
     int val = L->tointegerdef(-1, def);
@@ -18,7 +18,7 @@ int get_int(const char *name, int def)
 
 float get_float(const char *name, float def)
 {
-    auto L = rwte.lua();
+    auto L = rwte->lua();
     L->getglobal("config");
     L->getfield(-1, name);
     float val = L->tonumberdef(-1, def);
@@ -29,7 +29,7 @@ float get_float(const char *name, float def)
 
 bool get_bool(const char *name, bool def)
 {
-    auto L = rwte.lua();
+    auto L = rwte->lua();
     L->getglobal("config");
     L->getfield(-1, name);
     bool val = L->tobooldef(-1, def);
@@ -42,7 +42,7 @@ std::string get_string(const char *name)
 {
     std::string val;
 
-    auto L = rwte.lua();
+    auto L = rwte->lua();
     L->getglobal("config");
     L->getfield(-1, name);
     const char * s = L->tostring(-1);

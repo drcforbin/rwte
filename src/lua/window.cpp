@@ -80,7 +80,7 @@ static int luawindow_key_press(lua_State *l)
 // @usage window.clippaste()
 static int luawindow_clippaste(lua_State *l)
 {
-    window.clippaste();
+    window->clippaste();
     return 0;
 }
 
@@ -90,7 +90,7 @@ static int luawindow_clippaste(lua_State *l)
 // @usage window.selpaste()
 static int luawindow_selpaste(lua_State *l)
 {
-    window.selpaste();
+    window->selpaste();
     return 0;
 }
 
@@ -106,7 +106,7 @@ static int luawindow_index(lua_State *l)
     const char * key = L.checkstring(2);
 
     if (std::strcmp(key, "id") == 0)
-        L.pushinteger(window.windowid());
+        L.pushinteger(window->windowid());
     else
         L.pushnil();
 

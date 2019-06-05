@@ -7,7 +7,7 @@
 namespace detail {
 
 template <typename T>
-class ETag {};
+class ETag { using type = T; };
 
 template<class EvtT>
 class BusFuncs {
@@ -52,20 +52,28 @@ private:
     std::vector<Call> calls;
 };
 
+// forward, so we can use it as a base
 template<int S, typename... EvtTs>
 class BusBase;
 
 template<int S, typename EvtT, typename... EvtTs>
 class BusBase<S, EvtT, EvtTs...> : public BusBase<S, EvtTs...>{
+    using Base = BusBase<S, EvtTs...>;
+
 protected:
+    using Base::get;
+
     BusFuncs<EvtT>& get(ETag<EvtT>) { return funcs; }
 
 private:
     BusFuncs<EvtT> funcs;
 };
 
+// base def, for no handler
 template<int S>
 class BusBase<S> {
+protected:
+    void get();
 };
 
 } // namespace detail

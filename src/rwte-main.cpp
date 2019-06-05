@@ -3,6 +3,7 @@
 #include "lua/term.h"
 #include "lua/window.h"
 #include "rwte/config.h"
+#include "rwte/event.h"
 #include "rwte/logging.h"
 #include "rwte/rwte.h"
 #include "rwte/sigwatcher.h"
@@ -171,7 +172,9 @@ static bool parse_geometry(const char *g, int *cols, int *rows)
 
 int main(int argc, char *argv[])
 {
-    auto L = rwte.lua();
+    auto bus = std::make_shared<RwteBus>();
+    rwte = std::make_unique<Rwte>(bus);
+    auto L = rwte->lua();
 
     // register internal modules, logging first
     register_lualogging(L.get());
@@ -359,10 +362,11 @@ int main(int argc, char *argv[])
     // get ready, loop!
     ev::default_loop main_loop;
 
-    g_term = std::make_unique<Term>(cols, rows);
+    g_term = std::make_unique<Term>(bus, cols, rows);
 
     // todo: width and height are arbitrary
-    if (!window.create(cols, rows))
+    window = std::make_unique<Window>(bus);
+    if (!window->create(cols, rows))
         return 1;
 
     {
@@ -370,7 +374,7 @@ int main(int argc, char *argv[])
         main_loop.run();
     }
 
-    window.destroy();
+    window->destroy();
 
     LOGGER()->debug("exiting");
     return 0;

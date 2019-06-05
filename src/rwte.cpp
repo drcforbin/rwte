@@ -9,9 +9,9 @@
 #include <memory>
 
 // globals
-Window window;
+std::unique_ptr<Window> window;
 Options options;
-Rwte rwte;
+std::unique_ptr<Rwte> rwte;
 std::unique_ptr<Term> g_term;
 std::unique_ptr<Tty> g_tty;
 lua_State * g_L = nullptr;
@@ -27,7 +27,8 @@ Options::Options() :
     noalt(false)
 { }
 
-Rwte::Rwte() :
+Rwte::Rwte(std::shared_ptr<RwteBus> bus) :
+    m_bus(std::move(bus)),
     m_lua(std::make_shared<lua::State>())
 {
     m_lua->openlibs();
@@ -35,23 +36,6 @@ Rwte::Rwte() :
     m_child.set<Rwte,&Rwte::childcb>(this);
     m_flush.set<Rwte,&Rwte::flushcb>(this);
     m_blink.set<Rwte,&Rwte::blinkcb>(this);
-}
-
-void Rwte::resize(uint16_t width, uint16_t height)
-{
-    if (width == 0)
-        width = window.width();
-    if (height == 0)
-        height = window.height();
-
-    if (window.width() != width || window.height() != height)
-    {
-        window.resize(width, height);
-        g_term->resize(window.cols(), window.rows());
-
-        if (g_tty)
-            g_tty->resize();
-    }
 }
 
 void Rwte::watch_child(pid_t pid)
@@ -101,7 +85,7 @@ void Rwte::childcb(ev::child &w, int)
 
 void Rwte::flushcb(ev::timer &, int)
 {
-    window.draw();
+    window->draw();
 }
 
 void Rwte::blinkcb(ev::timer &, int)

@@ -4,6 +4,8 @@
 #include <bitset>
 #include <memory>
 
+#include "rwte/event.h"
+
 enum mouse_event_enum
 {
 	MOUSE_MOTION = 0,
@@ -106,13 +108,12 @@ class TermImpl;
 class Term
 {
 public:
-    Term(int cols, int rows);
+    Term(std::shared_ptr<RwteBus> bus, int cols, int rows);
     ~Term();
 
     const Glyph& glyph(int col, int row) const;
 
     void reset();
-    void resize(int cols, int rows);
 
     void setprint();
 

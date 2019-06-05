@@ -49,12 +49,11 @@ static int get_border_px()
 class WindowImpl
 {
 public:
-    WindowImpl();
+    WindowImpl(std::shared_ptr<RwteBus> bus);
+    ~WindowImpl();
 
     bool create(int cols, int rows);
     void destroy();
-
-    void resize(uint16_t width, uint16_t height);
 
     uint32_t windowid() const { return win; }
     uint16_t width() const { return m_width; }
@@ -80,6 +79,9 @@ private:
     void drawglyph(const Glyph& glyph, int row, int col);
 
     bool load_keymap();
+
+    void publishresize(uint16_t width, uint16_t height);
+    void onresize(const ResizeEvt& evt);
 
     void handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event);
     void handle_client_message(ev::loop_ref& loop, xcb_client_message_event_t *event);
@@ -115,12 +117,12 @@ private:
     void preparecb(ev::prepare &, int);
     void checkcb(ev::check &, int);
 
-    xcb_connection_t *connection;
+    xcb_connection_t *connection = nullptr;
     xcb_drawable_t win;
 
-    bool visible;
-    bool mapped;
-    bool focused;
+    bool visible = false;
+    bool mapped = false;
+    bool focused = false;
 
     xcb_atom_t m_wmprotocols;
     xcb_atom_t m_wmdeletewin;
@@ -130,15 +132,17 @@ private:
 
     uint8_t xkb_base_event;
 
-    struct xkb_state *xkb_state;
-    struct xkb_context *xkb_context;
-    struct xkb_keymap *xkb_keymap;
-    struct xkb_compose_table *xkb_compose_table;
-    struct xkb_compose_state *xkb_compose_state;
+    struct xkb_state *xkb_state = nullptr;
+    struct xkb_context *xkb_context = nullptr;
+    struct xkb_keymap *xkb_keymap = nullptr;
+    struct xkb_compose_table *xkb_compose_table = nullptr;
+    struct xkb_compose_state *xkb_compose_state = nullptr;
 
     void register_atoms();
     void setup_xkb();
     bool load_compose_table(const char *locale);
+
+    std::shared_ptr<RwteBus> m_bus;
 
     uint16_t m_width, m_height;
     uint16_t m_rows, m_cols;
@@ -165,14 +169,22 @@ private:
     uint32_t m_eventmask;
 };
 
-WindowImpl::WindowImpl() :
+WindowImpl::WindowImpl(std::shared_ptr<RwteBus> bus) :
+    m_bus(std::move(bus)),
     m_eventmask(0)
 {
+    m_bus->reg<ResizeEvt, WindowImpl, &WindowImpl::onresize>(this);
+
     // this io watcher is just to to kick the loop around
     // when there is data available to be read
     m_io.set<WindowImpl,&WindowImpl::readcb>(this);
     m_prepare.set<WindowImpl,&WindowImpl::preparecb>(this);
     m_check.set<WindowImpl,&WindowImpl::checkcb>(this);
+}
+
+WindowImpl::~WindowImpl()
+{
+    m_bus->unreg<ResizeEvt, WindowImpl, &WindowImpl::onresize>(this);
 }
 
 bool WindowImpl::create(int cols, int rows)
@@ -277,23 +289,6 @@ void WindowImpl::destroy()
 {
     m_renderer.reset();
     xcb_disconnect(connection);
-}
-
-void WindowImpl::resize(uint16_t width, uint16_t height)
-{
-    m_width = width;
-    m_height = height;
-
-    uint16_t cw = m_renderer->charwidth();
-    uint16_t ch = m_renderer->charheight();
-
-    int border_px = get_border_px();
-
-    m_cols = (width - 2 * border_px) / cw;
-    m_rows = (height - 2 * border_px) / ch;
-
-    m_renderer->resize(width, height);
-    LOGGER()->info("resize to {}x{}", width, height);
 }
 
 void WindowImpl::draw()
@@ -535,7 +530,8 @@ bool WindowImpl::load_keymap()
         }
     }
 
-    xkb_keymap_unref(xkb_keymap);
+    if (xkb_keymap)
+        xkb_keymap_unref(xkb_keymap);
 
     int32_t device_id = xkb_x11_get_core_keyboard_device_id(connection);
     LOGGER()->debug("device = {}", device_id);
@@ -591,14 +587,33 @@ bool WindowImpl::load_compose_table(const char *locale)
     return true;
 }
 
-// todo: refactor this!
-static void inittty()
+void WindowImpl::publishresize(uint16_t width, uint16_t height)
 {
-    if (!g_tty)
-    {
-        g_tty = std::make_unique<Tty>();
-        g_tty->resize();
-    }
+    if (m_width == width && m_height == height)
+        return;
+
+    m_width = width;
+    m_height = height;
+
+    uint16_t cw = m_renderer->charwidth();
+    uint16_t ch = m_renderer->charheight();
+
+    int border_px = get_border_px();
+
+    m_cols = (width - 2 * border_px) / cw;
+    m_rows = (height - 2 * border_px) / ch;
+
+    m_bus->publish(
+        ResizeEvt{
+            m_width, m_height,
+            m_cols, m_rows
+        });
+}
+
+void WindowImpl::onresize(const ResizeEvt& evt)
+{
+    m_renderer->resize(evt.width, evt.height);
+    LOGGER()->info("resize to {}x{}", evt.width, evt.height);
 }
 
 void WindowImpl::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
@@ -675,7 +690,7 @@ void WindowImpl::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
             return;
     }
 
-    auto L = rwte.lua();
+    auto L = rwte->lua();
     if (lua::window::call_key_press(L.get(), ksym, m_keymod))
         return;
 
@@ -929,9 +944,11 @@ void WindowImpl::handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t *event)
                 win, m_visual_type, width, height);
         m_renderer->set_surface(surface, width, height);
 
-        rwte.resize(width, height);
+        // todo: refactor
+        if (!g_tty)
+            g_tty = std::make_unique<Tty>(m_bus);
 
-        inittty();
+        publishresize(width, height);
     }
     else
         LOGGER()->error("unable to determine geometry!");
@@ -950,7 +967,7 @@ void WindowImpl::handle_expose(ev::loop_ref&, xcb_expose_event_t *event)
 void WindowImpl::handle_configure_notify(ev::loop_ref&, xcb_configure_notify_event_t *event)
 {
     if (mapped)
-        rwte.resize(event->width, event->height);
+        publishresize(event->width, event->height);
 }
 
 // xkb event handler
@@ -1160,8 +1177,8 @@ void WindowImpl::checkcb(ev::check &w, int)
     }
 }
 
-Window::Window() :
-    impl(std::make_unique<WindowImpl>())
+Window::Window(std::shared_ptr<RwteBus> bus) :
+    impl(std::make_unique<WindowImpl>(std::move(bus)))
 { }
 
 Window::~Window()
@@ -1173,23 +1190,8 @@ bool Window::create(int cols, int rows)
 void Window::destroy()
 { impl->destroy(); }
 
-void Window::resize(uint16_t width, uint16_t height)
-{ impl->resize(width, height); }
-
 uint32_t Window::windowid() const
 { return impl->windowid(); }
-
-uint16_t Window::width() const
-{ return impl->width(); }
-
-uint16_t Window::height() const
-{ return impl->height(); }
-
-uint16_t Window::rows() const
-{ return impl->rows(); }
-
-uint16_t Window::cols() const
-{ return impl->cols(); }
 
 void Window::draw()
 { impl->draw(); }
