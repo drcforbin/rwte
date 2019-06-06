@@ -62,7 +62,6 @@ public:
     uint16_t cols() const { return m_cols; }
 
     void draw();
-    void set_wm_class();
     void settitle(const std::string& name);
     void seturgent(bool urgent);
     void bell(int volume);
@@ -73,6 +72,7 @@ public:
     void clippaste();
 
 private:
+    void set_wm_class();
     void set_wmmachine_name();
 
     void drawregion(int x1, int y1, int x2, int y2);
@@ -307,38 +307,6 @@ static std::string get_term_name()
     return name;
 }
 
-void WindowImpl::set_wm_class()
-{
-    std::string c;
-    std::string term_name;
-
-    if (!options.winname.empty())
-        c = options.winname;
-    else
-    {
-        // use termname if unspecified
-        term_name = get_term_name();
-        c = term_name;
-    }
-
-    // add the 0 that separates the parts
-    c.push_back(0);
-
-    if (!options.winclass.empty())
-        c += options.winclass;
-    else
-    {
-        // use termname if unspecified
-        if (term_name.empty())
-            term_name = get_term_name();
-        c += term_name;
-    }
-
-    // set WM_CLASS (including the last null!)
-    xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
-            XCB_ATOM_WM_CLASS, XCB_ATOM_STRING, 8, c.size()+1, c.c_str());
-}
-
 void WindowImpl::settitle(const std::string& name)
 {
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
@@ -401,6 +369,38 @@ void WindowImpl::clippaste()
     // request clipboard sel as utf8 to m_xseldata
     xcb_convert_selection(connection, win, m_clipboard,
             m_xtarget, m_xseldata, XCB_CURRENT_TIME);
+}
+
+void WindowImpl::set_wm_class()
+{
+    std::string c;
+    std::string term_name;
+
+    if (!options.winname.empty())
+        c = options.winname;
+    else
+    {
+        // use termname if unspecified
+        term_name = get_term_name();
+        c = term_name;
+    }
+
+    // add the 0 that separates the parts
+    c.push_back(0);
+
+    if (!options.winclass.empty())
+        c += options.winclass;
+    else
+    {
+        // use termname if unspecified
+        if (term_name.empty())
+            term_name = get_term_name();
+        c += term_name;
+    }
+
+    // set WM_CLASS (including the last null!)
+    xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
+            XCB_ATOM_WM_CLASS, XCB_ATOM_STRING, 8, c.size()+1, c.c_str());
 }
 
 void WindowImpl::set_wmmachine_name()
