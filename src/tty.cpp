@@ -1,3 +1,4 @@
+#include "rwte/asyncio.h"
 #include "lua/state.h"
 #include "rwte/config.h"
 #include "rwte/logging.h"
@@ -26,27 +27,7 @@
 #define MIN(a, b) ((a) < (b)? (a) : (b))
 
 // most we write in a chunk
-const int max_write = 255;
-
-static void log_write(bool initial, const char *data, size_t len)
-{
-    if (logging::trace < LOGGER()->level())
-        return;
-
-    fmt::MemoryWriter msg;
-    for (size_t i = 0; i < len; i++)
-    {
-        char ch = data[i];
-        if (ch == '\033')
-            msg << "ESC";
-        else if (isprint(ch))
-            msg << ch;
-        else
-            msg.write("<{:02x}>", (unsigned int) ch);
-    }
-
-    LOGGER()->trace("wrote '{}' ({}, {})", msg.str(), len, initial);
-}
+const std::size_t max_write = 255;
 
 static void setenv_windowid()
 {
@@ -167,151 +148,7 @@ static void stty()
 
 }
 
-template <class T>
-class BufferedIO
-{
-public:
-    BufferedIO() :
-        m_fd(-1),
-        m_rbuflen(0),
-        m_wbuffer(nullptr),
-        m_wbuflen(0)
-    {
-        m_io.set<BufferedIO, &BufferedIO::iocb>(this);
-    }
-
-    ~BufferedIO()
-    {
-        if (m_fd != -1)
-            close(m_fd);
-
-        if (m_wbuffer)
-            std::free(m_wbuffer);
-    }
-
-    void setFd(int fd)
-    {
-        m_fd = fd;
-    }
-
-    int fd() const { return m_fd; }
-
-    void write(const char *data, std::size_t len)
-    {
-        // if nothing's pending for write, kick it off
-        if (m_wbuflen == 0)
-        {
-            ssize_t written = ::write(m_fd, data, MIN(len, max_write));
-            if (written < 0)
-                written = 0;
-
-            if (written > 0)
-                log_write(true, data, written);
-
-            if (written == len)
-                return;
-
-            data += written;
-            len  -= written;
-        }
-
-        // copy anything left into m_wbuffer
-        m_wbuffer = (char *) std::realloc(m_wbuffer, m_wbuflen + len);
-        std::memcpy(m_wbuffer + m_wbuflen, data, len);
-        m_wbuflen += len;
-
-        // now we want write events too
-        m_io.set(ev::READ | ev::WRITE);
-    }
-
-    void startRead()
-    {
-        m_io.start(m_fd, ev::READ);
-    }
-
-private:
-    void iocb(ev::io &, int revents)
-    {
-        if (revents & ev::READ)
-            read_ready();
-
-        if (revents & ev::WRITE)
-            write_ready();
-    }
-
-    void read_ready()
-    {
-        char *ptr = &m_rbuffer[0];
-
-        // append read bytes to unprocessed bytes
-        int ret;
-        if ((ret = ::read(m_fd, ptr+m_rbuflen, m_rbuffer.size()-m_rbuflen)) < 0)
-        {
-            if (errno == EIO)
-            {
-                // child exiting?
-                m_io.stop();
-                return;
-            }
-            else
-                LOGGER()->fatal("could not read from shell ({}): {}", errno, strerror(errno));
-        }
-
-        m_rbuflen += ret;
-
-        m_rbuflen = static_cast<T*>(this)->onread(ptr, m_rbuflen);
-
-        // keep any uncomplete utf8 char for the next call
-        if (m_rbuflen > 0)
-            std::memmove(&m_rbuffer[0], ptr, m_rbuflen);
-    }
-
-    void write_ready()
-    {
-        int written = ::write(m_fd, m_wbuffer, MIN(m_wbuflen, max_write));
-        if (written > 0)
-        {
-            log_write(false, m_wbuffer, written);
-            m_wbuflen -= written;
-
-            // anything left to write?
-            if (!m_wbuflen)
-            {
-                // nope.
-                std::free(m_wbuffer);
-                m_wbuffer = nullptr;
-
-                // stop waiting for write events
-                m_io.set(ev::READ);
-                return;
-            }
-            else
-            {
-                // if anything's left, move it up front
-                std::memmove(m_wbuffer, m_wbuffer + written, m_wbuflen);
-            }
-        }
-        else if (written != -1 || (errno != EAGAIN && errno != EINTR))
-        {
-            // todo: better error handling
-            // for now, just stop waiting for write event
-            m_io.set(ev::READ);
-        }
-    }
-
-    int m_fd;
-    ev::io m_io;
-
-    // fixed-size read buffer
-    std::array<char, BUFSIZ> m_rbuffer;
-    std::size_t m_rbuflen;
-
-    // write buffer
-    char * m_wbuffer;
-    std::size_t m_wbuflen;
-};
-
-class TtyImpl: public BufferedIO<TtyImpl>
+class TtyImpl: public AsyncIO<TtyImpl, max_write>
 {
 public:
     TtyImpl(std::shared_ptr<RwteBus> bus);
@@ -324,7 +161,8 @@ public:
 private:
     void onresize(const ResizeEvt& evt);
 
-    friend class BufferedIO<TtyImpl>;
+    friend class AsyncIO<TtyImpl, max_write>;
+    void log_write(bool initial, const char *data, size_t len);
     std::size_t onread(const char *ptr, std::size_t len);
 
     std::shared_ptr<RwteBus> m_bus;
@@ -454,6 +292,26 @@ void TtyImpl::onresize(const ResizeEvt& evt)
 
     if (ioctl(fd(), TIOCSWINSZ, &w) < 0)
         LOGGER()->error("could not set window size: {}", strerror(errno));
+}
+
+void TtyImpl::log_write(bool initial, const char *data, size_t len)
+{
+    if (logging::trace < LOGGER()->level())
+        return;
+
+    fmt::MemoryWriter msg;
+    for (size_t i = 0; i < len; i++)
+    {
+        char ch = data[i];
+        if (ch == '\033')
+            msg << "ESC";
+        else if (isprint(ch))
+            msg << ch;
+        else
+            msg.write("<{:02x}>", (unsigned int) ch);
+    }
+
+    LOGGER()->trace("wrote '{}' ({}, {})", msg.str(), len, initial);
 }
 
 std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
