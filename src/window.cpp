@@ -143,6 +143,7 @@ private:
     bool load_compose_table(const char *locale);
 
     std::shared_ptr<RwteBus> m_bus;
+    int m_resizeReg;
 
     uint16_t m_width, m_height;
     uint16_t m_rows, m_cols;
@@ -171,10 +172,9 @@ private:
 
 WindowImpl::WindowImpl(std::shared_ptr<RwteBus> bus) :
     m_bus(std::move(bus)),
+    m_resizeReg(m_bus->reg<ResizeEvt, WindowImpl, &WindowImpl::onresize>(this)),
     m_eventmask(0)
 {
-    m_bus->reg<ResizeEvt, WindowImpl, &WindowImpl::onresize>(this);
-
     // this io watcher is just to to kick the loop around
     // when there is data available to be read
     m_io.set<WindowImpl,&WindowImpl::readcb>(this);
@@ -184,7 +184,7 @@ WindowImpl::WindowImpl(std::shared_ptr<RwteBus> bus) :
 
 WindowImpl::~WindowImpl()
 {
-    m_bus->unreg<ResizeEvt, WindowImpl, &WindowImpl::onresize>(this);
+    m_bus->unreg<ResizeEvt>(m_resizeReg);
 }
 
 bool WindowImpl::create(int cols, int rows)

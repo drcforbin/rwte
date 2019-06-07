@@ -166,6 +166,7 @@ private:
     std::size_t onread(const char *ptr, std::size_t len);
 
     std::shared_ptr<RwteBus> m_bus;
+    int m_resizeReg;
     pid_t m_pid;
     int m_iofd;
 };
@@ -173,11 +174,10 @@ private:
 
 TtyImpl::TtyImpl(std::shared_ptr<RwteBus> bus) :
     m_bus(std::move(bus)),
+    m_resizeReg(m_bus->reg<ResizeEvt, TtyImpl, &TtyImpl::onresize>(this)),
     m_pid(0),
     m_iofd(-1)
 {
-    m_bus->reg<ResizeEvt, TtyImpl, &TtyImpl::onresize>(this);
-
     if (!options.io.empty())
     {
         LOGGER()->debug("logging to {}", options.io);
@@ -244,7 +244,7 @@ TtyImpl::TtyImpl(std::shared_ptr<RwteBus> bus) :
 
 TtyImpl::~TtyImpl()
 {
-    m_bus->unreg<ResizeEvt, TtyImpl, &TtyImpl::onresize>(this);
+    m_bus->unreg<ResizeEvt>(m_resizeReg);
 
     if (m_iofd)
         close(m_iofd);

@@ -2,7 +2,9 @@
 #define RWTE_BUS_H
 
 #include <algorithm>
+#include <functional>
 #include <vector>
+#include <tuple>
 
 namespace detail {
 
@@ -11,45 +13,40 @@ class ETag { using type = T; };
 
 template<class EvtT>
 class BusFuncs {
+    using Fn = std::function<void(const EvtT&)>;
+    using IdxFn = std::tuple<int, Fn>;
+
 public:
+    int reg(Fn fn) {
+        int idx = nextidx++;
+        calls.emplace_back(idx, fn);
+        return idx;
+    }
+
+    void unreg(int key) {
+        calls.erase(
+            std::find_if(calls.begin(), calls.end(),
+                [key](const auto& t){ return std::get<0>(t) == key; }));
+    }
+
     template<class L, void (L::*method)(const EvtT&)>
-    void reg(L *obj) {
-        calls.emplace_back(obj, &method_thunk<L, method>);
+    int reg(L *obj) {
+        return reg(std::bind(method, obj, std::placeholders::_1));
     }
 
     template<class L, void (L::*method)(const EvtT&)>
     void unreg(L *obj) {
-        Call call(obj, &method_thunk<L, method>);
-        calls.erase(std::remove(calls.begin(), calls.end(), call), calls.end());
+        unreg(std::bind(method, obj, std::placeholders::_1));
     }
 
     void publish(const EvtT& evt) {
         for (auto& c : calls)
-            c.f(c.p, evt);
+            std::get<1>(c)(evt);
     }
 
 private:
-    template<class L, void (L::*method)(const EvtT& evt)>
-    static void method_thunk(void *wp, const EvtT& evt)
-    {
-        (static_cast<L*>(wp)->*method)(evt);
-    }
-
-    struct Call
-    {
-        Call(void *p, void(*f)(void *, const EvtT &)) :
-            p(p), f(f)
-        { }
-
-        bool operator==(const Call &other) const noexcept {
-            return p == other.p && f == other.f;
-        }
-
-        void *p;
-        void(*f)(void *, const EvtT &);
-    };
-
-    std::vector<Call> calls;
+    int nextidx = 0;
+    std::vector<IdxFn> calls;
 };
 
 // forward, so we can use it as a base
@@ -79,13 +76,14 @@ protected:
 } // namespace detail
 
 template <typename... EvtTs>
-class Bus : public detail::BusBase<sizeof...(EvtTs), EvtTs...>{
+class Bus : public detail::BusBase<sizeof...(EvtTs), EvtTs...>
+{
     using Base = detail::BusBase<sizeof...(EvtTs), EvtTs...>;
 
 public:
     template<typename EvtT, class L, void (L::*method)(const EvtT&)>
-    void reg(L *obj) {
-        Base::get(detail::ETag<EvtT>{}).template reg<L, method>(obj);
+    int reg(L *obj) {
+        return Base::get(detail::ETag<EvtT>{}).template reg<L, method>(obj);
     }
 
     /*
@@ -95,10 +93,17 @@ public:
     }
     */
 
+    template<typename EvtT>
+    void unreg(int idx) {
+        Base::get(detail::ETag<EvtT>{}).unreg(idx);
+    }
+
+    /*
     template<typename EvtT, class L, void (L::*method)(const EvtT&)>
     void unreg(L *obj) {
         Base::get(detail::ETag<EvtT>{}).template unreg<L, method>(obj);
     }
+    */
 
     /*
     template<typename EvtT>

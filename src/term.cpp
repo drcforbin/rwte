@@ -234,6 +234,7 @@ private:
     std::shared_ptr<char> getsel();
 
     std::shared_ptr<RwteBus> m_bus;
+    int m_resizeReg;
 
     term_mode m_mode; // terminal mode
     escape_state m_esc; // escape mode
@@ -261,11 +262,10 @@ private:
 
 TermImpl::TermImpl(std::shared_ptr<RwteBus> bus, int cols, int rows) :
     m_bus(std::move(bus)),
+    m_resizeReg(m_bus->reg<ResizeEvt, TermImpl, &TermImpl::onresize>(this)),
     m_rows(0), m_cols(0),
     m_focused(false)
 {
-    m_bus->reg<ResizeEvt, TermImpl, &TermImpl::onresize>(this);
-
     Cursor c{};
     m_cursor = c;
 
@@ -280,7 +280,7 @@ TermImpl::TermImpl(std::shared_ptr<RwteBus> bus, int cols, int rows) :
 
 TermImpl::~TermImpl()
 {
-    m_bus->unreg<ResizeEvt, TermImpl, &TermImpl::onresize>(this);
+    m_bus->unreg<ResizeEvt>(m_resizeReg);
 }
 
 void TermImpl::reset()
