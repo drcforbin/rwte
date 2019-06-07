@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "rwte/event.h"
+#include "rwte/selection.h"
 
 enum mouse_event_enum
 {
@@ -77,9 +78,11 @@ const term_mode mouse_modes(
         1 << MODE_MOUSEBTN | 1 << MODE_MOUSEMOTION |
         1 << MODE_MOUSEX10 | 1 << MODE_MOUSEMANY);
 
+const char32_t empty_char = ' ';
+
 struct Glyph
 {
-    char32_t u = ' ';           // character code
+    char32_t u = empty_char;           // character code
     glyph_attribute attr;    // attribute flags
     uint32_t fg = 0;      // foreground
     uint32_t bg = 0;      // background
@@ -95,14 +98,12 @@ enum cursor_type
     CURSOR_STEADY_BAR
 };
 
-struct Cursor
+struct Cursor : public Cell
 {
     Glyph attr; // current char attributes
-    int row = 0, col = 0;
     char state = 0;
 };
 
-class Selection;
 class TermImpl;
 
 class Term
@@ -111,7 +112,8 @@ public:
     Term(std::shared_ptr<RwteBus> bus, int cols, int rows);
     ~Term();
 
-    const Glyph& glyph(int col, int row) const;
+    const Glyph& glyph(const Cell& cell) const;
+    Glyph& glyph(const Cell& cell);
 
     void reset();
 
@@ -130,7 +132,7 @@ public:
     void cleardirty(int row);
 
     void putc(char32_t u);
-    void mousereport(int col, int row, mouse_event_enum evt, int button,
+    void mousereport(const Cell& cell, mouse_event_enum evt, int button,
             const keymod_state& mod);
 
     int rows() const;

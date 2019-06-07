@@ -143,7 +143,15 @@ public:
     TermImpl(std::shared_ptr<RwteBus> bus, int cols, int rows);
     ~TermImpl();
 
-    const Glyph& glyph(int col, int row) const { return m_lines[col][row]; }
+    const Glyph& glyph(const Cell& cell) const
+    {
+        return m_lines[cell.row][cell.col];
+    }
+
+    Glyph& glyph(const Cell& cell)
+    {
+        return m_lines[cell.row][cell.col];
+    }
 
     void reset();
 
@@ -162,7 +170,7 @@ public:
     void cleardirty(int row) { m_dirty[row] = false; }
 
     void putc(char32_t u);
-    void mousereport(int col, int row, mouse_event_enum evt, int button,
+    void mousereport(const Cell& cell, mouse_event_enum evt, int button,
             const keymod_state& mod);
 
     int rows() const { return m_rows; }
@@ -187,8 +195,8 @@ private:
     void resizeCore(int cols, int rows);
     void start_blink();
 
-    void moveto(int col, int row);
-    void moveato(int col, int row);
+    void moveto(Cell cell);
+    void moveato(const Cell& cell);
     void cursor(int mode);
 
     void newline(bool first_col);
@@ -197,7 +205,8 @@ private:
     void scrollup(int orig, int n);
     void scrolldown(int orig, int n);
 
-    void clearregion(int col1, int row1, int col2, int row2);
+    // note: includes end
+    void clearregion(const Cell& begin, const Cell& end);
     void deletechar(int n);
     void deleteline(int n);
     void insertblank(int n);
@@ -208,7 +217,7 @@ private:
 
     void selsnap(int *col, int *row, int direction);
 
-    void setchar(char32_t u, const Glyph& attr, int col, int row);
+    void setchar(char32_t u, const Glyph& attr, const Cell& cell);
     void defutf8(char ascii);
     void selscroll(int orig, int n);
     void selnormalize();
@@ -230,7 +239,7 @@ private:
     std::string csidump();
     void setattr(int *attr, int len);
     void settmode(bool priv, bool set, int *args, int narg);
-    void getbuttoninfo(int col, int row, const keymod_state& mod);
+    void getbuttoninfo(const Cell& cell, const keymod_state& mod);
     std::shared_ptr<char> getsel();
 
     std::shared_ptr<RwteBus> m_bus;
@@ -357,9 +366,9 @@ void TermImpl::reset()
 
     for (i = 0; i < 2; i++)
     {
-        moveto(0, 0);
+        moveto({0, 0});
         cursor(CURSOR_SAVE);
-        clearregion(0, 0, m_cols-1, m_rows-1);
+        clearregion({0, 0}, {m_rows-1, m_cols-1});
         swapscreen();
     }
 
@@ -383,8 +392,7 @@ void TermImpl::blink()
     // see if we have anything blinking and mark blinking lines dirty
     for (int i = 0; i < m_lines.size(); i++)
     {
-        const auto& line = m_lines[i];
-        for (auto& g : line)
+        for (const auto& g : m_lines[i])
         {
             if (g.attr[ATTR_BLINK])
             {
@@ -478,7 +486,7 @@ void TermImpl::resizeCore(int cols, int rows)
     // reset scrolling region
     setscroll(0, rows-1);
     // make use of the LIMIT in moveto
-    moveto(m_cursor.col, m_cursor.row);
+    moveto(m_cursor);
 
     // store cursor
     Cursor c = m_cursor;
@@ -486,9 +494,9 @@ void TermImpl::resizeCore(int cols, int rows)
     for (i = 0; i < 2; i++)
     {
         if (mincol < cols && 0 < minrow)
-            clearregion(mincol, 0, cols - 1, minrow - 1);
+            clearregion({0, mincol}, {minrow - 1, cols - 1});
         if (0 < cols && minrow < rows)
-            clearregion(0, minrow, cols - 1, rows - 1);
+            clearregion({minrow, 0}, {rows - 1, cols - 1});
         swapscreen();
         cursor(CURSOR_LOAD);
     }
@@ -504,7 +512,7 @@ void TermImpl::start_blink()
     rwte->start_blink();
 }
 
-void TermImpl::moveto(int col, int row)
+void TermImpl::moveto(Cell cell)
 {
     int minrow, maxrow;
     if (m_cursor.state & CURSOR_ORIGIN)
@@ -519,16 +527,17 @@ void TermImpl::moveto(int col, int row)
     }
 
     m_cursor.state &= ~CURSOR_WRAPNEXT;
-    m_cursor.col = LIMIT(col, 0, m_cols-1);
-    m_cursor.row = LIMIT(row, minrow, maxrow);
+    m_cursor.col = LIMIT(cell.col, 0, m_cols-1);
+    m_cursor.row = LIMIT(cell.row, minrow, maxrow);
 
     rwte->refresh();
 }
 
 // for absolute user moves, when decom is set
-void TermImpl::moveato(int col, int row)
+void TermImpl::moveato(const Cell& cell)
 {
-    moveto(col, row + ((m_cursor.state & CURSOR_ORIGIN) ? m_top: 0));
+    moveto({cell.row + ((m_cursor.state & CURSOR_ORIGIN) ? m_top: 0),
+            cell.col});
 }
 
 void TermImpl::cursor(int mode)
@@ -542,7 +551,7 @@ void TermImpl::cursor(int mode)
     else if (mode == CURSOR_LOAD)
     {
         m_cursor = m_stored_cursors[alt];
-        moveto(m_cursor.col, m_cursor.row);
+        moveto(m_cursor);
     }
 }
 
@@ -717,6 +726,7 @@ void TermImpl::putc(char32_t u)
     }
 
     if (m_mode[MODE_INSERT] && m_cursor.col+width < m_cols)
+        // todo: check
         std::memmove(gp+width, gp, (m_cols - m_cursor.col - width) * sizeof(Glyph));
 
     if (m_cursor.col+width > m_cols)
@@ -725,7 +735,7 @@ void TermImpl::putc(char32_t u)
         gp = &m_lines[m_cursor.row][m_cursor.col];
     }
 
-    setchar(u, m_cursor.attr, m_cursor.col, m_cursor.row);
+    setchar(u, m_cursor.attr, m_cursor);
 
     if (width == 2)
     {
@@ -739,7 +749,7 @@ void TermImpl::putc(char32_t u)
     }
 
     if (m_cursor.col+width < m_cols)
-        moveto(m_cursor.col+width, m_cursor.row);
+        moveto({m_cursor.row, m_cursor.col+width});
     else
         m_cursor.state |= CURSOR_WRAPNEXT;
 }
@@ -778,12 +788,12 @@ static const int button_map[5] = {
     MOUSEFLAGS_BUTTON5
 };
 
-void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
+void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
         const keymod_state& mod)
 {
     // todo: suspicious use of static
     static int oldbutton = MOUSEFLAGS_RELEASE;
-    static int ocol, orow;
+    static Cell oldcell;
 
     if (evt == MOUSE_PRESS || evt == MOUSE_RELEASE)
     {
@@ -821,13 +831,13 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
         if (evt == MOUSE_MOTION)
         {
             LOGGER()->trace("mousereport MOTION {}, {}, oldbutton={}, mode={}",
-                col, row, oldbutton, mode);
+                cell.col, cell.row, oldbutton, mode);
         }
         else
         {
             LOGGER()->trace("mousereport {} {}, {}, {}, oldbutton={}, mode={}",
                 evt == MOUSE_PRESS? "PRESS" : "RELEASE",
-                button, col, row, oldbutton, mode);
+                button, cell.col, cell.row, oldbutton, mode);
         }
     }
 
@@ -843,7 +853,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
         if (evt == MOUSE_MOTION)
         {
             // return if we haven't moved
-            if (col == ocol && row == orow)
+            if (cell == oldcell)
                 return;
 
             // motion is only reported in MOUSEMOTION and MOUSEMANY
@@ -856,8 +866,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
 
             cb = oldbutton | MOUSEFLAGS_MOTION;
 
-            ocol = col;
-            orow = row;
+            oldcell = cell;
         }
         else
         {
@@ -869,8 +878,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
             if (evt == MOUSE_PRESS)
             {
                 oldbutton = cb;
-                ocol = col;
-                orow = row;
+                oldcell = cell;
             }
             else if (evt == MOUSE_RELEASE)
             {
@@ -900,13 +908,14 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
         if (m_mode[MODE_MOUSESGR])
         {
             std::string seq = fmt::format("\033[<{};{};{}{:c}",
-                    cb, col+1, row+1, (evt == MOUSE_RELEASE)? 'm' : 'M');
+                    cb, cell.col+1, cell.row+1, (evt == MOUSE_RELEASE)? 'm' : 'M');
             g_tty->write(seq);
         }
-        else if (col < 223 && row < 223)
+        // todo: use cell comparison
+        else if (cell.col < 223 && cell.row < 223)
         {
             std::string seq = fmt::format("\033[M{:c}{:c}{:c}",
-                    (char) (32+cb), (char) (32+col+1), (char) (32+row+1));
+                    (char) (32+cb), (char) (32+cell.col+1), (char) (32+cell.row+1));
             g_tty->write(seq);
         }
         else
@@ -924,7 +933,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
 
             // todo: this call originates from term, when it really
             // makes a lot more sense to be called from window
-            if (lua::window::call_mouse_press(L.get(), col, row, button, mod))
+            if (lua::window::call_mouse_press(L.get(), cell, button, mod))
                 return;
 
             // start selection?
@@ -947,7 +956,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
                 selclear();
 
                 // begin a selection
-                m_sel.begin(col, row);
+                m_sel.begin(cell);
 
                 // if the user clicks below predefined timeouts specific
                 // snapping behaviour is exposed.
@@ -975,7 +984,7 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
             {
                 if (m_sel.mode() == Selection::Mode::Ready)
                 {
-                    getbuttoninfo(col, row, mod);
+                    getbuttoninfo(cell, mod);
 
                     // set primary sel and tell window about it
                     m_sel.primary = getsel();
@@ -994,13 +1003,12 @@ void TermImpl::mousereport(int col, int row, mouse_event_enum evt, int button,
                 return;
 
             m_sel.setmode(Selection::Mode::Ready);
-            int olderow = m_sel.oe.row;
-            int oldecol = m_sel.oe.col;
+            Cell oldoe = m_sel.oe;
             int oldsbrow = m_sel.nb.row;
             int oldserow = m_sel.ne.row;
-            getbuttoninfo(col, row, mod);
+            getbuttoninfo(cell, mod);
 
-            if (olderow != m_sel.oe.row || oldecol != m_sel.oe.col)
+            if (oldoe != m_sel.oe)
                 setdirty(MIN(m_sel.nb.row, oldsbrow), MAX(m_sel.ne.row, oldserow));
         }
     }
@@ -1015,7 +1023,7 @@ void TermImpl::newline(bool first_col)
     else
         y++;
 
-    moveto(first_col ? 0 : m_cursor.col, y);
+    moveto({y, first_col ? 0 : m_cursor.col});
 }
 
 void TermImpl::setscroll(int t, int b)
@@ -1034,7 +1042,7 @@ void TermImpl::scrollup(int orig, int n)
 {
     LIMIT(n, 0, m_bot-orig+1);
 
-    clearregion(0, orig, m_cols-1, orig+n-1);
+    clearregion({orig, 0}, {orig+n-1, m_cols-1});
     setdirty(orig+n, m_bot);
 
     for (int i = orig; i <= m_bot-n; i++)
@@ -1048,7 +1056,7 @@ void TermImpl::scrolldown(int orig, int n)
     LIMIT(n, 0, m_bot-orig+1);
 
     setdirty(orig, m_bot-n);
-    clearregion(0, m_bot-n+1, m_cols-1, m_bot);
+    clearregion({m_bot-n+1, 0}, {m_bot, m_cols-1});
 
     for (int i = m_bot; i >= orig+n; i--)
         std::swap(m_lines[i], m_lines[i-n]);
@@ -1056,8 +1064,13 @@ void TermImpl::scrolldown(int orig, int n)
     selscroll(orig, n);
 }
 
-void TermImpl::clearregion(int col1, int row1, int col2, int row2)
+void TermImpl::clearregion(const Cell& begin, const Cell& end)
 {
+    int col1 = begin.col;
+    int row1 = begin.row;
+    int col2 = end.col;
+    int row2 = end.row;
+
     if (col1 > col2)
         std::swap(col1, col2);
     if (row1 > row2)
@@ -1068,20 +1081,23 @@ void TermImpl::clearregion(int col1, int row1, int col2, int row2)
     LIMIT(row1, 0, m_rows-1);
     LIMIT(row2, 0, m_rows-1);
 
+    Glyph empty {
+        empty_char,
+        {},
+        m_cursor.attr.fg,
+        m_cursor.attr.bg
+    };
+
     for (int row = row1; row <= row2; row++)
     {
         m_dirty[row] = true;
-        for (int col = col1; col <= col2; col++)
-        {
-            Glyph& gp = m_lines[row][col];
-            if (m_sel.selected(col, row))
-                selclear();
-            gp.fg = m_cursor.attr.fg;
-            gp.bg = m_cursor.attr.bg;
-            gp.attr.reset();
-            gp.u = ' ';
-        }
+
+        auto lineit = m_lines[row].begin();
+        std::fill(lineit+col1, lineit+col2+1, empty);
     }
+
+    if (m_sel.anyselected({row1, col1}, {row2, col2}))
+        selclear();
 }
 
 void TermImpl::deletechar(int n)
@@ -1093,9 +1109,8 @@ void TermImpl::deletechar(int n)
     int size = m_cols - src;
 
     auto lineit = m_lines[m_cursor.row].begin();
-
     std::copy(lineit+src, lineit+src+size, lineit+dst);
-    clearregion(m_cols-n, m_cursor.row, m_cols-1, m_cursor.row);
+    clearregion({m_cursor.row, m_cols-n}, {m_cursor.row, m_cols-1});
 }
 
 void TermImpl::deleteline(int n)
@@ -1117,8 +1132,7 @@ void TermImpl::insertblank(int n)
                 line.end());
 
         // clear moved area
-        clearregion(m_cursor.col, m_cursor.row,
-                m_cursor.col + n - 1, m_cursor.row);
+        clearregion(m_cursor, {m_cursor.row, m_cursor.col + n - 1});
     }
 }
 
@@ -1148,6 +1162,7 @@ void TermImpl::setdirty(int top, int bot)
     rwte->refresh();
 }
 
+// todo: cell?
 void TermImpl::selsnap(int *col, int *row, int direction)
 {
     int newcol, newrow, colt, rowt;
@@ -1249,8 +1264,8 @@ void TermImpl::selclear()
     if (m_sel.empty())
         return;
 
-    m_sel.clear();
     setdirty(m_sel.nb.row, m_sel.ne.row);
+    m_sel.clear();
 }
 
 void TermImpl::clipcopy()
@@ -1265,7 +1280,7 @@ void TermImpl::send(const char *data, std::size_t len)
     g_tty->write(data, len);
 }
 
-void TermImpl::setchar(char32_t u, const Glyph& attr, int col, int row)
+void TermImpl::setchar(char32_t u, const Glyph& attr, const Cell& cell)
 {
     const char *vt100_0[62] = { // 0x41 - 0x7e
         "↑", "↓", "→", "←", "█", "▚", "☃", // A - G
@@ -1284,23 +1299,26 @@ void TermImpl::setchar(char32_t u, const Glyph& attr, int col, int row)
             (0x41 <= u && u <= 0x7e) && vt100_0[u - 0x41])
         utf8decode(vt100_0[u - 0x41], &u, utf_size);
 
-    if (m_lines[row][col].attr[ATTR_WIDE])
+    auto& thisGlyph = glyph(cell);
+    if (thisGlyph.attr[ATTR_WIDE])
     {
-        if (col+1 < m_cols)
+        if (cell.col+1 < m_cols)
         {
-            m_lines[row][col+1].u = ' ';
-            m_lines[row][col+1].attr.reset(ATTR_WDUMMY);
+            auto& nextGlyph = glyph({cell.row, cell.col+1});
+            nextGlyph.u = empty_char;
+            nextGlyph.attr.reset(ATTR_WDUMMY);
         }
     }
-    else if (m_lines[row][col].attr[ATTR_WDUMMY])
+    else if (thisGlyph.attr[ATTR_WDUMMY])
     {
-        m_lines[row][col-1].u = ' ';
-        m_lines[row][col-1].attr.reset(ATTR_WIDE);
+        auto& prevGlyph = glyph({cell.row, cell.col-1});
+        prevGlyph.u = empty_char;
+        prevGlyph.attr.reset(ATTR_WIDE);
     }
 
-    m_dirty[row] = true;
-    m_lines[row][col] = attr;
-    m_lines[row][col].u = u;
+    m_dirty[cell.row] = true;
+    thisGlyph = attr;
+    thisGlyph.u = u;
 
     if (attr.attr[ATTR_BLINK])
         start_blink();
@@ -1388,7 +1406,7 @@ int TermImpl::linelen(int row)
     if (m_lines[row][i - 1].attr[ATTR_WRAP])
         return i;
 
-    while (i > 0 && m_lines[row][i - 1].u == ' ')
+    while (i > 0 && m_lines[row][i - 1].u == empty_char)
         --i;
 
     return i;
@@ -1416,7 +1434,7 @@ void TermImpl::dectest(char c)
         for (col = 0; col < m_cols; ++col)
         {
             for (row = 0; row < m_rows; ++row)
-                setchar('E', m_cursor.attr, col, row);
+                setchar('E', m_cursor.attr, {row, col});
         }
     }
 }
@@ -1430,10 +1448,10 @@ void TermImpl::controlcode(unsigned char ascii)
         puttab(1);
         return;
     case '\b':   // BS
-        moveto(m_cursor.col-1, m_cursor.row);
+        moveto({m_cursor.row, m_cursor.col-1});
         return;
     case '\r':   // CR
-        moveto(0, m_cursor.row);
+        moveto({m_cursor.row, 0});
         return;
     case '\f':   // LF
     case '\v':   // VT
@@ -1472,7 +1490,7 @@ void TermImpl::controlcode(unsigned char ascii)
         m_charset = 1 - (ascii - '\016');
         return;
     case '\032': // SUB
-        setchar('?', m_cursor.attr, m_cursor.col, m_cursor.row);
+        setchar('?', m_cursor.attr, m_cursor);
     case '\030': // CAN
         csireset();
         break;
@@ -1571,7 +1589,7 @@ bool TermImpl::eschandle(unsigned char ascii)
         if (m_cursor.row == m_bot)
             scrollup(m_top, 1);
         else
-            moveto(m_cursor.col, m_cursor.row+1);
+            moveto({m_cursor.row+1, m_cursor.col});
         break;
     case 'E': // NEL -- Next line
         newline(true); // always go to first col
@@ -1583,7 +1601,7 @@ bool TermImpl::eschandle(unsigned char ascii)
         if (m_cursor.row == m_top)
             scrolldown(m_top, 1);
         else
-            moveto(m_cursor.col, m_cursor.row-1);
+            moveto({m_cursor.row-1, m_cursor.col});
         break;
     case 'Z': // DECID -- Identify Terminal
         {
@@ -1924,12 +1942,12 @@ void TermImpl::csihandle()
         break;
     case 'A': // CUU -- Cursor <n> Up
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto(m_cursor.col, m_cursor.row-m_csiesc.arg[0]);
+        moveto({m_cursor.row-m_csiesc.arg[0], m_cursor.col});
         break;
     case 'B': // CUD -- Cursor <n> Down
     case 'e': // VPR --Cursor <n> Down
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto(m_cursor.col, m_cursor.row+m_csiesc.arg[0]);
+        moveto({m_cursor.row+m_csiesc.arg[0], m_cursor.col});
         break;
     case 'i': // MC -- Media Copy
         switch (m_csiesc.arg[0]) {
@@ -1963,19 +1981,19 @@ void TermImpl::csihandle()
     case 'C': // CUF -- Cursor <n> Forward
     case 'a': // HPR -- Cursor <n> Forward
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto(m_cursor.col+m_csiesc.arg[0], m_cursor.row);
+        moveto({m_cursor.row, m_cursor.col+m_csiesc.arg[0]});
         break;
     case 'D': // CUB -- Cursor <n> Backward
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto(m_cursor.col-m_csiesc.arg[0], m_cursor.row);
+        moveto({m_cursor.row, m_cursor.col-m_csiesc.arg[0]});
         break;
     case 'E': // CNL -- Cursor <n> Down and first col
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto(0, m_cursor.row+m_csiesc.arg[0]);
+        moveto({m_cursor.row+m_csiesc.arg[0], 0});
         break;
     case 'F': // CPL -- Cursor <n> Up and first col
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto(0, m_cursor.row-m_csiesc.arg[0]);
+        moveto({m_cursor.row-m_csiesc.arg[0], 0});
         break;
     case 'g': // TBC -- Tabulation clear
         switch (m_csiesc.arg[0])
@@ -1994,13 +2012,13 @@ void TermImpl::csihandle()
     case 'G': // CHA -- Move to <col>
     case '`': // HPA
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto(m_csiesc.arg[0]-1, m_cursor.row);
+        moveto({m_cursor.row, m_csiesc.arg[0]-1});
         break;
     case 'H': // CUP -- Move to <row> <col>
     case 'f': // HVP
         DEFAULT(m_csiesc.arg[0], 1);
         DEFAULT(m_csiesc.arg[1], 1);
-        moveato(m_csiesc.arg[1]-1, m_csiesc.arg[0]-1);
+        moveato({m_csiesc.arg[0]-1, m_csiesc.arg[1]-1});
         break;
     case 'I': // CHT -- Cursor Forward Tabulation <n> tab stops
         DEFAULT(m_csiesc.arg[0], 1);
@@ -2011,17 +2029,17 @@ void TermImpl::csihandle()
         switch (m_csiesc.arg[0])
         {
         case 0: // below
-            clearregion(m_cursor.col, m_cursor.row, m_cols-1, m_cursor.row);
+            clearregion(m_cursor, {m_cursor.row, m_cols-1});
             if (m_cursor.row < m_rows-1)
-                clearregion(0, m_cursor.row+1, m_cols-1, m_rows-1);
+                clearregion({m_cursor.row+1, 0}, {m_rows-1, m_cols-1});
             break;
         case 1: // above
             if (m_cursor.row > 1)
-                clearregion(0, 0, m_cols-1, m_cursor.row-1);
-            clearregion(0, m_cursor.row, m_cursor.col, m_cursor.row);
+                clearregion({0, 0}, {m_cursor.row-1, m_cols-1});
+            clearregion({m_cursor.row, 0}, m_cursor);
             break;
         case 2: // all
-            clearregion(0, 0, m_cols-1, m_rows-1);
+            clearregion({0, 0}, {m_rows-1, m_cols-1});
             break;
         default:
             goto unknown;
@@ -2031,13 +2049,13 @@ void TermImpl::csihandle()
         switch (m_csiesc.arg[0])
         {
         case 0: // right
-            clearregion(m_cursor.col, m_cursor.row, m_cols-1, m_cursor.row);
+            clearregion(m_cursor, {m_cursor.row, m_cols-1});
             break;
         case 1: // left
-            clearregion(0, m_cursor.row, m_cursor.col, m_cursor.row);
+            clearregion({m_cursor.row, 0}, m_cursor);
             break;
         case 2: // all
-            clearregion(0, m_cursor.row, m_cols-1, m_cursor.row);
+            clearregion({m_cursor.row, 0}, {m_cursor.row, m_cols-1});
             break;
         }
         break;
@@ -2062,8 +2080,7 @@ void TermImpl::csihandle()
         break;
     case 'X': // ECH -- Erase <n> char
         DEFAULT(m_csiesc.arg[0], 1);
-        clearregion(m_cursor.col, m_cursor.row,
-                m_cursor.col + m_csiesc.arg[0] - 1, m_cursor.row);
+        clearregion(m_cursor, {m_cursor.row, m_cursor.col + m_csiesc.arg[0] - 1});
         break;
     case 'P': // DCH -- Delete <n> char
         DEFAULT(m_csiesc.arg[0], 1);
@@ -2075,7 +2092,7 @@ void TermImpl::csihandle()
         break;
     case 'd': // VPA -- Move to <row>
         DEFAULT(m_csiesc.arg[0], 1);
-        moveato(m_cursor.col, m_csiesc.arg[0]-1);
+        moveato({m_csiesc.arg[0]-1, m_cursor.col});
         break;
     case 'h': // SM -- Set terminal mode
         settmode(m_csiesc.priv, true, m_csiesc.arg, m_csiesc.narg);
@@ -2100,7 +2117,7 @@ void TermImpl::csihandle()
             DEFAULT(m_csiesc.arg[0], 1);
             DEFAULT(m_csiesc.arg[1], m_rows);
             setscroll(m_csiesc.arg[0]-1, m_csiesc.arg[1]-1);
-            moveato(0, 0);
+            moveato({0, 0});
         }
         break;
     case 's': // DECSC -- Save cursor position (ANSI.SYS)
@@ -2309,7 +2326,7 @@ void TermImpl::settmode(bool priv, bool set, int *args, int narg)
                 else
                     m_cursor.state &= ~CURSOR_ORIGIN;
 
-                moveato(0, 0);
+                moveato({0, 0});
                 break;
             case 7: // DECAWM -- Auto wrap
                 m_mode.set(MODE_WRAP, set);
@@ -2363,7 +2380,7 @@ void TermImpl::settmode(bool priv, bool set, int *args, int narg)
                     break;
                 alt = m_mode[MODE_ALTSCREEN];
                 if (alt)
-                    clearregion(0, 0, m_cols-1, m_rows-1);
+                    clearregion({0, 0}, {m_rows-1, m_cols-1});
                 if (set ^ alt)
                     swapscreen();
                 if (*args != 1049)
@@ -2417,12 +2434,11 @@ void TermImpl::settmode(bool priv, bool set, int *args, int narg)
     }
 }
 
-void TermImpl::getbuttoninfo(int col, int row, const keymod_state& mod)
+void TermImpl::getbuttoninfo(const Cell& cell, const keymod_state& mod)
 {
     m_sel.alt = m_mode[MODE_ALTSCREEN];
 
-    m_sel.oe.col = col;
-    m_sel.oe.row = row;
+    m_sel.oe = cell;
     selnormalize();
 
     // TODO: move to lua code?
@@ -2464,7 +2480,7 @@ std::shared_ptr<char> TermImpl::getsel()
             lastcol = (m_sel.ne.row == row) ? m_sel.ne.col : m_cols-1;
         }
         last = &m_lines[row][MIN(lastcol, llen-1)];
-        while (last >= gp && last->u == ' ')
+        while (last >= gp && last->u == empty_char)
             --last;
 
         for ( ; gp <= last; ++gp)
@@ -2490,8 +2506,11 @@ Term::Term(std::shared_ptr<RwteBus> bus, int cols, int rows) :
 
 Term::~Term() = default;
 
-const Glyph& Term::glyph(int col, int row) const
-{ return impl->glyph(col, row); }
+const Glyph& Term::glyph(const Cell& cell) const
+{ return impl->glyph(cell); }
+
+Glyph& Term::glyph(const Cell& cell)
+{ return impl->glyph(cell); }
 
 void Term::reset()
 { impl->reset(); }
@@ -2526,9 +2545,9 @@ void Term::cleardirty(int row)
 void Term::putc(char32_t u)
 { impl->putc(u); }
 
-void Term::mousereport(int col, int row, mouse_event_enum evt, int button,
+void Term::mousereport(const Cell& cell, mouse_event_enum evt, int button,
         const keymod_state& mod)
-{ impl->mousereport(col, row, evt, button, mod); }
+{ impl->mousereport(cell, evt, button, mod); }
 
 int Term::rows() const
 { return impl->rows(); }

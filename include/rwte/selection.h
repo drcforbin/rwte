@@ -4,6 +4,8 @@
 #include <memory>
 #include <time.h>
 
+#include "rwte/coords.h"
+
 class Selection
 {
 public:
@@ -24,9 +26,10 @@ public:
     };
 
     void clear();
-    void begin(int col, int row);
+    void begin(const Cell& cell);
     bool empty() const;
-    bool selected(int col, int row) const;
+    bool anyselected(const Cell& begin, const Cell& end) const;
+    bool selected(const Cell& cell) const;
 
     void setmode(Mode val) { m_mode = val; }
     Mode mode() const { return m_mode; }
@@ -41,9 +44,10 @@ public:
 	// ne – normalized coordinates of the end of the selection
 	// ob – original coordinates of the beginning of the selection
 	// oe – original coordinates of the end of the selection
-	struct {
-		int col, row;
-	} nb, ne, ob, oe;
+	Cell nb {0, 0};
+    Cell ne {0, 0};
+    Cell ob {-1, 0};
+    Cell oe {0, 0};
 
 	std::shared_ptr<char> primary;
     std::shared_ptr<char> clipboard;

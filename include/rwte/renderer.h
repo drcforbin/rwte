@@ -6,6 +6,7 @@
 // forwards
 struct _cairo_surface;
 typedef _cairo_surface cairo_surface_t;
+struct Cell;
 
 class RendererImpl;
 
@@ -23,10 +24,10 @@ public:
     int charwidth() const;
     int charheight() const;
 
-    void drawregion(int row1, int col1, int row2, int col2);
+    // note: excludes end
+    void drawregion(const Cell& begin, const Cell& end);
 
-    int x2col(int x) const;
-    int y2row(int y) const;
+    Cell pxtocell(int x, int y) const;
 
 private:
     std::unique_ptr<RendererImpl> impl;

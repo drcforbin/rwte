@@ -274,18 +274,17 @@ public:
     int charwidth() const { return m_cw; }
     int charheight() const { return m_ch; }
 
-    void drawregion(int row1, int col1, int row2, int col2);
+    void drawregion(const Cell& begin, const Cell& end);
 
-    int x2col(int x) const;
-    int y2row(int y) const;
+    Cell pxtocell(int x, int y) const;
 
 private:
     void clear(cairo_t *cr, int x1, int y1, int x2, int y2);
     void drawglyph(cairo_t *cr, PangoLayout *layout, const Glyph& glyph,
-            int row, int col);
+            const Cell& cell);
     void drawglyphs(cairo_t *cr, PangoLayout *layout,
             const glyph_attribute& attr, uint32_t fg, uint32_t bg,
-            const std::vector<char32_t>& runes, int row, int col);
+            const std::vector<char32_t>& runes, const Cell& cell);
     void drawcursor(cairo_t *cr, PangoLayout *layout);
     void load_font(cairo_t *cr);
     cairo_font_options_t *get_font_options();
@@ -295,7 +294,7 @@ private:
 
     int m_cw = 0, m_ch = 0;
     int m_width = 0, m_height = 0;
-    int m_lastcurrow = 0, m_lastcurcol = 0;
+    Cell m_lastcur {0, 0};
 
     unique_font_desc m_fontdesc;
     int m_border_px;
@@ -355,7 +354,7 @@ void RendererImpl::resize(int width, int height)
     LOGGER()->info("resize to {}x{}", width, height);
 }
 
-void RendererImpl::drawregion(int row1, int col1, int row2, int col2)
+void RendererImpl::drawregion(const Cell& begin, const Cell& end)
 {
     // freshen up border_px
     m_border_px = get_border_px();
@@ -367,33 +366,35 @@ void RendererImpl::drawregion(int row1, int col1, int row2, int col2)
     bool ena_sel = !sel.empty() && sel.alt == g_term->mode()[MODE_ALTSCREEN];
 
     std::vector<char32_t> runes;
-    for (int row = row1; row < row2; row++)
+    Cell cell;
+    for (cell.row = begin.row; cell.row < end.row; cell.row++)
     {
-        if (!g_term->isdirty(row))
+        if (!g_term->isdirty(cell.row))
             continue;
 
-        g_term->cleardirty(row);
+        g_term->cleardirty(cell.row);
 
-        int col = col1;
-        while (col < col2)
+        cell.col = begin.col;
+        while (cell.col < end.col)
         {
             runes.clear();
-            Glyph g = g_term->glyph(row, col);
+            // todo: see if it's appropriate to use a copy vs. reference here
+            Glyph g = g_term->glyph(cell);
             if (!g.attr[ATTR_WDUMMY])
             {
-                if (ena_sel && sel.selected(col, row))
+                if (ena_sel && sel.selected(cell))
                     g.attr[ATTR_REVERSE] = g.attr[ATTR_REVERSE] ^ true;
             }
 
             runes.push_back(g.u);
 
-            for (int lookahead = col + 1; lookahead < col2; lookahead++)
+            for (int lookahead = cell.col + 1; lookahead < end.col; lookahead++)
             {
-                const Glyph& g2 = g_term->glyph(row, lookahead);
+                const Glyph& g2 = g_term->glyph({cell.row, lookahead});
                 glyph_attribute attr2 = g2.attr;
                 if (!attr2[ATTR_WDUMMY])
                 {
-                    if (ena_sel && sel.selected(lookahead, row))
+                    if (ena_sel && sel.selected({cell.row, lookahead}))
                         attr2[ATTR_REVERSE] = attr2[ATTR_REVERSE] ^ true;
                 }
 
@@ -403,8 +404,8 @@ void RendererImpl::drawregion(int row1, int col1, int row2, int col2)
                 runes.push_back(g2.u);
             }
 
-            drawglyphs(cr, layout, g.attr, g.fg, g.bg, runes, row, col);
-            col += runes.size();
+            drawglyphs(cr, layout, g.attr, g.fg, g.bg, runes, cell);
+            cell.col += runes.size();
         }
     }
 
@@ -413,20 +414,15 @@ void RendererImpl::drawregion(int row1, int col1, int row2, int col2)
     m_surface->flush();
 }
 
-int RendererImpl::x2col(int x) const
+Cell RendererImpl::pxtocell(int x, int y) const
 {
-	x -= m_border_px;
-	x /= m_cw;
+    int col = (x - m_border_px) / m_cw;
+    int row = (y - m_border_px) / m_ch;
 
-	return LIMIT(x, 0, (m_width/m_cw)-1);
-}
-
-int RendererImpl::y2row(int y) const
-{
-	y -= m_border_px;
-	y /= m_ch;
-
-	return LIMIT(y, 0, (m_height/m_ch)-1);
+    return {
+        LIMIT(row, 0, (m_height/m_ch)-1),
+	    LIMIT(col, 0, (m_width/m_cw)-1)
+    };
 }
 
 void RendererImpl::clear(cairo_t *cr, int x1, int y1, int x2, int y2)
@@ -444,19 +440,19 @@ void RendererImpl::clear(cairo_t *cr, int x1, int y1, int x2, int y2)
 }
 
 void RendererImpl::drawglyph(cairo_t *cr, PangoLayout *layout, const Glyph& glyph,
-        int row, int col)
+        const Cell& cell)
 {
     const std::vector<char32_t> rune {glyph.u};
-    drawglyphs(cr, layout, glyph.attr, glyph.fg, glyph.bg, rune, row, col);
+    drawglyphs(cr, layout, glyph.attr, glyph.fg, glyph.bg, rune, cell);
 }
 
 void RendererImpl::drawglyphs(cairo_t *cr, PangoLayout *layout,
         const glyph_attribute& attr, uint32_t fg, uint32_t bg,
-        const std::vector<char32_t>& runes, int row, int col)
+        const std::vector<char32_t>& runes, const Cell& cell)
 {
     int charlen = runes.size() * (attr[ATTR_WIDE] ? 2 : 1);
-    int winx = m_border_px + col * m_cw;
-    int winy = m_border_px + row * m_ch;
+    int winx = m_border_px + cell.col * m_cw;
+    int winy = m_border_px + cell.row * m_ch;
     int width = charlen * m_cw;
 
     // change basic system colors [0-7] to bright system colors [8-15]
@@ -498,19 +494,19 @@ void RendererImpl::drawglyphs(cairo_t *cr, PangoLayout *layout,
         fg = bg;
 
     // border cleanup
-    if (col == 0)
+    if (cell.col == 0)
     {
-        clear(cr, 0, (row == 0)? 0 : winy, m_border_px,
-            winy + m_ch + ((row >= g_term->rows()-1)? m_height : 0));
+        clear(cr, 0, (cell.row == 0)? 0 : winy, m_border_px,
+            winy + m_ch + ((cell.row >= g_term->rows()-1)? m_height : 0));
     }
-    if (col + charlen >= g_term->cols())
+    if (cell.col + charlen >= g_term->cols())
     {
-        clear(cr, winx + width, (row == 0)? 0 : winy, m_width,
-            ((row >= g_term->rows()-1)? m_height : (winy + m_ch)));
+        clear(cr, winx + width, (cell.row == 0)? 0 : winy, m_width,
+            ((cell.row >= g_term->rows()-1)? m_height : (winy + m_ch)));
     }
-    if (row == 0)
+    if (cell.row == 0)
         clear(cr, winx, 0, winx + width, m_border_px);
-    if (row == g_term->rows()-1)
+    if (cell.row == g_term->rows()-1)
         clear(cr, winx, winy + m_ch, winx + width, m_height);
 
     // clean up the region we want to draw to.
@@ -591,27 +587,28 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
 
     auto& cursor = g_term->cursor();
 
-    LIMIT(m_lastcurcol, 0, g_term->cols()-1);
-    LIMIT(m_lastcurrow, 0, g_term->rows()-1);
+    LIMIT(m_lastcur.col, 0, g_term->cols()-1);
+    LIMIT(m_lastcur.row, 0, g_term->rows()-1);
 
     int curcol = cursor.col;
 
     // adjust position if in dummy
-    if (g_term->glyph(m_lastcurrow, m_lastcurcol).attr[ATTR_WDUMMY])
-        m_lastcurcol--;
-    if (g_term->glyph(cursor.row, curcol).attr[ATTR_WDUMMY])
+    if (g_term->glyph(m_lastcur).attr[ATTR_WDUMMY])
+        m_lastcur.col--;
+    if (g_term->glyph({cursor.row, curcol}).attr[ATTR_WDUMMY])
         curcol--;
 
     auto& sel = g_term->sel();
     bool ena_sel = !sel.empty() && sel.alt == g_term->mode()[MODE_ALTSCREEN];
 
     // remove the old cursor
-    Glyph og = g_term->glyph(m_lastcurrow, m_lastcurcol);
-    if (ena_sel && sel.selected(m_lastcurcol, m_lastcurrow))
+    // todo: see whether it's appropriate use use a copy or by reference
+    Glyph og = g_term->glyph(m_lastcur);
+    if (ena_sel && sel.selected(m_lastcur))
         og.attr[ATTR_REVERSE] = og.attr[ATTR_REVERSE] ^ true;
-    drawglyph(cr, layout, og, m_lastcurrow, m_lastcurcol);
+    drawglyph(cr, layout, og, m_lastcur);
 
-    auto& oldg = g_term->glyph(cursor.row, cursor.col);
+    auto& oldg = g_term->glyph(cursor);
     g.u = oldg.u;
     g.attr[ATTR_BOLD] = oldg.attr[ATTR_BOLD];
     g.attr[ATTR_ITALIC] = oldg.attr[ATTR_ITALIC];
@@ -624,7 +621,7 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
     {
         g.attr.set(ATTR_REVERSE);
         g.bg = g_term->deffg();
-        if (ena_sel && sel.selected(cursor.col, cursor.row))
+        if (ena_sel && sel.selected(cursor))
         {
             drawcol = g_term->defcs();
             g.fg = g_term->defrcs();
@@ -637,7 +634,7 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
     }
     else
     {
-        if (ena_sel && sel.selected(cursor.col, cursor.row))
+        if (ena_sel && sel.selected(cursor))
         {
             drawcol = g_term->defrcs();
             g.fg = g_term->deffg();
@@ -662,8 +659,8 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
                 break;
             // fall through
         case CURSOR_STEADY_BLOCK:
-            g.attr[ATTR_WIDE] = g_term->glyph(cursor.row, curcol).attr[ATTR_WIDE];
-            drawglyph(cr, layout, g, cursor.row, cursor.col);
+            g.attr[ATTR_WIDE] = g_term->glyph({cursor.row, curcol}).attr[ATTR_WIDE];
+            drawglyph(cr, layout, g, cursor);
             break;
         case CURSOR_BLINK_UNDER:
             if (g_term->mode()[MODE_BLINK])
@@ -712,7 +709,8 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
         );
         cairo_stroke(cr);
     }
-    m_lastcurcol = curcol, m_lastcurrow = cursor.row;
+
+    m_lastcur = {cursor.row, curcol};
 }
 
 void RendererImpl::load_font(cairo_t *cr)
@@ -782,11 +780,8 @@ int Renderer::charwidth() const
 int Renderer::charheight() const
 { return impl->charheight(); }
 
-void Renderer::drawregion(int row1, int col1, int row2, int col2)
-{ impl->drawregion(row1, col1, row2, col2); }
+void Renderer::drawregion(const Cell& begin, const Cell& end)
+{ impl->drawregion(begin, end); }
 
-int Renderer::x2col(int x) const
-{ return impl->x2col(x); }
-
-int Renderer::y2row(int y) const
-{ return impl->y2row(y); }
+Cell Renderer::pxtocell(int x, int y) const
+{ return impl->pxtocell(x, y); }

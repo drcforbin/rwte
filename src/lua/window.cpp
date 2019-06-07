@@ -1,5 +1,6 @@
 #include "lua/state.h"
 #include "lua/window.h"
+#include "rwte/coords.h"
 #include "rwte/logging.h"
 #include "rwte/window.h"
 
@@ -309,15 +310,15 @@ void lua::register_luawindow(lua::State *L)
     L->pop();
 }
 
-bool lua::window::call_mouse_press(lua::State *L, int col, int row, int button,
+bool lua::window::call_mouse_press(lua::State *L, const Cell& cell, int button,
         const keymod_state& mods)
 {
     // first, try to push the mouse_press ref
     if (!L->pushfuncref(window_mouse_press_ref))
         return false;
 
-    L->pushinteger(col);
-    L->pushinteger(row);
+    L->pushinteger(cell.col);
+    L->pushinteger(cell.row);
     L->pushinteger(button);
     L->newtable();
     L->pushbool(mods[MOD_SHIFT]);

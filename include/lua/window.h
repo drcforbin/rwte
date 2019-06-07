@@ -6,6 +6,8 @@
 
 // lua window integration
 
+struct Cell;
+
 namespace lua
 {
 
@@ -16,7 +18,7 @@ void register_luawindow(State *L);
 namespace window
 {
 
-bool call_mouse_press(State *L, int col, int row, int button,
+bool call_mouse_press(State *L, const Cell& cell, int button,
         const keymod_state& mods);
 bool call_key_press(State *L, int keysym,
         const keymod_state& mods);

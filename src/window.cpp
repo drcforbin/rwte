@@ -2,6 +2,7 @@
 #include "lua/state.h"
 #include "lua/window.h"
 #include "rwte/config.h"
+#include "rwte/coords.h"
 #include "rwte/logging.h"
 #include "rwte/renderer.h"
 #include "rwte/rwte.h"
@@ -76,7 +77,6 @@ private:
     void set_wmmachine_name();
 
     void drawregion(int x1, int y1, int x2, int y2);
-    void drawglyph(const Glyph& glyph, int row, int col);
 
     bool load_keymap();
 
@@ -296,7 +296,7 @@ void WindowImpl::draw()
     if (!visible)
         return;
 
-    m_renderer->drawregion(0, 0, g_term->rows(), g_term->cols());
+    m_renderer->drawregion({0, 0}, {g_term->rows(), g_term->cols()});
 }
 
 static std::string get_term_name()
@@ -752,9 +752,8 @@ void WindowImpl::handle_client_message(ev::loop_ref& loop, xcb_client_message_ev
 
 void WindowImpl::handle_motion_notify(ev::loop_ref&, xcb_motion_notify_event_t *event)
 {
-    int col = m_renderer->x2col(event->event_x);
-    int row = m_renderer->y2row(event->event_y);
-    g_term->mousereport(col, row, MOUSE_MOTION, 0, m_keymod);
+    auto cell = m_renderer->pxtocell(event->event_x, event->event_y);
+    g_term->mousereport(cell, MOUSE_MOTION, 0, m_keymod);
 }
 
 void WindowImpl::handle_visibility_notify(ev::loop_ref&, xcb_visibility_notify_event_t *event)
@@ -783,10 +782,9 @@ void WindowImpl::handle_button(ev::loop_ref&, xcb_button_press_event_t *event)
     int button = event->detail;
     bool press = (event->response_type & 0x7F) == XCB_BUTTON_PRESS;
 
-    int col = m_renderer->x2col(event->event_x);
-    int row = m_renderer->y2row(event->event_y);
+    auto cell = m_renderer->pxtocell(event->event_x, event->event_y);
     mouse_event_enum mouse_evt = press? MOUSE_PRESS : MOUSE_RELEASE;
-    g_term->mousereport(col, row, mouse_evt, button, m_keymod);
+    g_term->mousereport(cell, mouse_evt, button, m_keymod);
 }
 
 void WindowImpl::handle_selection_clear(ev::loop_ref&, xcb_selection_clear_event_t *event)
