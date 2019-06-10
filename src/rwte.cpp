@@ -22,11 +22,6 @@ lua_State * g_L = nullptr;
 // a default value in config
 static const float DEFAULT_BLINK_RATE = 0.6;
 
-Options::Options() :
-    title("rwte"),
-    noalt(false)
-{ }
-
 Rwte::Rwte(std::shared_ptr<RwteBus> bus) :
     m_bus(std::move(bus)),
     m_lua(std::make_shared<lua::State>())

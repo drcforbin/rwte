@@ -1,34 +1,31 @@
 #ifndef RWTE_RWTE_H
 #define RWTE_RWTE_H
 
+#include "rwte/event.h"
+
 #include <cstdint>
 #include <ev++.h>
 #include <memory>
 #include <string>
-#include <vector>
 #include <sys/types.h>
-
-#include "rwte/event.h"
+#include <vector>
 
 namespace lua
 {
 class State;
 } // namespace lua
 
-class Options
+struct Options
 {
-public:
-    Options();
-
     std::vector<const char *> cmd;
 
-    std::string title;
+    std::string title {"rwte"};
     std::string winname;
     std::string winclass;
     std::string font;
     std::string io;
     std::string line;
-    bool noalt;
+    bool noalt {false};
 };
 
 extern Options options;
