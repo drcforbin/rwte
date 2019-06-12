@@ -1,5 +1,6 @@
 #include "lua/config.h"
 #include "lua/state.h"
+#include "rwte/color.h"
 #include "rwte/config.h"
 #include "rwte/logging.h"
 #include "rwte/renderer.h"
@@ -15,57 +16,10 @@
 
 #define LOGGER() (logging::get("renderer"))
 
-#define LIMIT(x, a, b)  ((x) = (x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
-#define IS_TRUECOL(x)  (1 << 24 & (x))
-#define TRUECOL(r,g,b) (1 << 24 | ((r) & 0xFF) << 16 | ((g) & 0xFF) << 8 | ((b) & 0xFF))
-
-#define REDBYTE(c) (((c) & 0xFF0000) >> 16)
-#define GREENBYTE(c) (((c) & 0x00FF00) >> 8)
-#define BLUEBYTE(c) ((c) & 0x0000FF)
-
-using shared_font_options = std::shared_ptr<cairo_font_options_t>;
-
-struct font_desc_deleter {
-    void operator()(PangoFontDescription* fontdesc) { if (fontdesc) pango_font_description_free(fontdesc); }
-};
-using unique_font_desc = std::unique_ptr<PangoFontDescription, font_desc_deleter>;
-
-struct layout_deleter {
-    void operator()(PangoLayout* layout) { if (layout) g_object_unref(layout); }
-};
-using unique_layout = std::unique_ptr<PangoLayout, layout_deleter>;
-
-using shared_surface = std::shared_ptr<cairo_surface_t>;
-using shared_cairo = std::shared_ptr<cairo_t>;
-
-static shared_font_options create_font_options()
-{
-    shared_font_options fo(cairo_font_options_create(),
-            cairo_font_options_destroy);
-
-    cairo_font_options_set_hint_metrics(fo.get(), CAIRO_HINT_METRICS_ON);
-    cairo_font_options_set_hint_style(fo.get(), CAIRO_HINT_STYLE_SLIGHT);
-    cairo_font_options_set_subpixel_order(fo.get(), CAIRO_SUBPIXEL_ORDER_RGB);
-    cairo_font_options_set_antialias(fo.get(), CAIRO_ANTIALIAS_SUBPIXEL);
-
-    return fo;
-}
-
-static unique_font_desc create_font_desc()
-{
-    std::string font = options.font;
-    if (font.empty())
-    {
-        // get font from lua config
-        font = lua::config::get_string("font");
-        if (font.empty())
-            LOGGER()->fatal("config.font is invalid");
-    }
-
-    unique_font_desc fontdesc(pango_font_description_from_string(font.c_str()));
-
-    pango_font_description_set_weight(fontdesc.get(), PANGO_WEIGHT_MEDIUM);
-    return fontdesc;
+template<typename T,
+    typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
+constexpr T limit(T x, T a, T b) {
+    return x < a? a : (x > b? b : x);
 }
 
 static uint16_t sixd_to_16bit(int x)
@@ -76,7 +30,7 @@ static uint16_t sixd_to_16bit(int x)
 static uint32_t lookup_color(uint32_t color)
 {
     // only need to lookup color if the magic bit is set
-    if (!IS_TRUECOL(color))
+    if (!isTruecol(color))
     {
         // get colors lut
         auto L = rwte->lua();
@@ -102,13 +56,13 @@ static uint32_t lookup_color(uint32_t color)
                 if (color < 6*6*6+16)
                 {
                     // same colors as xterm
-                    color = TRUECOL(sixd_to_16bit( ((color-16)/36)%6 ),
+                    color = truecol(sixd_to_16bit( ((color-16)/36)%6 ),
                             sixd_to_16bit( ((color-16)/6) %6 ),
                             sixd_to_16bit( ((color-16)/1) %6 ));
                 } else {
                     // greyscale
                     int val = 0x0808 + 0x0a0a * (color - (6*6*6+16));
-                    color = TRUECOL(val, val, val);
+                    color = truecol(val, val, val);
                 }
             }
             else
@@ -135,16 +89,171 @@ static uint32_t lookup_color(uint32_t color)
     return color;
 }
 
-static void set_cairo_color(cairo_t *cr, uint32_t color)
+using shared_surface = std::shared_ptr<cairo_surface_t>;
+static shared_surface make_shared(cairo_surface_t *surface)
 {
-    // make sure we have a real color
-    color = lookup_color(color);
+    return {surface, cairo_surface_destroy};
+}
 
-    double r = REDBYTE(color) / 255.0;
-    double g = GREENBYTE(color) / 255.0;
-    double b = BLUEBYTE(color) / 255.0;
+class Context
+{
+public:
+    Context() {}
 
-    cairo_set_source_rgb(cr, r, g, b);
+    Context(cairo_surface_t *surface) :
+        m_ctx(cairo_create(surface))
+    { }
+
+    // copy ctor
+    Context(const Context& other)
+    {
+        if (other.m_ctx)
+            m_ctx = cairo_reference(other.m_ctx);
+    }
+
+    // move ctor
+    Context(Context&& other) noexcept :
+        m_ctx(std::exchange(other.m_ctx, nullptr))
+    { }
+
+    ~Context()
+    {
+        if (m_ctx)
+        {
+            cairo_destroy(m_ctx);
+            m_ctx = nullptr;
+        }
+    }
+
+    // copy assign
+    Context& operator=(const Context& other)
+    {
+         return *this = Context(other);
+    }
+
+    // move assign
+    Context& operator=(Context&& other) noexcept
+    {
+        std::swap(m_ctx, other.m_ctx);
+        return *this;
+    }
+
+    void setOperator(cairo_operator_t op)
+    {
+        cairo_set_operator(m_ctx, op);
+    }
+
+    void rectangle(double x, double y, double width, double height)
+    {
+        cairo_rectangle(m_ctx, x, y, width, height);
+    }
+
+    void fill()
+    {
+        cairo_fill(m_ctx);
+    }
+
+    void stroke()
+    {
+        cairo_stroke(m_ctx);
+    }
+
+    void setLineWidth(double width)
+    {
+        cairo_set_line_width(m_ctx, width);
+    }
+
+    void setAntialias(cairo_antialias_t antialias)
+    {
+        cairo_set_antialias(m_ctx, antialias);
+    }
+
+    void moveTo(double x, double y)
+    {
+        cairo_move_to(m_ctx, x, y);
+    }
+
+    void setSourceRgb(double r, double g, double b)
+    {
+        cairo_set_source_rgb(m_ctx, r, g, b);
+    }
+
+    void showLayout(PangoLayout *layout)
+    {
+        pango_cairo_show_layout(m_ctx, layout);
+    }
+
+    void setSourceSurface(shared_surface& m_drawsurf)
+    {
+        cairo_set_source_surface(m_ctx, m_drawsurf.get(), 0, 0);
+    }
+
+    void paint()
+    {
+        cairo_paint(m_ctx);
+    }
+
+    void setSourceColor(uint32_t color)
+    {
+        // make sure we have a real color
+        color = lookup_color(color);
+
+        double r = redByte(color) / 255.0;
+        double g = greenByte(color) / 255.0;
+        double b = blueByte(color) / 255.0;
+
+        setSourceRgb(r, g, b);
+    }
+
+    cairo_t *get() { return m_ctx; }
+
+private:
+    cairo_t *m_ctx = nullptr;
+};
+
+using shared_font_options = std::shared_ptr<cairo_font_options_t>;
+static shared_font_options make_shared(cairo_font_options_t *fo)
+{
+    return {fo, cairo_font_options_destroy};
+}
+
+struct font_desc_deleter {
+    void operator()(PangoFontDescription* fontdesc) { if (fontdesc) pango_font_description_free(fontdesc); }
+};
+using unique_font_desc = std::unique_ptr<PangoFontDescription, font_desc_deleter>;
+
+struct layout_deleter {
+    void operator()(PangoLayout* layout) { if (layout) g_object_unref(layout); }
+};
+using unique_layout = std::unique_ptr<PangoLayout, layout_deleter>;
+
+static shared_font_options create_font_options()
+{
+    auto fo = make_shared(cairo_font_options_create());
+
+    cairo_font_options_set_hint_metrics(fo.get(), CAIRO_HINT_METRICS_ON);
+    cairo_font_options_set_hint_style(fo.get(), CAIRO_HINT_STYLE_SLIGHT);
+    cairo_font_options_set_subpixel_order(fo.get(), CAIRO_SUBPIXEL_ORDER_RGB);
+    cairo_font_options_set_antialias(fo.get(), CAIRO_ANTIALIAS_SUBPIXEL);
+
+    return fo;
+}
+
+static unique_font_desc create_font_desc()
+{
+    std::string font = options.font;
+    if (font.empty())
+    {
+        // get font from lua config
+        font = lua::config::get_string("font");
+        if (font.empty())
+            LOGGER()->fatal("config.font is invalid");
+    }
+
+    unique_font_desc fontdesc(pango_font_description_from_string(font.c_str()));
+
+    pango_font_description_set_weight(fontdesc.get(), PANGO_WEIGHT_MEDIUM);
+    return fontdesc;
 }
 
 // todo: move somewhere common
@@ -164,11 +273,10 @@ class Surface
 {
 public:
     Surface(cairo_surface_t *surface, shared_font_options fo, int width, int height) :
-        m_surface(surface, cairo_surface_destroy),
-        m_surfcr(cairo_create(surface), cairo_destroy),
+        m_surface(make_shared(surface)),
+        m_surfcr(surface),
         m_fo(std::move(fo)),
-        m_drawsurf(nullptr),
-        m_drawcr(nullptr)
+        m_drawsurf(nullptr)
     {
 #if DOUBLE_BUFFER
         init_draw_surface(width, height);
@@ -176,14 +284,14 @@ public:
         m_drawsurf = m_surface;
         m_drawcr = m_surfcr;
 
-        set_defaults(m_drawcr.get());
+        set_defaults(m_drawcr);
 
-        m_layout = create_layout(m_drawcr.get());
+        m_layout = create_layout(m_drawcr);
 #endif
 
         // initial fill
-        set_cairo_color(m_drawcr.get(), g_term->defbg());
-        cairo_paint(m_drawcr.get());
+        m_drawcr.setSourceColor(g_term->defbg());
+        m_drawcr.paint();
     }
 
     void resize(int width, int height)
@@ -198,13 +306,13 @@ public:
     void flush()
     {
 #if DOUBLE_BUFFER
-        cairo_set_source_surface(m_surfcr.get(), m_drawsurf.get(), 0, 0);
-        cairo_paint(m_surfcr.get());
+        m_surfcr.setSourceSurface(m_drawsurf);
+        m_surfcr.paint();
 #endif
         cairo_surface_flush(m_surface.get());
     }
 
-    cairo_t *cr() const { return m_drawcr.get(); }
+    Context cr() const { return m_drawcr; }
     PangoLayout *layout() const { return m_layout.get(); }
 
 private:
@@ -212,30 +320,29 @@ private:
 #if DOUBLE_BUFFER
     void init_draw_surface(int width, int height)
     {
-        shared_surface newsurf(
+        auto newsurf = make_shared(
                 cairo_surface_create_similar_image(
-                    m_surface.get(), CAIRO_FORMAT_RGB24, width, height),
-                cairo_surface_destroy);
-        shared_cairo newcr(cairo_create(newsurf.get()), cairo_destroy);
-        set_defaults(newcr.get());
+                    m_surface.get(), CAIRO_FORMAT_RGB24, width, height));
+        Context ctx(newsurf.get());
+        set_defaults(ctx);
 
         if (m_drawsurf)
         {
             // paint old surface to new one if it exists
-            cairo_set_source_surface(newcr.get(), m_drawsurf.get(), 0, 0);
-            cairo_paint(newcr.get());
+            newcr.setSourceSurface(m_drawsurf);
+            newcr.paint();
         }
 
         // replace old drawcr, layout, and surface
-        m_drawcr = newcr;
-        m_layout = create_layout(m_drawcr.get());
+        m_drawcr = std::move(ctx);
+        m_layout = create_layout(m_drawcr);
         m_drawsurf = newsurf;
     }
 #endif
 
-    unique_layout create_layout(cairo_t *cr)
+    unique_layout create_layout(Context& cr)
     {
-        PangoContext *context = pango_cairo_create_context(cr);
+        PangoContext *context = pango_cairo_create_context(cr.get());
         pango_cairo_context_set_font_options(context, m_fo.get());
 
         unique_layout layout(pango_layout_new(context));
@@ -243,21 +350,21 @@ private:
         return layout;
     }
 
-    void set_defaults(cairo_t *cr)
+    void set_defaults(Context& ctx)
     {
         // all of our lines are 1 wide
-        cairo_set_line_width(cr, 1);
+        ctx.setLineWidth(1);
         // and we like antialiasing
-        cairo_set_antialias(cr, CAIRO_ANTIALIAS_SUBPIXEL);
+        ctx.setAntialias(CAIRO_ANTIALIAS_SUBPIXEL);
     }
 
     shared_surface m_surface;
-    shared_cairo m_surfcr;
+    Context m_surfcr;
 
     shared_font_options m_fo;
 
     shared_surface m_drawsurf;
-    shared_cairo m_drawcr;
+    Context m_drawcr;
     unique_layout m_layout;
 };
 
@@ -279,14 +386,14 @@ public:
     Cell pxtocell(int x, int y) const;
 
 private:
-    void clear(cairo_t *cr, int x1, int y1, int x2, int y2);
-    void drawglyph(cairo_t *cr, PangoLayout *layout, const Glyph& glyph,
+    void clear(Context& cr, int x1, int y1, int x2, int y2);
+    void drawglyph(Context& cr, PangoLayout *layout, const Glyph& glyph,
             const Cell& cell);
-    void drawglyphs(cairo_t *cr, PangoLayout *layout,
+    void drawglyphs(Context& cr, PangoLayout *layout,
             const glyph_attribute& attr, uint32_t fg, uint32_t bg,
             const std::vector<char32_t>& runes, const Cell& cell);
-    void drawcursor(cairo_t *cr, PangoLayout *layout);
-    void load_font(cairo_t *cr);
+    void drawcursor(Context& cr, PangoLayout *layout);
+    void load_font(Context& cr);
     cairo_font_options_t *get_font_options();
 
     shared_font_options m_fo;
@@ -310,9 +417,8 @@ RendererImpl::RendererImpl() :
 
 void RendererImpl::load_font(cairo_surface_t *root_surface)
 {
-    auto cr = cairo_create(root_surface);
+    Context cr {root_surface};
     load_font(cr);
-    cairo_destroy(cr);
 }
 
 void RendererImpl::set_surface(cairo_surface_t *surface, int width, int height)
@@ -333,19 +439,19 @@ void RendererImpl::resize(int width, int height)
     if (m_width < width)
     {
         // paint from old width to new width, top to old height
-        cairo_t *cr = m_surface->cr();
-        set_cairo_color(cr, g_term->defbg());
-        cairo_rectangle(cr, m_width, 0, width, m_height);
-        cairo_fill(cr);
+        auto cr = m_surface->cr();
+        cr.setSourceColor(g_term->defbg());
+        cr.rectangle(m_width, 0, width, m_height);
+        cr.fill();
     }
 
     if (m_height < height)
     {
         // paint from old height to new height, all the way across
-        cairo_t *cr = m_surface->cr();
-        set_cairo_color(cr, g_term->defbg());
-        cairo_rectangle(cr, 0, m_height, width, height);
-        cairo_fill(cr);
+        auto cr = m_surface->cr();
+        cr.setSourceColor(g_term->defbg());
+        cr.rectangle(0, m_height, width, height);
+        cr.fill();
     }
 
     m_width = width;
@@ -359,7 +465,7 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
     // freshen up border_px
     m_border_px = get_border_px();
 
-    cairo_t *cr = m_surface->cr();
+    auto cr = m_surface->cr();
     auto layout = m_surface->layout();
 
     auto& sel = g_term->sel();
@@ -378,12 +484,14 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
         while (cell.col < end.col)
         {
             runes.clear();
-            // todo: see if it's appropriate to use a copy vs. reference here
+
+            // making a copy, because we want to reverse it if it's
+            // selected, without modifying the original
             Glyph g = g_term->glyph(cell);
             if (!g.attr[ATTR_WDUMMY])
             {
                 if (ena_sel && sel.selected(cell))
-                    g.attr[ATTR_REVERSE] = g.attr[ATTR_REVERSE] ^ true;
+                    g.attr.flip(ATTR_REVERSE);
             }
 
             runes.push_back(g.u);
@@ -395,7 +503,7 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
                 if (!attr2[ATTR_WDUMMY])
                 {
                     if (ena_sel && sel.selected({cell.row, lookahead}))
-                        attr2[ATTR_REVERSE] = attr2[ATTR_REVERSE] ^ true;
+                        attr2.flip(ATTR_REVERSE);
                 }
 
                 if (g.attr != attr2 || g.fg != g2.fg || g.bg != g2.bg)
@@ -420,12 +528,12 @@ Cell RendererImpl::pxtocell(int x, int y) const
     int row = (y - m_border_px) / m_ch;
 
     return {
-        LIMIT(row, 0, (m_height/m_ch)-1),
-	    LIMIT(col, 0, (m_width/m_cw)-1)
+        limit(row, 0, (m_height/m_ch)-1),
+	    limit(col, 0, (m_width/m_cw)-1)
     };
 }
 
-void RendererImpl::clear(cairo_t *cr, int x1, int y1, int x2, int y2)
+void RendererImpl::clear(Context& cr, int x1, int y1, int x2, int y2)
 {
     uint32_t color;
     if (!g_term->mode()[MODE_REVERSE])
@@ -433,20 +541,20 @@ void RendererImpl::clear(cairo_t *cr, int x1, int y1, int x2, int y2)
     else
         color = g_term->deffg();
 
-    set_cairo_color(cr, color);
-    cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-    cairo_rectangle(cr, x1, y1, x2 - x1, y2 - y1);
-    cairo_fill(cr);
+    cr.setSourceColor(color);
+    cr.setOperator(CAIRO_OPERATOR_SOURCE);
+    cr.rectangle(x1, y1, x2 - x1, y2 - y1);
+    cr.fill();
 }
 
-void RendererImpl::drawglyph(cairo_t *cr, PangoLayout *layout, const Glyph& glyph,
+void RendererImpl::drawglyph(Context& cr, PangoLayout *layout, const Glyph& glyph,
         const Cell& cell)
 {
     const std::vector<char32_t> rune {glyph.u};
     drawglyphs(cr, layout, glyph.attr, glyph.fg, glyph.bg, rune, cell);
 }
 
-void RendererImpl::drawglyphs(cairo_t *cr, PangoLayout *layout,
+void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
         const glyph_attribute& attr, uint32_t fg, uint32_t bg,
         const std::vector<char32_t>& runes, const Cell& cell)
 {
@@ -468,20 +576,20 @@ void RendererImpl::drawglyphs(cairo_t *cr, PangoLayout *layout,
         if (fg == lookup_color(g_term->deffg()))
             fg = g_term->defbg();
         else
-            fg = TRUECOL(~REDBYTE(fg), ~GREENBYTE(fg), ~BLUEBYTE(fg));
+            fg = truecol(~redByte(fg), ~greenByte(fg), ~blueByte(fg));
 
         bg = lookup_color(bg);
         if (bg == lookup_color(g_term->defbg()))
             bg = g_term->deffg();
         else
-            bg = TRUECOL(~REDBYTE(bg), ~GREENBYTE(bg), ~BLUEBYTE(bg));
+            bg = truecol(~redByte(bg), ~greenByte(bg), ~blueByte(bg));
     }
 
     // todo: this assumes darker is fainter
     if (attr[ATTR_FAINT])
     {
         fg = lookup_color(fg);
-        fg = TRUECOL(REDBYTE(fg) / 2, GREENBYTE(fg) / 2, BLUEBYTE(fg) / 2);
+        fg = truecol(redByte(fg) / 2, greenByte(fg) / 2, blueByte(fg) / 2);
     }
 
     if (attr[ATTR_REVERSE])
@@ -510,21 +618,21 @@ void RendererImpl::drawglyphs(cairo_t *cr, PangoLayout *layout,
         clear(cr, winx, winy + m_ch, winx + width, m_height);
 
     // clean up the region we want to draw to.
-    set_cairo_color(cr, bg);
-    cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-    cairo_rectangle(cr, winx, winy, width, m_ch);
-    cairo_fill(cr);
+    cr.setSourceColor(bg);
+    cr.setOperator(CAIRO_OPERATOR_SOURCE);
+    cr.rectangle(winx, winy, width, m_ch);
+    cr.fill();
 
     // render the glyphs
 
-    cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-    set_cairo_color(cr, fg);
+    cr.setOperator(CAIRO_OPERATOR_OVER);
+    cr.setSourceColor(fg);
 
     // decode to a vector
     std::vector<char> buf;
     char encoded[utf_size];
     std::size_t glyphlen = 0;
-    for (auto& rune : runes)
+    for (const auto& rune : runes)
     {
         glyphlen = utf8encode(rune, encoded);
         std::copy(encoded, encoded + glyphlen, std::back_inserter(buf));
@@ -574,11 +682,11 @@ void RendererImpl::drawglyphs(cairo_t *cr, PangoLayout *layout,
         pango_attr_list_unref(attrlist);
 
     // needed? pango_cairo_update_layout(cr, layout);
-    cairo_move_to(cr, winx, winy);
-    pango_cairo_show_layout(cr, layout);
+    cr.moveTo(winx, winy);
+    cr.showLayout(layout);
 }
 
-void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
+void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
 {
     Glyph g;
     g.u = ' ';
@@ -587,8 +695,8 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
 
     auto& cursor = g_term->cursor();
 
-    LIMIT(m_lastcur.col, 0, g_term->cols()-1);
-    LIMIT(m_lastcur.row, 0, g_term->rows()-1);
+    m_lastcur.col = limit(m_lastcur.col, 0, g_term->cols()-1);
+    m_lastcur.row = limit(m_lastcur.row, 0, g_term->rows()-1);
 
     int curcol = cursor.col;
 
@@ -602,10 +710,11 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
     bool ena_sel = !sel.empty() && sel.alt == g_term->mode()[MODE_ALTSCREEN];
 
     // remove the old cursor
-    // todo: see whether it's appropriate use use a copy or by reference
+    // making a copy, because we want to reverse it if it's
+    // selected, without modifying the original
     Glyph og = g_term->glyph(m_lastcur);
     if (ena_sel && sel.selected(m_lastcur))
-        og.attr[ATTR_REVERSE] = og.attr[ATTR_REVERSE] ^ true;
+        og.attr.flip(ATTR_REVERSE);
     drawglyph(cr, layout, og, m_lastcur);
 
     auto& oldg = g_term->glyph(cursor);
@@ -669,14 +778,14 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
         case CURSOR_STEADY_UNDER:
             {
                 int cursor_thickness = get_cursor_thickness();
-                set_cairo_color(cr, drawcol);
-                cairo_rectangle(cr,
+                cr.setSourceColor(drawcol);
+                cr.rectangle(
                     m_border_px + curcol * m_cw,
                     m_border_px + (cursor.row + 1) * m_ch - cursor_thickness,
                     m_cw,
                     cursor_thickness
                 );
-                cairo_fill(cr);
+                cr.fill();
             }
             break;
         case CURSOR_BLINK_BAR:
@@ -686,34 +795,34 @@ void RendererImpl::drawcursor(cairo_t *cr, PangoLayout *layout)
         case CURSOR_STEADY_BAR:
             {
                 int cursor_thickness = get_cursor_thickness();
-                set_cairo_color(cr, drawcol);
-                cairo_rectangle(cr,
+                cr.setSourceColor(drawcol);
+                cr.rectangle(
                     m_border_px + curcol * m_cw,
                     m_border_px + cursor.row * m_ch,
                     cursor_thickness,
                     m_ch
                 );
-                cairo_fill(cr);
+                cr.fill();
             }
             break;
         }
     }
     else
     {
-        set_cairo_color(cr, drawcol);
-        cairo_rectangle(cr,
+        cr.setSourceColor(drawcol);
+        cr.rectangle(
             m_border_px + curcol * m_cw + 0.5,
             m_border_px + cursor.row * m_ch + 0.5,
             m_cw - 1,
             m_ch - 1
         );
-        cairo_stroke(cr);
+        cr.stroke();
     }
 
     m_lastcur = {cursor.row, curcol};
 }
 
-void RendererImpl::load_font(cairo_t *cr)
+void RendererImpl::load_font(Context& cr)
 {
     auto L = rwte->lua();
     L->getglobal("config");
@@ -736,7 +845,7 @@ void RendererImpl::load_font(cairo_t *cr)
     PangoLanguage *lang = pango_language_get_default();
 
     // measure font
-    PangoContext *context = pango_cairo_create_context(cr);
+    PangoContext *context = pango_cairo_create_context(cr.get());
     PangoFont *font = pango_font_map_load_font(fontmap, context, m_fontdesc.get());
     PangoFontMetrics *metrics = pango_font_get_metrics(font, lang);
     m_cw = std::ceil(

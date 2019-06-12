@@ -2,6 +2,7 @@
 #include "lua/config.h"
 #include "lua/state.h"
 #include "lua/window.h"
+#include "rwte/color.h"
 #include "rwte/config.h"
 #include "rwte/logging.h"
 #include "rwte/rwte.h"
@@ -21,14 +22,17 @@
 
 #define MIN(a, b) ((a) < (b)? (a) : (b))
 #define MAX(a, b) ((a) < (b)? (b) : (a))
-#define LIMIT(x, a, b)  ((x) = (x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
 #define DEFAULT(a, b)  (a) = (a) ? (a) : (b)
-
-#define TRUECOL(r,g,b) (1 << 24 | ((r) & 0xFF) << 16 | ((g) & 0xFF) << 8 | ((b) & 0xFF))
 
 #define TIMEDIFF(t1, t2) \
         (((t1).tv_sec-(t2).tv_sec)*1000 + \
          ((t1).tv_nsec-(t2).tv_nsec)/1E6)
+
+template<typename T,
+    typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
+constexpr T limit(T x, T a, T b) {
+    return x < a? a : (x > b? b : x);
+}
 
 static const keymod_state EMPTY_MASK; // no mods
 static const keymod_state SHIFT_MASK(1 << MOD_SHIFT);
@@ -195,7 +199,7 @@ private:
     void resizeCore(int cols, int rows);
     void start_blink();
 
-    void moveto(Cell cell);
+    void moveto(const Cell& cell);
     void moveato(const Cell& cell);
     void cursor(int mode);
 
@@ -512,7 +516,7 @@ void TermImpl::start_blink()
     rwte->start_blink();
 }
 
-void TermImpl::moveto(Cell cell)
+void TermImpl::moveto(const Cell& cell)
 {
     int minrow, maxrow;
     if (m_cursor.state & CURSOR_ORIGIN)
@@ -527,8 +531,8 @@ void TermImpl::moveto(Cell cell)
     }
 
     m_cursor.state &= ~CURSOR_WRAPNEXT;
-    m_cursor.col = LIMIT(cell.col, 0, m_cols-1);
-    m_cursor.row = LIMIT(cell.row, minrow, maxrow);
+    m_cursor.col = limit(cell.col, 0, m_cols-1);
+    m_cursor.row = limit(cell.row, minrow, maxrow);
 
     rwte->refresh();
 }
@@ -1028,8 +1032,8 @@ void TermImpl::newline(bool first_col)
 
 void TermImpl::setscroll(int t, int b)
 {
-    LIMIT(t, 0, m_rows-1);
-    LIMIT(b, 0, m_rows-1);
+    t = limit(t, 0, m_rows-1);
+    b = limit(b, 0, m_rows-1);
 
     if (t > b)
         std::swap(t, b);
@@ -1040,7 +1044,7 @@ void TermImpl::setscroll(int t, int b)
 
 void TermImpl::scrollup(int orig, int n)
 {
-    LIMIT(n, 0, m_bot-orig+1);
+    n = limit(n, 0, m_bot-orig+1);
 
     clearregion({orig, 0}, {orig+n-1, m_cols-1});
     setdirty(orig+n, m_bot);
@@ -1053,7 +1057,7 @@ void TermImpl::scrollup(int orig, int n)
 
 void TermImpl::scrolldown(int orig, int n)
 {
-    LIMIT(n, 0, m_bot-orig+1);
+    n = limit(n, 0, m_bot-orig+1);
 
     setdirty(orig, m_bot-n);
     clearregion({m_bot-n+1, 0}, {m_bot, m_cols-1});
@@ -1076,10 +1080,10 @@ void TermImpl::clearregion(const Cell& begin, const Cell& end)
     if (row1 > row2)
         std::swap(row1, row2);
 
-    LIMIT(col1, 0, m_cols-1);
-    LIMIT(col2, 0, m_cols-1);
-    LIMIT(row1, 0, m_rows-1);
-    LIMIT(row2, 0, m_rows-1);
+    col1 = limit(col1, 0, m_cols-1);
+    col2 = limit(col2, 0, m_cols-1);
+    row1 = limit(row1, 0, m_rows-1);
+    row2 = limit(row2, 0, m_rows-1);
 
     Glyph empty {
         empty_char,
@@ -1102,7 +1106,7 @@ void TermImpl::clearregion(const Cell& begin, const Cell& end)
 
 void TermImpl::deletechar(int n)
 {
-    LIMIT(n, 0, m_cols - m_cursor.col);
+    n = limit(n, 0, m_cols - m_cursor.col);
 
     int dst = m_cursor.col;
     int src = m_cursor.col + n;
@@ -1121,7 +1125,7 @@ void TermImpl::deleteline(int n)
 
 void TermImpl::insertblank(int n)
 {
-    LIMIT(n, 0, m_cols - m_cursor.col);
+    n = limit(n, 0, m_cols - m_cursor.col);
     if (n > 0)
     {
         // move things over
@@ -1153,8 +1157,8 @@ void TermImpl::swapscreen()
 
 void TermImpl::setdirty(int top, int bot)
 {
-    LIMIT(top, 0, m_rows-1);
-    LIMIT(bot, 0, m_rows-1);
+    top = limit(top, 0, m_rows-1);
+    bot = limit(bot, 0, m_rows-1);
 
     for (int i = top; i <= bot; i++)
         m_dirty[i] = true;
@@ -1472,7 +1476,7 @@ void TermImpl::controlcode(unsigned char ascii)
 
             // default bell_volume to 0 if invalid
             int bell_volume = lua::config::get_int( "bell_volume", 0);
-            LIMIT(bell_volume, -100, 100);
+            bell_volume = limit(bell_volume, -100, 100);
 
             if (bell_volume)
                 window->bell(bell_volume);
@@ -1661,7 +1665,7 @@ void TermImpl::puttab(int n)
                 ; // nothing
     }
 
-    m_cursor.col = LIMIT(col, 0, m_cols-1);
+    m_cursor.col = limit(col, 0, m_cols-1);
 }
 
 void TermImpl::strreset()
@@ -1708,7 +1712,7 @@ static uint32_t defcolor(int *attr, int *npar, int l)
         if (!(0 <= r && r <= 255) || !(0 <= g && g <= 255) || !(0 <= b && b <= 255))
             LOGGER()->error("erresc: bad rgb color ({},{},{})", r, g, b);
         else
-            idx = TRUECOL(r, g, b);
+            idx = truecol(r, g, b);
         break;
     case 5: // indexed color
         if (*npar + 2 >= l) {
