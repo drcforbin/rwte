@@ -30,15 +30,17 @@ INCDIRS := $(shell find $(INCDIR)/**/* -name '*.h' -exec dirname {} \; | sort | 
 #INCLIST := $(patsubst include/%,-I include/%,$(INCDIRS))
 BUILDLIST := $(patsubst include/%,$(BUILDDIR)/%,$(INCDIRS))
 
+PKGLIBS=libxdg-basedir xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua
+
 # Shared Compiler Flags
 #INC := -I include $(INCLIST) -I /usr/local/include
 INC := -I include -I /usr/local/include
 # eventually, -O3 rather than -g
-CFLAGS = -c -Wall -pedantic -std=c++14 -O3 `pkg-config --cflags xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua`
-LDFLAGS= -O3 -lev -lutil -lxdg-basedir `pkg-config --libs xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua`
-#CFLAGS = -c -Wall -pedantic -std=c++14 -g `pkg-config --cflags xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua`
-#LDFLAGS= -g -lev -lutil -lxdg-basedir `pkg-config --libs xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua`
-TIDYFLAGS = -std=c++14 $(INC) `pkg-config --cflags xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua`
+CFLAGS = -c -Wall -pedantic -std=c++17 -O3 `pkg-config --cflags $(PKGLIBS)`
+LDFLAGS= -O3 -lev -lutil `pkg-config --libs $(PKGLIBS)`
+#CFLAGS = -c -Wall -pedantic -std=c++17 -g `pkg-config --cflags $(PKGLIBS)`
+#LDFLAGS= -g -lev -lutil `pkg-config --libs $(PKGLIBS)`
+TIDYFLAGS = -std=c++17 $(INC) `pkg-config --cflags $(PKGLIBS)`
 
 $(TARGET): $(OBJECTS)
 	@mkdir -p $(TARGETDIR)
@@ -66,8 +68,8 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)
 build/%.clang-tidy: %
 	@mkdir -p $(@D)
 	@clang-tidy \
-		-checks=*,-*readability-braces-around-statements \
-		-header-filter="/lua|/rwte" \
+		-checks=*,-*readability-braces-around-statements,-fuchsia-default-arguments,-hicpp-braces-around-statements \
+		-header-filter='.*' \
 		$< \
 		-- $(TIDYFLAGS) \
 		2>/dev/null
@@ -75,7 +77,7 @@ build/%.clang-tidy: %
 	@touch $@
 
 .PHONY: clang-tidy
-clang-tidy: $(HEADERS:%=build/%.clang-tidy) $(SOURCES:%=build/%.clang-tidy)
+clang-tidy:  $(SOURCES:%=build/%.clang-tidy)
 	@echo "All $(words $(HEADERS) $(SOURCES)) clang-tidy tests passed."
 
 .PHONY: docs
