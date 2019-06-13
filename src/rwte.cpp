@@ -24,6 +24,7 @@ static const float DEFAULT_BLINK_RATE = 0.6;
 
 Rwte::Rwte(std::shared_ptr<RwteBus> bus) :
     m_bus(std::move(bus)),
+    m_refreshReg(m_bus->reg<RefreshEvt, Rwte, &Rwte::onrefresh>(this)),
     m_lua(std::make_shared<lua::State>())
 {
     m_lua->openlibs();
@@ -31,6 +32,11 @@ Rwte::Rwte(std::shared_ptr<RwteBus> bus) :
     m_child.set<Rwte,&Rwte::childcb>(this);
     m_flush.set<Rwte,&Rwte::flushcb>(this);
     m_blink.set<Rwte,&Rwte::blinkcb>(this);
+}
+
+Rwte::~Rwte()
+{
+    m_bus->unreg<RefreshEvt>(m_refreshReg);
 }
 
 void Rwte::watch_child(pid_t pid)
@@ -67,6 +73,11 @@ void Rwte::stop_blink()
 {
     if (m_blink.is_active())
         m_blink.stop();
+}
+
+void Rwte::onrefresh(const RefreshEvt& evt)
+{
+    refresh();
 }
 
 void Rwte::childcb(ev::child &w, int)

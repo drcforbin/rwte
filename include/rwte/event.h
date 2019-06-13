@@ -12,9 +12,12 @@ struct ResizeEvt
     int cols, rows;
 };
 
+struct RefreshEvt {};
+
 typedef Bus<
     SetPrintModeEvt,
-    ResizeEvt
+    ResizeEvt,
+    RefreshEvt
 > RwteBus;
 
 #endif // RWTE_EVENT_H
