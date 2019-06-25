@@ -1,7 +1,5 @@
-#include "rwte/term.h"
-#include "rwte/utf8.h"
-
 #include "rwte/catch.hpp"
+#include "rwte/utf8.h"
 
 #include <array>
 #include <cstring>

@@ -1,5 +1,4 @@
 #include "rwte/logging.h"
-#include "rwte/rwte.h"
 #include "rwte/sigwatcher.h"
 
 #include <ev++.h>

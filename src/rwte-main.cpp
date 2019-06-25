@@ -7,8 +7,8 @@
 #include "rwte/logging.h"
 #include "rwte/rwte.h"
 #include "rwte/sigwatcher.h"
-#include "rwte/window.h"
 #include "rwte/version.h"
+#include "rwte/window.h"
 
 #include <basedir.h>
 #include <basedir_fs.h>
