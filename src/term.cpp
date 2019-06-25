@@ -6,6 +6,7 @@
 #include "rwte/config.h"
 #include "rwte/logging.h"
 #include "rwte/rwte.h"
+#include "rwte/screen.h"
 #include "rwte/selection.h"
 #include "rwte/term.h"
 #include "rwte/tty.h"
@@ -14,9 +15,6 @@
 
 #include <cstdint>
 #include <cstring>
-#include <limits.h>
-#include <time.h>
-#include <vector>
 
 #define LOGGER() (logging::get("term"))
 
@@ -70,13 +68,6 @@ enum cursor_movement
     CURSOR_LOAD
 };
 
-enum cursor_state
-{
-    CURSOR_DEFAULT  = 0,
-    CURSOR_WRAPNEXT = 1,
-    CURSOR_ORIGIN   = 2
-};
-
 const int esc_buf_size = (128*utf_size);
 const int esc_arg_size = 16;
 const int str_buf_size = esc_buf_size;
@@ -111,26 +102,6 @@ static const int DEFAULT_TAB_SPACES = 8;
 static const int DEFAULT_DCLICK_TIMEOUT = 300;
 static const int DEFAULT_TCLICK_TIMEOUT = 600;
 
-static cursor_type get_cursor_type()
-{
-    auto cursor_type = lua::config::get_string("cursor_type");
-
-    if (cursor_type == "blink block")
-        return CURSOR_BLINK_BLOCK;
-    else if (cursor_type == "steady block")
-        return CURSOR_STEADY_BLOCK;
-    else if (cursor_type == "blink under")
-        return CURSOR_BLINK_UNDER;
-    else if (cursor_type == "steady under")
-        return CURSOR_STEADY_UNDER;
-    else if (cursor_type == "blink bar")
-        return CURSOR_BLINK_BAR;
-    else if (cursor_type == "steady bar")
-        return CURSOR_STEADY_BAR;
-    else
-        return CURSOR_STEADY_BLOCK;
-}
-
 static bool allow_alt_screen()
 {
     // check options first
@@ -141,6 +112,69 @@ static bool allow_alt_screen()
     return lua::config::get_bool("allow_alt_screen", true);
 }
 
+static int32_t hexcolor(const char *src)
+{
+    int32_t idx = -1;
+    unsigned long val;
+    char *e;
+
+    size_t in_len = std::strlen(src);
+    if (in_len == 7 && src[0] == '#')
+    {
+        if ((val = strtoul(src+1, &e, 16)) != ULONG_MAX && (e == src+7))
+            idx = 1 << 24 | val;
+        else
+            LOGGER()->error("erresc: invalid hex color ({})", src);
+    }
+    else
+        LOGGER()->error("erresc: short hex color ({})", src);
+
+    return idx;
+}
+
+static uint32_t defcolor(int *attr, int *npar, int l)
+{
+    int32_t idx = -1;
+    uint r, g, b;
+
+    switch (attr[*npar + 1]) {
+    case 2: // direct color in RGB space
+        if (*npar + 4 >= l) {
+            LOGGER()->error("erresc(38): Incorrect number of parameters ({})", *npar);
+            break;
+        }
+        r = attr[*npar + 2];
+        g = attr[*npar + 3];
+        b = attr[*npar + 4];
+        *npar += 4;
+        if (!(0 <= r && r <= 255) || !(0 <= g && g <= 255) || !(0 <= b && b <= 255))
+            LOGGER()->error("erresc: bad rgb color ({},{},{})", r, g, b);
+        else
+            idx = truecol(r, g, b);
+        break;
+    case 5: // indexed color
+        if (*npar + 2 >= l) {
+            LOGGER()->error("erresc(38): Incorrect number of parameters ({})", *npar);
+            break;
+        }
+        *npar += 2;
+        if (!(0 <= attr[*npar] && attr[*npar] <= 255))
+            LOGGER()->error("erresc: bad fgcolor {}", attr[*npar]);
+        else
+            idx = attr[*npar];
+        break;
+    case 0: /* implemented defined (only foreground) */
+    case 1: /* transparent */
+    case 3: /* direct color in CMY space */
+    case 4: /* direct color in CMYK space */
+    default:
+        LOGGER()->error("erresc(38): gfx attr {} unknown", attr[*npar]);
+        break;
+    }
+
+    return idx;
+}
+
 class TermImpl
 {
 public:
@@ -149,12 +183,12 @@ public:
 
     const Glyph& glyph(const Cell& cell) const
     {
-        return m_lines[cell.row][cell.col];
+        return m_screen.glyph(cell);
     }
 
     Glyph& glyph(const Cell& cell)
     {
-        return m_lines[cell.row][cell.col];
+        return m_screen.glyph(cell);
     }
 
     void reset();
@@ -165,20 +199,20 @@ public:
 
     void blink();
 
-    const Selection& sel() const { return m_sel; }
-    const Cursor& cursor() const { return m_cursor; }
-    cursor_type cursortype() const { return m_cursortype; }
+    const Selection& sel() const { return m_screen.sel(); }
+    const Cursor& cursor() const { return m_screen.cursor(); }
+    cursor_type cursortype() const { return m_screen.cursortype(); }
 
-    bool isdirty(int row) const { return m_dirty[row]; }
-    void setdirty() { setdirty(0, m_rows-1); }
-    void cleardirty(int row) { m_dirty[row] = false; }
+    bool isdirty(int row) const { return m_screen.isdirty(row); }
+    void setdirty() { m_screen.setdirty(0, m_screen.rows()-1); }
+    void cleardirty(int row) { m_screen.cleardirty(row); }
 
     void putc(char32_t u);
     void mousereport(const Cell& cell, mouse_event_enum evt, int button,
             const keymod_state& mod);
 
-    int rows() const { return m_rows; }
-    int cols() const { return m_cols; }
+    int rows() const { return m_screen.rows(); }
+    int cols() const { return m_screen.cols(); }
 
     // default colors
     uint32_t deffg() const { return m_deffg; }
@@ -189,7 +223,7 @@ public:
     void setfocused(bool focused);
     bool focused() const { return m_focused; }
 
-    void selclear();
+    void selclear() { m_screen.selclear(); }
     void clipcopy();
 
     void send(const char *data, std::size_t len);
@@ -199,33 +233,14 @@ private:
     void resizeCore(int cols, int rows);
     void start_blink();
 
-    void moveto(const Cell& cell);
-    void moveato(const Cell& cell);
     void cursor(int mode);
 
-    void newline(bool first_col);
-
-    void setscroll(int t, int b);
-    void scrollup(int orig, int n);
-    void scrolldown(int orig, int n);
-
-    // note: includes end
-    void clearregion(const Cell& begin, const Cell& end);
-    void deletechar(int n);
-    void deleteline(int n);
-    void insertblank(int n);
-    void insertblankline(int n);
     void swapscreen();
-
-    void setdirty(int top, int bot);
 
     void selsnap(int *col, int *row, int direction);
 
     void setchar(char32_t u, const Glyph& attr, const Cell& cell);
     void defutf8(char ascii);
-    void selscroll(int orig, int n);
-    void selnormalize();
-    int linelen(int row);
     void deftran(char ascii);
     void dectest(char c);
     void controlcode(unsigned char ascii);
@@ -249,18 +264,11 @@ private:
     std::shared_ptr<RwteBus> m_bus;
     int m_resizeReg;
 
+    Screen m_screen;
+
     term_mode m_mode; // terminal mode
     escape_state m_esc; // escape mode
-    int m_rows, m_cols; // size
-    std::vector<std::vector<Glyph>> m_lines;     // screen
-    std::vector<std::vector<Glyph>> m_alt_lines; // alternate screen
-    std::vector<bool> m_dirty;  // dirtyness of lines
     std::vector<bool> m_tabs; // false where no tab, true where tab
-    Cursor m_cursor;
-    Cursor m_stored_cursors[2];
-    cursor_type m_cursortype;
-    int m_top, m_bot; // scroll limits
-    Selection m_sel;
     CSIEscape m_csiesc;
     STREscape m_stresc;
 
@@ -276,17 +284,15 @@ private:
 TermImpl::TermImpl(std::shared_ptr<RwteBus> bus, int cols, int rows) :
     m_bus(std::move(bus)),
     m_resizeReg(m_bus->reg<ResizeEvt, TermImpl, &TermImpl::onresize>(this)),
-    m_rows(0), m_cols(0),
+    m_screen(m_bus),
     m_focused(false)
 {
-    Cursor c{};
-    m_cursor = c;
-
     strreset();
     csireset();
 
     // only a few things are initialized here
     // the rest happens in resize and reset
+    // todo: pass cols, rows to m_screen ctor
     resizeCore(cols, rows);
     reset();
 }
@@ -334,11 +340,9 @@ void TermImpl::reset()
     c.attr.fg = default_fg;
     c.attr.bg = default_bg;
 
-    m_cursor = c;
-    m_stored_cursors[0] = c;
-    m_stored_cursors[1] = c;
-
-    m_cursortype = get_cursor_type();
+    m_screen.setCursor(c);
+    m_screen.setStoredCursor(0, c);
+    m_screen.setStoredCursor(1, c);
 
     m_deffg = default_fg;
     m_defbg = default_bg;
@@ -353,9 +357,9 @@ void TermImpl::reset()
             m_tabs[i] = true;
     }
 
-    m_top = 0;
-    m_bot = m_rows - 1;
-
+    // if set, print survives a reset,
+    // and we always have wrap and utf8
+    // enabled
     bool printing = m_mode[MODE_PRINT];
     m_mode.reset();
     m_mode.set(MODE_WRAP);
@@ -370,15 +374,16 @@ void TermImpl::reset()
 
     for (i = 0; i < 2; i++)
     {
-        moveto({0, 0});
+        m_screen.moveto({0, 0});
         cursor(CURSOR_SAVE);
-        clearregion({0, 0}, {m_rows-1, m_cols-1});
-        swapscreen();
     }
 
-    if (m_cursortype == CURSOR_BLINK_BLOCK ||
-            m_cursortype == CURSOR_BLINK_UNDER ||
-            m_cursortype == CURSOR_BLINK_BAR)
+    m_screen.reset();
+
+    // todo: needs blink func?
+    if (m_screen.cursortype() == cursor_type::CURSOR_BLINK_BLOCK ||
+            m_screen.cursortype() == cursor_type::CURSOR_BLINK_UNDER ||
+            m_screen.cursortype() == cursor_type::CURSOR_BLINK_BAR)
         start_blink();
 }
 
@@ -389,19 +394,19 @@ void TermImpl::setprint()
 
 void TermImpl::blink()
 {
-    bool need_blink = m_cursortype == CURSOR_BLINK_BLOCK ||
-            m_cursortype == CURSOR_BLINK_UNDER ||
-            m_cursortype == CURSOR_BLINK_BAR;
+    bool need_blink = m_screen.cursortype() == cursor_type::CURSOR_BLINK_BLOCK ||
+            m_screen.cursortype() == cursor_type::CURSOR_BLINK_UNDER ||
+            m_screen.cursortype() == cursor_type::CURSOR_BLINK_BAR;
 
     // see if we have anything blinking and mark blinking lines dirty
-    for (int i = 0; i < m_lines.size(); i++)
+    for (int i = 0; i < m_screen.rows(); i++)
     {
-        for (const auto& g : m_lines[i])
+        for (const auto& g : m_screen.line(i))
         {
             if (g.attr[ATTR_BLINK])
             {
                 need_blink = true;
-                setdirty(i, i);
+                m_screen.setdirty(i, i);
                 break;
             }
         }
@@ -431,50 +436,24 @@ void TermImpl::resizeCore(int cols, int rows)
 {
     LOGGER()->info("resize to {}x{}", cols, rows);
 
-    int minrow = MIN(rows, m_rows);
-    int mincol = MIN(cols, m_cols);
+    int minrow = MIN(rows, m_screen.rows());
+    int mincol = MIN(cols, m_screen.cols());
 
     if (cols < 1 || rows < 1) {
         LOGGER()->error("attempted resize to {}x{}", cols, rows);
         return;
     }
 
-    // slide screen to keep cursor where we expect it
-    if (m_cursor.row - rows >= 0)
-    {
-        LOGGER()->debug("removing {} lines for cursor", (m_cursor.row - rows) + 1);
-        m_lines.erase(m_lines.begin(), m_lines.begin() + (m_cursor.row - rows) + 1);
-        m_alt_lines.erase(m_alt_lines.begin(), m_alt_lines.begin() + (m_cursor.row - rows) + 1);
-    }
-
     // resize to new height
-    m_lines.resize(rows);
-    m_alt_lines.resize(rows);
-    m_dirty.resize(rows);
     m_tabs.resize(cols);
 
-    // resize each row to new width, zero-pad if needed
-    int i;
-    for (i = 0; i < minrow; i++)
-    {
-        m_lines[i].resize(cols);
-        m_alt_lines[i].resize(cols);
-    }
-
-    // allocate any new rows
-    for (; i < rows; i++)
-    {
-        m_lines[i].resize(cols);
-        m_alt_lines[i].resize(cols);
-    }
-
-    if (cols > m_cols)
+    if (cols > m_screen.cols())
     {
         int tab_spaces = lua::config::get_int(
                 "tab_spaces", DEFAULT_TAB_SPACES);
 
         // point to end of old size
-        auto bp = m_tabs.begin() + m_cols;
+        auto bp = m_tabs.begin() + m_screen.cols();
         // back up to last tab (or begin)
         while (--bp != m_tabs.begin() && !*bp) {}
         // set tabs from here (resize cleared newly added tabs)
@@ -484,28 +463,28 @@ void TermImpl::resizeCore(int cols, int rows)
     }
 
     // update terminal size
-    m_cols = cols;
-    m_rows = rows;
+    m_screen.resize(cols, rows);
 
     // reset scrolling region
-    setscroll(0, rows-1);
+    m_screen.setscroll(0, rows-1);
     // make use of the LIMIT in moveto
-    moveto(m_cursor);
+    m_screen.moveto(m_screen.cursor());
 
     // store cursor
-    Cursor c = m_cursor;
+    // todo: move to screen too, when mode moves. move cursor(int) too
+    Cursor c = m_screen.cursor();
     // clear both screens (dirties all lines)
-    for (i = 0; i < 2; i++)
+    for (int i = 0; i < 2; i++)
     {
         if (mincol < cols && 0 < minrow)
-            clearregion({0, mincol}, {minrow - 1, cols - 1});
+            m_screen.clear({0, mincol}, {minrow - 1, cols - 1});
         if (0 < cols && minrow < rows)
-            clearregion({minrow, 0}, {rows - 1, cols - 1});
+            m_screen.clear({minrow, 0}, {rows - 1, cols - 1});
         swapscreen();
         cursor(CURSOR_LOAD);
     }
     // reset cursor
-    m_cursor = c;
+    m_screen.setCursor(c);
 }
 
 void TermImpl::start_blink()
@@ -516,46 +495,18 @@ void TermImpl::start_blink()
     rwte->start_blink();
 }
 
-void TermImpl::moveto(const Cell& cell)
-{
-    int minrow, maxrow;
-    if (m_cursor.state & CURSOR_ORIGIN)
-    {
-        minrow = m_top;
-        maxrow = m_bot;
-    }
-    else
-    {
-        minrow = 0;
-        maxrow = m_rows - 1;
-    }
-
-    m_cursor.state &= ~CURSOR_WRAPNEXT;
-    m_cursor.col = limit(cell.col, 0, m_cols-1);
-    m_cursor.row = limit(cell.row, minrow, maxrow);
-
-    rwte->refresh();
-}
-
-// for absolute user moves, when decom is set
-void TermImpl::moveato(const Cell& cell)
-{
-    moveto({cell.row + ((m_cursor.state & CURSOR_ORIGIN) ? m_top: 0),
-            cell.col});
-}
-
 void TermImpl::cursor(int mode)
 {
     int alt = m_mode[MODE_ALTSCREEN] ? 1 : 0;
 
     if (mode == CURSOR_SAVE)
     {
-        m_stored_cursors[alt] = m_cursor;
+        m_screen.setStoredCursor(alt, m_screen.cursor());
     }
     else if (mode == CURSOR_LOAD)
     {
-        m_cursor = m_stored_cursors[alt];
-        moveto(m_cursor);
+        m_screen.setCursor(m_screen.storedCursor(alt));
+        m_screen.moveto(m_screen.cursor());
     }
 }
 
@@ -572,25 +523,6 @@ static bool iscontrolc1(char32_t c)
 static bool iscontrol(char32_t c)
 {
     return iscontrolc0(c) || iscontrolc1(c);
-}
-
-static bool isdelim(char32_t c)
-{
-    auto L = rwte->lua();
-    L->getglobal("config");
-    L->getfield(-1, "word_delimiters");
-    const char * word_delimiters = L->tostring(-1);
-
-    // if word_delimiters is missing, it'll select whole line
-    // TODO: look to replacing utf8strchr with wcschr
-    // (that's what st did)
-    // their default word_delimiters is just " " by default
-    bool delim = false;
-    if (word_delimiters)
-        delim = c != 0 && utf8strchr(word_delimiters, c) != nullptr;
-
-    L->pop(2);
-    return delim;
 }
 
 void TermImpl::putc(char32_t u)
@@ -717,34 +649,37 @@ void TermImpl::putc(char32_t u)
         return;
     }
 
-    if (!m_sel.empty() &&
-            m_sel.ob.row <= m_cursor.row && m_cursor.row <= m_sel.oe.row)
-        selclear();
+    auto& cursor = m_screen.cursor();
+    const auto& sel = m_screen.sel();
+    if (!sel.empty() &&
+            sel.ob.row <= cursor.row && cursor.row <= sel.oe.row)
+        m_screen.selclear();
 
-    Glyph *gp = &m_lines[m_cursor.row][m_cursor.col];
-    if (m_mode[MODE_WRAP] && (m_cursor.state & CURSOR_WRAPNEXT))
+    Glyph *gp = &m_screen.glyph(cursor);
+    if (m_mode[MODE_WRAP] && (cursor.state & CURSOR_WRAPNEXT))
     {
         gp->attr.set(ATTR_WRAP);
-        newline(true);
-        gp = &m_lines[m_cursor.row][m_cursor.col];
+        m_screen.newline(true);
+        gp = &m_screen.glyph(cursor);
     }
 
-    if (m_mode[MODE_INSERT] && m_cursor.col+width < m_cols)
+    // todo: it's not cool to dig into / make assumptions about screen here
+    if (m_mode[MODE_INSERT] && cursor.col+width < m_screen.cols())
         // todo: check
-        std::memmove(gp+width, gp, (m_cols - m_cursor.col - width) * sizeof(Glyph));
+        std::memmove(gp+width, gp, (m_screen.cols() - cursor.col - width) * sizeof(Glyph));
 
-    if (m_cursor.col+width > m_cols)
+    if (cursor.col+width > m_screen.cols())
     {
-        newline(true);
-        gp = &m_lines[m_cursor.row][m_cursor.col];
+        m_screen.newline(true);
+        gp = &m_screen.glyph(cursor);
     }
 
-    setchar(u, m_cursor.attr, m_cursor);
+    setchar(u, cursor.attr, cursor);
 
     if (width == 2)
     {
         gp->attr.set(ATTR_WIDE);
-        if (m_cursor.col+1 < m_cols)
+        if (cursor.col+1 < m_screen.cols())
         {
             gp[1].u = '\0';
             gp[1].attr.reset();
@@ -752,10 +687,16 @@ void TermImpl::putc(char32_t u)
         }
     }
 
-    if (m_cursor.col+width < m_cols)
-        moveto({m_cursor.row, m_cursor.col+width});
+    if (cursor.col+width < m_screen.cols())
+        // todo: add move to rel to cursor
+        m_screen.moveto({cursor.row, cursor.col+width});
     else
-        m_cursor.state |= CURSOR_WRAPNEXT;
+    {
+        // todo: some better way than this temporary?
+        Cursor cur = cursor;
+        cur.state |= CURSOR_WRAPNEXT;
+        m_screen.setCursor(cur);
+    }
 }
 
 // bitfield for buttons
@@ -915,7 +856,6 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
                     cb, cell.col+1, cell.row+1, (evt == MOUSE_RELEASE)? 'm' : 'M');
             g_tty->write(seq);
         }
-        // todo: use cell comparison
         else if (cell.col < 223 && cell.row < 223)
         {
             std::string seq = fmt::format("\033[M{:c}{:c}{:c}",
@@ -957,27 +897,28 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
                 clock_gettime(CLOCK_MONOTONIC, &now);
 
                 // clear previous selection, logically and visually.
-                selclear();
+                m_screen.selclear();
 
                 // begin a selection
-                m_sel.begin(cell);
+                auto& sel = m_screen.sel();
+                sel.begin(cell);
 
                 // if the user clicks below predefined timeouts specific
                 // snapping behaviour is exposed.
-                if (TIMEDIFF(now, m_sel.tclick2) <= tclick_timeout)
-                    m_sel.snap = Selection::Snap::Line;
-                else if (TIMEDIFF(now, m_sel.tclick1) <= dclick_timeout)
-                    m_sel.snap = Selection::Snap::Word;
+                if (TIMEDIFF(now, sel.tclick2) <= tclick_timeout)
+                    sel.snap = Selection::Snap::Line;
+                else if (TIMEDIFF(now, sel.tclick1) <= dclick_timeout)
+                    sel.snap = Selection::Snap::Word;
                 else
-                    m_sel.snap = Selection::Snap::None;
+                    sel.snap = Selection::Snap::None;
 
-                selnormalize();
+                m_screen.selnormalize();
 
-                if (m_sel.snap != Selection::Snap::None)
-                    m_sel.setmode(Selection::Mode::Ready);
-                setdirty(m_sel.nb.row, m_sel.ne.row);
-                m_sel.tclick2 = m_sel.tclick1;
-                m_sel.tclick1 = now;
+                if (sel.snap != Selection::Snap::None)
+                    sel.setmode(Selection::Mode::Ready);
+                m_screen.setdirty(sel.nb.row, sel.ne.row);
+                sel.tclick2 = sel.tclick1;
+                sel.tclick1 = now;
             }
         }
         else if (evt == MOUSE_RELEASE)
@@ -986,266 +927,45 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
                 window->selpaste();
             else if (button == 1)
             {
-                if (m_sel.mode() == Selection::Mode::Ready)
+                auto& sel = m_screen.sel();
+                if (sel.mode() == Selection::Mode::Ready)
                 {
                     getbuttoninfo(cell, mod);
 
                     // set primary sel and tell window about it
-                    m_sel.primary = getsel();
+                    sel.primary = getsel();
                     window->setsel();
                 }
                 else
-                    selclear();
+                    m_screen.selclear();
 
-                m_sel.setmode(Selection::Mode::Idle);
-                setdirty(m_sel.nb.row, m_sel.ne.row);
+                sel.setmode(Selection::Mode::Idle);
+                m_screen.setdirty(sel.nb.row, sel.ne.row);
             }
         }
         else if (evt == MOUSE_MOTION)
         {
-            if (m_sel.mode() == Selection::Mode::Idle)
+            auto& sel = m_screen.sel();
+            if (sel.mode() == Selection::Mode::Idle)
                 return;
 
-            m_sel.setmode(Selection::Mode::Ready);
-            Cell oldoe = m_sel.oe;
-            int oldsbrow = m_sel.nb.row;
-            int oldserow = m_sel.ne.row;
+            sel.setmode(Selection::Mode::Ready);
+            Cell oldoe = sel.oe;
+            int oldsbrow = sel.nb.row;
+            int oldserow = sel.ne.row;
             getbuttoninfo(cell, mod);
 
-            if (oldoe != m_sel.oe)
-                setdirty(MIN(m_sel.nb.row, oldsbrow), MAX(m_sel.ne.row, oldserow));
+            if (oldoe != sel.oe)
+                m_screen.setdirty(MIN(sel.nb.row, oldsbrow), MAX(sel.ne.row, oldserow));
         }
     }
-}
-
-void TermImpl::newline(bool first_col)
-{
-    int y = m_cursor.row;
-
-    if (y == m_bot)
-        scrollup(m_top, 1);
-    else
-        y++;
-
-    moveto({y, first_col ? 0 : m_cursor.col});
-}
-
-void TermImpl::setscroll(int t, int b)
-{
-    t = limit(t, 0, m_rows-1);
-    b = limit(b, 0, m_rows-1);
-
-    if (t > b)
-        std::swap(t, b);
-
-    m_top = t;
-    m_bot = b;
-}
-
-void TermImpl::scrollup(int orig, int n)
-{
-    n = limit(n, 0, m_bot-orig+1);
-
-    clearregion({orig, 0}, {orig+n-1, m_cols-1});
-    setdirty(orig+n, m_bot);
-
-    for (int i = orig; i <= m_bot-n; i++)
-        std::swap(m_lines[i], m_lines[i+n]);
-
-    selscroll(orig, -n);
-}
-
-void TermImpl::scrolldown(int orig, int n)
-{
-    n = limit(n, 0, m_bot-orig+1);
-
-    setdirty(orig, m_bot-n);
-    clearregion({m_bot-n+1, 0}, {m_bot, m_cols-1});
-
-    for (int i = m_bot; i >= orig+n; i--)
-        std::swap(m_lines[i], m_lines[i-n]);
-
-    selscroll(orig, n);
-}
-
-void TermImpl::clearregion(const Cell& begin, const Cell& end)
-{
-    int col1 = begin.col;
-    int row1 = begin.row;
-    int col2 = end.col;
-    int row2 = end.row;
-
-    if (col1 > col2)
-        std::swap(col1, col2);
-    if (row1 > row2)
-        std::swap(row1, row2);
-
-    col1 = limit(col1, 0, m_cols-1);
-    col2 = limit(col2, 0, m_cols-1);
-    row1 = limit(row1, 0, m_rows-1);
-    row2 = limit(row2, 0, m_rows-1);
-
-    Glyph empty {
-        empty_char,
-        {},
-        m_cursor.attr.fg,
-        m_cursor.attr.bg
-    };
-
-    for (int row = row1; row <= row2; row++)
-    {
-        m_dirty[row] = true;
-
-        auto lineit = m_lines[row].begin();
-        std::fill(lineit+col1, lineit+col2+1, empty);
-    }
-
-    if (m_sel.anyselected({row1, col1}, {row2, col2}))
-        selclear();
-}
-
-void TermImpl::deletechar(int n)
-{
-    n = limit(n, 0, m_cols - m_cursor.col);
-
-    int dst = m_cursor.col;
-    int src = m_cursor.col + n;
-    int size = m_cols - src;
-
-    auto lineit = m_lines[m_cursor.row].begin();
-    std::copy(lineit+src, lineit+src+size, lineit+dst);
-    clearregion({m_cursor.row, m_cols-n}, {m_cursor.row, m_cols-1});
-}
-
-void TermImpl::deleteline(int n)
-{
-    if (m_top <= m_cursor.row && m_cursor.row <= m_bot)
-        scrollup(m_cursor.row, n);
-}
-
-void TermImpl::insertblank(int n)
-{
-    n = limit(n, 0, m_cols - m_cursor.col);
-    if (n > 0)
-    {
-        // move things over
-        auto& line = m_lines[m_cursor.row];
-        std::copy_backward(
-                line.begin()+m_cursor.col,
-                line.end()-n,
-                line.end());
-
-        // clear moved area
-        clearregion(m_cursor, {m_cursor.row, m_cursor.col + n - 1});
-    }
-}
-
-void TermImpl::insertblankline(int n)
-{
-    if (m_top <= m_cursor.row && m_cursor.row <= m_bot)
-        scrolldown(m_cursor.row, n);
 }
 
 void TermImpl::swapscreen()
 {
-    std::swap(m_lines, m_alt_lines);
+    m_screen.swapscreen();
 
     m_mode.flip(MODE_ALTSCREEN);
-
-    setdirty();
-}
-
-void TermImpl::setdirty(int top, int bot)
-{
-    top = limit(top, 0, m_rows-1);
-    bot = limit(bot, 0, m_rows-1);
-
-    for (int i = top; i <= bot; i++)
-        m_dirty[i] = true;
-
-    rwte->refresh();
-}
-
-// todo: cell?
-void TermImpl::selsnap(int *col, int *row, int direction)
-{
-    int newcol, newrow, colt, rowt;
-    int delim, prevdelim;
-    Glyph *gp, *prevgp;
-
-    switch (m_sel.snap)
-    {
-    case Selection::Snap::Word:
-        // Snap around if the word wraps around at the end or
-        // beginning of a line.
-
-        prevgp = &m_lines[*row][*col];
-        prevdelim = isdelim(prevgp->u);
-        for (;;)
-        {
-            newcol = *col + direction;
-            newrow = *row;
-            if (newcol < 0 || (m_cols - 1) < newcol)
-            {
-                newrow += direction;
-                newcol = (newcol + m_cols) % m_cols;
-                if (newrow < 0 || (m_rows - 1) < newrow)
-                    break;
-
-                if (direction > 0)
-                    rowt = *row, colt = *col;
-                else
-                    rowt = newrow, colt = newcol;
-                if (!m_lines[rowt][colt].attr[ATTR_WRAP])
-                    break;
-            }
-
-            if (newcol >= linelen(newrow))
-                break;
-
-            gp = &m_lines[newrow][newcol];
-            delim = isdelim(gp->u);
-            if (!gp->attr[ATTR_WDUMMY] &&
-                    (delim != prevdelim || (delim && gp->u != prevgp->u)))
-                break;
-
-            *col = newcol;
-            *row = newrow;
-            prevgp = gp;
-            prevdelim = delim;
-        }
-        break;
-    case Selection::Snap::Line:
-        // Snap around if the the previous line or the current one
-        // has set ATTR_WRAP at its end. Then the whole next or
-        // previous line will be selected.
-
-        *col = (direction < 0) ? 0 : m_cols - 1;
-        if (direction < 0)
-        {
-            for (; *row > 0; *row += direction)
-            {
-                if (!m_lines[*row-1][m_cols-1].attr[ATTR_WRAP])
-                {
-                    break;
-                }
-            }
-        }
-        else if (direction > 0)
-        {
-            for (; *row < m_rows-1; *row += direction)
-            {
-                if (!m_lines[*row][m_cols-1].attr[ATTR_WRAP])
-                {
-                    break;
-                }
-            }
-        }
-        break;
-    default:
-        // noop
-        break;
-    }
 }
 
 void TermImpl::setfocused(bool focused)
@@ -1263,19 +983,10 @@ void TermImpl::setfocused(bool focused)
     rwte->refresh();
 }
 
-void TermImpl::selclear()
-{
-    if (m_sel.empty())
-        return;
-
-    setdirty(m_sel.nb.row, m_sel.ne.row);
-    m_sel.clear();
-}
-
 void TermImpl::clipcopy()
 {
     // set clipboard sel and tell window about it
-    m_sel.clipboard = getsel();
+    m_screen.sel().clipboard = getsel();
     window->setclip();
 }
 
@@ -1303,31 +1014,31 @@ void TermImpl::setchar(char32_t u, const Glyph& attr, const Cell& cell)
             (0x41 <= u && u <= 0x7e) && vt100_0[u - 0x41])
         utf8decode(vt100_0[u - 0x41], &u, utf_size);
 
-    auto& thisGlyph = glyph(cell);
+    auto thisGlyph = m_screen.glyph(cell);
     if (thisGlyph.attr[ATTR_WIDE])
     {
-        if (cell.col+1 < m_cols)
+        if (cell.col+1 < m_screen.cols())
         {
-            auto& nextGlyph = glyph({cell.row, cell.col+1});
+            auto nextGlyph = m_screen.glyph({cell.row, cell.col+1});
             nextGlyph.u = empty_char;
             nextGlyph.attr.reset(ATTR_WDUMMY);
+            m_screen.setGlyph({cell.row, cell.col+1}, nextGlyph);
         }
     }
     else if (thisGlyph.attr[ATTR_WDUMMY])
     {
-        auto& prevGlyph = glyph({cell.row, cell.col-1});
+        auto prevGlyph = m_screen.glyph({cell.row, cell.col-1});
         prevGlyph.u = empty_char;
         prevGlyph.attr.reset(ATTR_WIDE);
+        m_screen.setGlyph({cell.row, cell.col-1}, prevGlyph);
     }
 
-    m_dirty[cell.row] = true;
     thisGlyph = attr;
     thisGlyph.u = u;
+    m_screen.setGlyph(cell, thisGlyph);
 
     if (attr.attr[ATTR_BLINK])
         start_blink();
-
-    rwte->refresh();
 }
 
 void TermImpl::defutf8(char ascii)
@@ -1338,91 +1049,13 @@ void TermImpl::defutf8(char ascii)
         m_mode.reset(MODE_UTF8);
 }
 
-void TermImpl::selscroll(int orig, int n)
-{
-    if (m_sel.empty())
-        return;
-
-    if ((orig <= m_sel.ob.row && m_sel.ob.row <= m_bot) ||
-            (orig <= m_sel.oe.row && m_sel.oe.row <= m_bot))
-    {
-        if ((m_sel.ob.row += n) > m_bot || (m_sel.oe.row += n) < m_top)
-        {
-            selclear();
-            return;
-        }
-        if (m_sel.rectangular())
-        {
-            if (m_sel.ob.row < m_top)
-                m_sel.ob.row = m_top;
-            if (m_sel.oe.row > m_bot)
-                m_sel.oe.row = m_bot;
-        }
-        else
-        {
-            if (m_sel.ob.row < m_top)
-            {
-                m_sel.ob.row = m_top;
-                m_sel.ob.col = 0;
-            }
-            if (m_sel.oe.row > m_bot)
-            {
-                m_sel.oe.row = m_bot;
-                m_sel.oe.col = m_cols;
-            }
-        }
-        selnormalize();
-    }
-}
-
-void TermImpl::selnormalize()
-{
-    if (!m_sel.rectangular() && m_sel.ob.row != m_sel.oe.row)
-    {
-        m_sel.nb.col = m_sel.ob.row < m_sel.oe.row ? m_sel.ob.col : m_sel.oe.col;
-        m_sel.ne.col = m_sel.ob.row < m_sel.oe.row ? m_sel.oe.col : m_sel.ob.col;
-    }
-    else
-    {
-        m_sel.nb.col = MIN(m_sel.ob.col, m_sel.oe.col);
-        m_sel.ne.col = MAX(m_sel.ob.col, m_sel.oe.col);
-    }
-    m_sel.nb.row = MIN(m_sel.ob.row, m_sel.oe.row);
-    m_sel.ne.row = MAX(m_sel.ob.row, m_sel.oe.row);
-
-    selsnap(&m_sel.nb.col, &m_sel.nb.row, -1);
-    selsnap(&m_sel.ne.col, &m_sel.ne.row, +1);
-
-    // expand selection over line breaks
-    if (m_sel.rectangular())
-        return;
-    int i = linelen(m_sel.nb.row);
-    if (i < m_sel.nb.col)
-        m_sel.nb.col = i;
-    if (linelen(m_sel.ne.row) <= m_sel.ne.col)
-        m_sel.ne.col = m_cols - 1;
-}
-
-int TermImpl::linelen(int row)
-{
-    int i = m_cols;
-
-    if (m_lines[row][i - 1].attr[ATTR_WRAP])
-        return i;
-
-    while (i > 0 && m_lines[row][i - 1].u == empty_char)
-        --i;
-
-    return i;
-}
-
 void TermImpl::deftran(char ascii)
 {
     const char cs[] = "0B";
     const int vcs[] = {CS_GRAPHIC0, CS_USA};
 
-    char *p;
-    if ((p = strchr(cs, ascii)) == nullptr)
+    const char *p;
+    if ((p = std::strchr(cs, ascii)) == nullptr)
         LOGGER()->error("esc unhandled charset: ESC ( {}", ascii);
     else
         m_trantbl[m_icharset] = vcs[p - cs];
@@ -1435,10 +1068,11 @@ void TermImpl::dectest(char c)
     if (c == '8')
     {
         // DEC screen alignment test
-        for (col = 0; col < m_cols; ++col)
+        auto& attr = m_screen.cursor().attr;
+        for (col = 0; col < m_screen.cols(); ++col)
         {
-            for (row = 0; row < m_rows; ++row)
-                setchar('E', m_cursor.attr, {row, col});
+            for (row = 0; row < m_screen.rows(); ++row)
+                setchar('E', attr, {row, col});
         }
     }
 }
@@ -1447,21 +1081,22 @@ void TermImpl::controlcode(unsigned char ascii)
 {
     // LOGGER()->trace("ctrlcode {:02X}", (int) ascii);
 
+    auto& cursor = m_screen.cursor();
     switch (ascii) {
     case '\t':   // HT
         puttab(1);
         return;
     case '\b':   // BS
-        moveto({m_cursor.row, m_cursor.col-1});
+        m_screen.moveto({cursor.row, cursor.col-1});
         return;
     case '\r':   // CR
-        moveto({m_cursor.row, 0});
+        m_screen.moveto({cursor.row, 0});
         return;
     case '\f':   // LF
     case '\v':   // VT
     case '\n':   // LF
         // go to first col if the mode is set
-        newline(m_mode[MODE_CRLF]);
+        m_screen.newline(m_mode[MODE_CRLF]);
         return;
     case '\a':   // BEL
         if (m_esc[ESC_STR_END])
@@ -1494,7 +1129,7 @@ void TermImpl::controlcode(unsigned char ascii)
         m_charset = 1 - (ascii - '\016');
         return;
     case '\032': // SUB
-        setchar('?', m_cursor.attr, m_cursor);
+        setchar('?', cursor.attr, cursor);
     case '\030': // CAN
         csireset();
         break;
@@ -1511,13 +1146,13 @@ void TermImpl::controlcode(unsigned char ascii)
     case 0x84:   // TODO: IND
         break;
     case 0x85:   // NEL -- Next line
-        newline(true); // always go to first col
+        m_screen.newline(true); // always go to first col
         break;
     case 0x86:   // TODO: SSA
     case 0x87:   // TODO: ESA
         break;
     case 0x88:   // HTS -- Horizontal tab stop
-        m_tabs[m_cursor.col] = true;
+        m_tabs[cursor.col] = true;
         break;
     case 0x89:   // TODO: HTJ
     case 0x8a:   // TODO: VTS
@@ -1561,6 +1196,7 @@ void TermImpl::controlcode(unsigned char ascii)
 // more characters for this sequence, otherwise false
 bool TermImpl::eschandle(unsigned char ascii)
 {
+    auto& cursor = m_screen.cursor();
     switch (ascii) {
     case '[':
         m_esc.set(ESC_CSI);
@@ -1590,22 +1226,22 @@ bool TermImpl::eschandle(unsigned char ascii)
         m_esc.set(ESC_ALTCHARSET);
         return false;
     case 'D': // IND -- Linefeed
-        if (m_cursor.row == m_bot)
-            scrollup(m_top, 1);
+        if (cursor.row == m_screen.bot())
+            m_screen.scrollup(m_screen.top(), 1);
         else
-            moveto({m_cursor.row+1, m_cursor.col});
+            m_screen.moveto({cursor.row+1, cursor.col});
         break;
     case 'E': // NEL -- Next line
-        newline(true); // always go to first col
+        m_screen.newline(true); // always go to first col
         break;
     case 'H': // HTS -- Horizontal tab stop
-        m_tabs[m_cursor.col] = true;
+        m_tabs[cursor.col] = true;
         break;
     case 'M': // RI -- Reverse index
-        if (m_cursor.row == m_top)
-            scrolldown(m_top, 1);
+        if (cursor.row == m_screen.top())
+            m_screen.scrolldown(m_screen.top(), 1);
         else
-            moveto({m_cursor.row-1, m_cursor.col});
+            m_screen.moveto({cursor.row-1, cursor.col});
         break;
     case 'Z': // DECID -- Identify Terminal
         {
@@ -1626,10 +1262,10 @@ bool TermImpl::eschandle(unsigned char ascii)
         m_mode.reset(MODE_APPKEYPAD);
         break;
     case '7': // DECSC -- Save Cursor
-        cursor(CURSOR_SAVE);
+        TermImpl::cursor(CURSOR_SAVE);
         break;
     case '8': // DECRC -- Restore Cursor
-        cursor(CURSOR_LOAD);
+        TermImpl::cursor(CURSOR_LOAD);
         break;
     case '\\': // ST -- String Terminator
         if (m_esc[ESC_STR_END])
@@ -1650,12 +1286,13 @@ void TermImpl::resettitle()
 
 void TermImpl::puttab(int n)
 {
-    int col = m_cursor.col;
+    auto cursor = m_screen.cursor();
+    int col = cursor.col;
 
     if (n > 0)
     {
-        while (col < m_cols && n--)
-            for (++col; col < m_cols && !m_tabs[col]; ++col)
+        while (col < m_screen.cols() && n--)
+            for (++col; col < m_screen.cols() && !m_tabs[col]; ++col)
                 ; // nothing
     }
     else if (n < 0)
@@ -1665,7 +1302,8 @@ void TermImpl::puttab(int n)
                 ; // nothing
     }
 
-    m_cursor.col = limit(col, 0, m_cols-1);
+    cursor.col = limit(col, 0, m_screen.cols()-1);
+    m_screen.setCursor(cursor);
 }
 
 void TermImpl::strreset()
@@ -1692,70 +1330,6 @@ void TermImpl::strparse()
             return;
         *p++ = '\0';
     }
-}
-
-static uint32_t defcolor(int *attr, int *npar, int l)
-{
-    int32_t idx = -1;
-    uint r, g, b;
-
-    switch (attr[*npar + 1]) {
-    case 2: // direct color in RGB space
-        if (*npar + 4 >= l) {
-            LOGGER()->error("erresc(38): Incorrect number of parameters ({})", *npar);
-            break;
-        }
-        r = attr[*npar + 2];
-        g = attr[*npar + 3];
-        b = attr[*npar + 4];
-        *npar += 4;
-        if (!(0 <= r && r <= 255) || !(0 <= g && g <= 255) || !(0 <= b && b <= 255))
-            LOGGER()->error("erresc: bad rgb color ({},{},{})", r, g, b);
-        else
-            idx = truecol(r, g, b);
-        break;
-    case 5: // indexed color
-        if (*npar + 2 >= l) {
-            LOGGER()->error("erresc(38): Incorrect number of parameters ({})", *npar);
-            break;
-        }
-        *npar += 2;
-        if (!(0 <= attr[*npar] && attr[*npar] <= 255))
-            LOGGER()->error("erresc: bad fgcolor {}", attr[*npar]);
-        else
-            idx = attr[*npar];
-        break;
-    case 0: /* implemented defined (only foreground) */
-    case 1: /* transparent */
-    case 3: /* direct color in CMY space */
-    case 4: /* direct color in CMYK space */
-    default:
-        LOGGER()->error("erresc(38): gfx attr {} unknown", attr[*npar]);
-        break;
-    }
-
-    return idx;
-}
-
-// todo: move me
-int32_t hexcolor(const char *src)
-{
-    int32_t idx = -1;
-    unsigned long val;
-    char *e;
-
-    size_t in_len = std::strlen(src);
-    if (in_len == 7 && src[0] == '#')
-    {
-        if ((val = strtoul(src+1, &e, 16)) != ULONG_MAX && (e == src+7))
-            idx = 1 << 24 | val;
-        else
-            LOGGER()->error("erresc: invalid hex color ({})", src);
-    }
-    else
-        LOGGER()->error("erresc: short hex color ({})", src);
-
-    return idx;
 }
 
 void TermImpl::strhandle()
@@ -1938,20 +1512,21 @@ void TermImpl::csihandle()
 {
     LOGGER()->trace("csiesc {}", csidump());
 
+    auto& cursor = m_screen.cursor();
     switch (m_csiesc.mode[0])
     {
     case '@': // ICH -- Insert <n> blank char
         DEFAULT(m_csiesc.arg[0], 1);
-        insertblank(m_csiesc.arg[0]);
+        m_screen.insertblank(m_csiesc.arg[0]);
         break;
     case 'A': // CUU -- Cursor <n> Up
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto({m_cursor.row-m_csiesc.arg[0], m_cursor.col});
+        m_screen.moveto({cursor.row-m_csiesc.arg[0], cursor.col});
         break;
     case 'B': // CUD -- Cursor <n> Down
     case 'e': // VPR --Cursor <n> Down
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto({m_cursor.row+m_csiesc.arg[0], m_cursor.col});
+        m_screen.moveto({cursor.row+m_csiesc.arg[0], cursor.col});
         break;
     case 'i': // MC -- Media Copy
         switch (m_csiesc.arg[0]) {
@@ -1961,7 +1536,7 @@ void TermImpl::csihandle()
             tdump();
             break;
         case 1:
-            tdumpline(m_cursor.row);
+            tdumpline(cursor.row);
             break;
         case 2:
             tdumpsel();
@@ -1985,25 +1560,25 @@ void TermImpl::csihandle()
     case 'C': // CUF -- Cursor <n> Forward
     case 'a': // HPR -- Cursor <n> Forward
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto({m_cursor.row, m_cursor.col+m_csiesc.arg[0]});
+        m_screen.moveto({cursor.row, cursor.col+m_csiesc.arg[0]});
         break;
     case 'D': // CUB -- Cursor <n> Backward
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto({m_cursor.row, m_cursor.col-m_csiesc.arg[0]});
+        m_screen.moveto({cursor.row, cursor.col-m_csiesc.arg[0]});
         break;
     case 'E': // CNL -- Cursor <n> Down and first col
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto({m_cursor.row+m_csiesc.arg[0], 0});
+        m_screen.moveto({cursor.row+m_csiesc.arg[0], 0});
         break;
     case 'F': // CPL -- Cursor <n> Up and first col
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto({m_cursor.row-m_csiesc.arg[0], 0});
+        m_screen.moveto({cursor.row-m_csiesc.arg[0], 0});
         break;
     case 'g': // TBC -- Tabulation clear
         switch (m_csiesc.arg[0])
         {
         case 0: // clear current tab stop
-            m_tabs[m_cursor.col] = false;
+            m_tabs[cursor.col] = false;
             break;
         case 3: // clear all the tabs
             for (auto it = m_tabs.begin(); it != m_tabs.end(); it++)
@@ -2016,34 +1591,37 @@ void TermImpl::csihandle()
     case 'G': // CHA -- Move to <col>
     case '`': // HPA
         DEFAULT(m_csiesc.arg[0], 1);
-        moveto({m_cursor.row, m_csiesc.arg[0]-1});
+        m_screen.moveto({cursor.row, m_csiesc.arg[0]-1});
         break;
     case 'H': // CUP -- Move to <row> <col>
     case 'f': // HVP
         DEFAULT(m_csiesc.arg[0], 1);
         DEFAULT(m_csiesc.arg[1], 1);
-        moveato({m_csiesc.arg[0]-1, m_csiesc.arg[1]-1});
+        m_screen.moveato({m_csiesc.arg[0]-1, m_csiesc.arg[1]-1});
         break;
     case 'I': // CHT -- Cursor Forward Tabulation <n> tab stops
         DEFAULT(m_csiesc.arg[0], 1);
         puttab(m_csiesc.arg[0]);
         break;
     case 'J': // ED -- Clear screen
-        selclear();
+        m_screen.selclear();
         switch (m_csiesc.arg[0])
         {
         case 0: // below
-            clearregion(m_cursor, {m_cursor.row, m_cols-1});
-            if (m_cursor.row < m_rows-1)
-                clearregion({m_cursor.row+1, 0}, {m_rows-1, m_cols-1});
+            m_screen.clear(cursor, {cursor.row, m_screen.cols()-1});
+            if (cursor.row < m_screen.rows()-1)
+            {
+                m_screen.clear({cursor.row+1, 0},
+                        {m_screen.rows()-1, m_screen.cols()-1});
+            }
             break;
         case 1: // above
-            if (m_cursor.row > 1)
-                clearregion({0, 0}, {m_cursor.row-1, m_cols-1});
-            clearregion({m_cursor.row, 0}, m_cursor);
+            if (cursor.row > 1)
+                m_screen.clear({0, 0}, {cursor.row-1, m_screen.cols()-1});
+            m_screen.clear({cursor.row, 0}, cursor);
             break;
         case 2: // all
-            clearregion({0, 0}, {m_rows-1, m_cols-1});
+            m_screen.clear();
             break;
         default:
             goto unknown;
@@ -2053,42 +1631,42 @@ void TermImpl::csihandle()
         switch (m_csiesc.arg[0])
         {
         case 0: // right
-            clearregion(m_cursor, {m_cursor.row, m_cols-1});
+            m_screen.clear(cursor, {cursor.row, m_screen.cols()-1});
             break;
         case 1: // left
-            clearregion({m_cursor.row, 0}, m_cursor);
+            m_screen.clear({cursor.row, 0}, cursor);
             break;
         case 2: // all
-            clearregion({m_cursor.row, 0}, {m_cursor.row, m_cols-1});
+            m_screen.clear({cursor.row, 0}, {cursor.row, m_screen.cols()-1});
             break;
         }
         break;
     case 'S': // SU -- Scroll <n> line up
         DEFAULT(m_csiesc.arg[0], 1);
-        scrollup(m_top, m_csiesc.arg[0]);
+        m_screen.scrollup(m_screen.top(), m_csiesc.arg[0]);
         break;
     case 'T': // SD -- Scroll <n> line down
         DEFAULT(m_csiesc.arg[0], 1);
-        scrolldown(m_top, m_csiesc.arg[0]);
+        m_screen.scrolldown(m_screen.top(), m_csiesc.arg[0]);
         break;
     case 'L': // IL -- Insert <n> blank lines
         DEFAULT(m_csiesc.arg[0], 1);
-        insertblankline(m_csiesc.arg[0]);
+        m_screen.insertblankline(m_csiesc.arg[0]);
         break;
     case 'l': // RM -- Reset Mode
         settmode(m_csiesc.priv, false, m_csiesc.arg, m_csiesc.narg);
         break;
     case 'M': // DL -- Delete <n> lines
         DEFAULT(m_csiesc.arg[0], 1);
-        deleteline(m_csiesc.arg[0]);
+        m_screen.deleteline(m_csiesc.arg[0]);
         break;
     case 'X': // ECH -- Erase <n> char
         DEFAULT(m_csiesc.arg[0], 1);
-        clearregion(m_cursor, {m_cursor.row, m_cursor.col + m_csiesc.arg[0] - 1});
+        m_screen.clear(cursor, {cursor.row, cursor.col + m_csiesc.arg[0] - 1});
         break;
     case 'P': // DCH -- Delete <n> char
         DEFAULT(m_csiesc.arg[0], 1);
-        deletechar(m_csiesc.arg[0]);
+        m_screen.deletechar(m_csiesc.arg[0]);
         break;
     case 'Z': // CBT -- Cursor Backward Tabulation <n> tab stops
         DEFAULT(m_csiesc.arg[0], 1);
@@ -2096,7 +1674,7 @@ void TermImpl::csihandle()
         break;
     case 'd': // VPA -- Move to <row>
         DEFAULT(m_csiesc.arg[0], 1);
-        moveato({m_csiesc.arg[0]-1, m_cursor.col});
+        m_screen.moveato({m_csiesc.arg[0]-1, cursor.col});
         break;
     case 'h': // SM -- Set terminal mode
         settmode(m_csiesc.priv, true, m_csiesc.arg, m_csiesc.narg);
@@ -2109,7 +1687,7 @@ void TermImpl::csihandle()
         {
             std::string seq = fmt::format(
                     "\033[{};{}R",
-                    m_cursor.row+1, m_cursor.col+1);
+                    cursor.row+1, cursor.col+1);
             g_tty->write(seq);
         }
         break;
@@ -2119,16 +1697,16 @@ void TermImpl::csihandle()
         else
         {
             DEFAULT(m_csiesc.arg[0], 1);
-            DEFAULT(m_csiesc.arg[1], m_rows);
-            setscroll(m_csiesc.arg[0]-1, m_csiesc.arg[1]-1);
-            moveato({0, 0});
+            DEFAULT(m_csiesc.arg[1], m_screen.rows());
+            m_screen.setscroll(m_csiesc.arg[0]-1, m_csiesc.arg[1]-1);
+            m_screen.moveato({0, 0});
         }
         break;
     case 's': // DECSC -- Save cursor position (ANSI.SYS)
-        cursor(CURSOR_SAVE);
+        TermImpl::cursor(CURSOR_SAVE);
         break;
     case 'u': // DECRC -- Restore cursor position (ANSI.SYS)
-        cursor(CURSOR_LOAD);
+        TermImpl::cursor(CURSOR_LOAD);
         break;
     case ' ':
         switch (m_csiesc.mode[1])
@@ -2138,26 +1716,26 @@ void TermImpl::csihandle()
             switch(m_csiesc.arg[0])
             {
             case 2: // Steady Block
-                m_cursortype = CURSOR_STEADY_BLOCK;
+                m_screen.setCursortype(cursor_type::CURSOR_STEADY_BLOCK);
                 break;
             case 3: // Blinking Underline
-                m_cursortype = CURSOR_BLINK_UNDER;
+                m_screen.setCursortype(cursor_type::CURSOR_BLINK_UNDER);
                 start_blink();
                 break;
             case 4: // Steady Underline
-                m_cursortype = CURSOR_STEADY_UNDER;
+                m_screen.setCursortype(cursor_type::CURSOR_STEADY_UNDER);
                 break;
             case 5: // Blinking bar
-                m_cursortype = CURSOR_BLINK_BAR;
+                m_screen.setCursortype(cursor_type::CURSOR_BLINK_BAR);
                 start_blink();
                 break;
             case 6: // Steady bar
-                m_cursortype = CURSOR_STEADY_BAR;
+                m_screen.setCursortype(cursor_type::CURSOR_STEADY_BAR);
                 break;
             case 0: // Blinking Block
             case 1: // Blinking Block (Default)
             default:
-                m_cursortype = CURSOR_BLINK_BLOCK;
+                m_screen.setCursortype(cursor_type::CURSOR_BLINK_BLOCK);
                 start_blink();
                 LOGGER()->error("unknown cursor {}", m_csiesc.arg[0]);
                 break;
@@ -2200,98 +1778,137 @@ std::string TermImpl::csidump()
 
 void TermImpl::setattr(int *attr, int len)
 {
+    // todo: need track more than cursor attr,
+    // how can this be implemented
+    auto cursor = m_screen.cursor();
     for (int i = 0; i < len; i++)
     {
         switch (attr[i])
         {
         case 0:
-            m_cursor.attr.attr.reset(ATTR_BOLD);
-            m_cursor.attr.attr.reset(ATTR_FAINT);
-            m_cursor.attr.attr.reset(ATTR_ITALIC);
-            m_cursor.attr.attr.reset(ATTR_UNDERLINE);
-            m_cursor.attr.attr.reset(ATTR_BLINK);
-            m_cursor.attr.attr.reset(ATTR_REVERSE);
-            m_cursor.attr.attr.reset(ATTR_INVISIBLE);
-            m_cursor.attr.attr.reset(ATTR_STRUCK);
-            m_cursor.attr.fg = m_deffg;
-            m_cursor.attr.bg = m_defbg;
+            cursor.attr.attr.reset(ATTR_BOLD);
+            cursor.attr.attr.reset(ATTR_FAINT);
+            cursor.attr.attr.reset(ATTR_ITALIC);
+            cursor.attr.attr.reset(ATTR_UNDERLINE);
+            cursor.attr.attr.reset(ATTR_BLINK);
+            cursor.attr.attr.reset(ATTR_REVERSE);
+            cursor.attr.attr.reset(ATTR_INVISIBLE);
+            cursor.attr.attr.reset(ATTR_STRUCK);
+            cursor.attr.fg = m_deffg;
+            cursor.attr.bg = m_defbg;
+            m_screen.setCursor(cursor);
             break;
         case 1:
-            m_cursor.attr.attr.set(ATTR_BOLD);
+            cursor.attr.attr.set(ATTR_BOLD);
+            m_screen.setCursor(cursor);
             break;
         case 2:
-            m_cursor.attr.attr.set(ATTR_FAINT);
+            cursor.attr.attr.set(ATTR_FAINT);
+            m_screen.setCursor(cursor);
             break;
         case 3:
-            m_cursor.attr.attr.set(ATTR_ITALIC);
+            cursor.attr.attr.set(ATTR_ITALIC);
+            m_screen.setCursor(cursor);
             break;
         case 4:
-            m_cursor.attr.attr.set(ATTR_UNDERLINE);
+            cursor.attr.attr.set(ATTR_UNDERLINE);
+            m_screen.setCursor(cursor);
             break;
         case 5: // slow blink
         case 6: // rapid blink
-            m_cursor.attr.attr.set(ATTR_BLINK);
+            cursor.attr.attr.set(ATTR_BLINK);
+            m_screen.setCursor(cursor);
             break;
         case 7:
-            m_cursor.attr.attr.set(ATTR_REVERSE);
+            cursor.attr.attr.set(ATTR_REVERSE);
+            m_screen.setCursor(cursor);
             break;
         case 8:
-            m_cursor.attr.attr.set(ATTR_INVISIBLE);
+            cursor.attr.attr.set(ATTR_INVISIBLE);
+            m_screen.setCursor(cursor);
             break;
         case 9:
-            m_cursor.attr.attr.set(ATTR_STRUCK);
+            cursor.attr.attr.set(ATTR_STRUCK);
+            m_screen.setCursor(cursor);
             break;
         case 22:
-            m_cursor.attr.attr.reset(ATTR_BOLD);
-            m_cursor.attr.attr.reset(ATTR_FAINT);
+            cursor.attr.attr.reset(ATTR_BOLD);
+            cursor.attr.attr.reset(ATTR_FAINT);
+            m_screen.setCursor(cursor);
             break;
         case 23:
-            m_cursor.attr.attr.reset(ATTR_ITALIC);
+            cursor.attr.attr.reset(ATTR_ITALIC);
+            m_screen.setCursor(cursor);
             break;
         case 24:
-            m_cursor.attr.attr.reset(ATTR_UNDERLINE);
+            cursor.attr.attr.reset(ATTR_UNDERLINE);
+            m_screen.setCursor(cursor);
             break;
         case 25:
-            m_cursor.attr.attr.reset(ATTR_BLINK);
+            cursor.attr.attr.reset(ATTR_BLINK);
+            m_screen.setCursor(cursor);
             break;
         case 27:
-            m_cursor.attr.attr.reset(ATTR_REVERSE);
+            cursor.attr.attr.reset(ATTR_REVERSE);
+            m_screen.setCursor(cursor);
             break;
         case 28:
-            m_cursor.attr.attr.reset(ATTR_INVISIBLE);
+            cursor.attr.attr.reset(ATTR_INVISIBLE);
+            m_screen.setCursor(cursor);
             break;
         case 29:
-            m_cursor.attr.attr.reset(ATTR_STRUCK);
+            cursor.attr.attr.reset(ATTR_STRUCK);
+            m_screen.setCursor(cursor);
             break;
         case 38:
         {
             auto color = defcolor(attr, &i, len);
             if (color >= 0)
-                m_cursor.attr.fg = color;
+            {
+                cursor.attr.fg = color;
+                m_screen.setCursor(cursor);
+            }
             break;
         }
         case 39:
-            m_cursor.attr.fg = m_deffg;
+            cursor.attr.fg = m_deffg;
+            m_screen.setCursor(cursor);
             break;
         case 48:
         {
             auto color = defcolor(attr, &i, len);
             if (color >= 0)
-                m_cursor.attr.bg = color;
+            {
+                cursor.attr.bg = color;
+                m_screen.setCursor(cursor);
+            }
             break;
         }
         case 49:
-            m_cursor.attr.bg = m_defbg;
+            cursor.attr.bg = m_defbg;
+            m_screen.setCursor(cursor);
             break;
         default:
             if (30 <= attr[i] && attr[i] <= 37)
-                m_cursor.attr.fg = attr[i] - 30;
+            {
+                cursor.attr.fg = attr[i] - 30;
+                m_screen.setCursor(cursor);
+            }
             else if (40 <= attr[i] && attr[i] <= 47)
-                m_cursor.attr.bg = attr[i] - 40;
+            {
+                cursor.attr.bg = attr[i] - 40;
+                m_screen.setCursor(cursor);
+            }
             else if (90 <= attr[i] && attr[i] <= 97)
-                m_cursor.attr.fg = attr[i] - 90 + 8;
+            {
+                cursor.attr.fg = attr[i] - 90 + 8;
+                m_screen.setCursor(cursor);
+            }
             else if (100 <= attr[i] && attr[i] <= 107)
-                m_cursor.attr.bg = attr[i] - 100 + 8;
+            {
+                cursor.attr.bg = attr[i] - 100 + 8;
+                m_screen.setCursor(cursor);
+            }
             else
             {
                 LOGGER()->error(
@@ -2325,13 +1942,17 @@ void TermImpl::settmode(bool priv, bool set, int *args, int narg)
                     rwte->refresh();
                 break;
             case 6: // DECOM -- Origin
+            {
+                auto cursor = m_screen.cursor();
                 if (set)
-                    m_cursor.state |= CURSOR_ORIGIN;
+                    cursor.state |= CURSOR_ORIGIN;
                 else
-                    m_cursor.state &= ~CURSOR_ORIGIN;
+                    cursor.state &= ~CURSOR_ORIGIN;
+                m_screen.setCursor(cursor);
 
-                moveato({0, 0});
+                m_screen.moveato({0, 0});
                 break;
+            }
             case 7: // DECAWM -- Auto wrap
                 m_mode.set(MODE_WRAP, set);
                 break;
@@ -2376,7 +1997,7 @@ void TermImpl::settmode(bool priv, bool set, int *args, int narg)
             case 1049: // swap screen & set/restore cursor as xterm
                 if (!allow_alt_screen())
                     break;
-                cursor(set ? CURSOR_SAVE : CURSOR_LOAD);
+                TermImpl::cursor(set ? CURSOR_SAVE : CURSOR_LOAD);
                 // FALLTHROUGH
             case 47: // swap screen
             case 1047:
@@ -2384,14 +2005,14 @@ void TermImpl::settmode(bool priv, bool set, int *args, int narg)
                     break;
                 alt = m_mode[MODE_ALTSCREEN];
                 if (alt)
-                    clearregion({0, 0}, {m_rows-1, m_cols-1});
+                    m_screen.clear();
                 if (set ^ alt)
                     swapscreen();
                 if (*args != 1049)
                     break;
                 // FALLTHROUGH
             case 1048:
-                cursor(set ? CURSOR_SAVE : CURSOR_LOAD);
+                TermImpl::cursor(set ? CURSOR_SAVE : CURSOR_LOAD);
                 break;
             case 2004: // 2004: bracketed paste mode
                 m_mode.set(MODE_BRCKTPASTE, set);
@@ -2440,50 +2061,53 @@ void TermImpl::settmode(bool priv, bool set, int *args, int narg)
 
 void TermImpl::getbuttoninfo(const Cell& cell, const keymod_state& mod)
 {
-    m_sel.alt = m_mode[MODE_ALTSCREEN];
+    auto& sel = m_screen.sel();
+    sel.alt = m_mode[MODE_ALTSCREEN];
 
-    m_sel.oe = cell;
-    selnormalize();
+    sel.oe = cell;
+    m_screen.selnormalize();
 
     // TODO: move to lua code?
     // consider leaving it in the rectangular state if it
     // was started with alt, but alt was released
-    m_sel.setrectangular((mod & ALT_MASK) == ALT_MASK);
+    sel.setrectangular((mod & ALT_MASK) == ALT_MASK);
 }
 
+// todo: move to screen?
 std::shared_ptr<char> TermImpl::getsel()
 {
     char *str, *ptr;
     int row, bufsize, lastcol, llen;
     Glyph *gp, *last;
 
-    if (m_sel.empty())
+    const auto& sel = m_screen.sel();
+    if (sel.empty())
         return nullptr;
 
-    bufsize = (m_cols+1) * (m_sel.ne.row-m_sel.nb.row+1) * utf_size;
+    bufsize = (m_screen.cols()+1) * (sel.ne.row-sel.nb.row+1) * utf_size;
     // todo: look at using std::array or vector instead, w/ move
     ptr = str = new char[bufsize];
 
     // append every set & selected glyph to the selection
-    for (row = m_sel.nb.row; row <= m_sel.ne.row; row++)
+    for (row = sel.nb.row; row <= sel.ne.row; row++)
     {
-        if ((llen = linelen(row)) == 0)
+        if ((llen = m_screen.linelen(row)) == 0)
         {
             *ptr++ = '\n';
             continue;
         }
 
-        if (m_sel.rectangular())
+        if (sel.rectangular())
         {
-            gp = &m_lines[row][m_sel.nb.col];
-            lastcol = m_sel.ne.col;
+            gp = &m_screen.glyph({row, sel.nb.col});
+            lastcol = sel.ne.col;
         }
         else
         {
-            gp = &m_lines[row][m_sel.nb.row == row ? m_sel.nb.col : 0];
-            lastcol = (m_sel.ne.row == row) ? m_sel.ne.col : m_cols-1;
+            gp = &m_screen.glyph({row, sel.nb.row == row ? sel.nb.col : 0});
+            lastcol = (sel.ne.row == row) ? sel.ne.col : m_screen.cols()-1;
         }
-        last = &m_lines[row][MIN(lastcol, llen-1)];
+        last = &m_screen.glyph({row, MIN(lastcol, llen-1)});
         while (last >= gp && last->u == empty_char)
             --last;
 
@@ -2496,7 +2120,7 @@ std::shared_ptr<char> TermImpl::getsel()
         }
 
         // use \n for line ending in outgoing data
-        if ((row < m_sel.ne.row || lastcol >= llen) && !(last->attr[ATTR_WRAP]))
+        if ((row < sel.ne.row || lastcol >= llen) && !(last->attr[ATTR_WRAP]))
             *ptr++ = '\n';
     }
     *ptr = 0;

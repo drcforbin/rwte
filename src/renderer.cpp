@@ -5,6 +5,7 @@
 #include "rwte/logging.h"
 #include "rwte/renderer.h"
 #include "rwte/rwte.h"
+//#include "rwte/screen.h"
 #include "rwte/selection.h"
 #include "rwte/term.h"
 #include "rwte/utf8.h"
@@ -763,19 +764,19 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
     {
         switch (g_term->cursortype())
         {
-        case CURSOR_BLINK_BLOCK:
+        case cursor_type::CURSOR_BLINK_BLOCK:
             if (g_term->mode()[MODE_BLINK])
                 break;
             // fall through
-        case CURSOR_STEADY_BLOCK:
+        case cursor_type::CURSOR_STEADY_BLOCK:
             g.attr[ATTR_WIDE] = g_term->glyph({cursor.row, curcol}).attr[ATTR_WIDE];
             drawglyph(cr, layout, g, cursor);
             break;
-        case CURSOR_BLINK_UNDER:
+        case cursor_type::CURSOR_BLINK_UNDER:
             if (g_term->mode()[MODE_BLINK])
                 break;
             // fall through
-        case CURSOR_STEADY_UNDER:
+        case cursor_type::CURSOR_STEADY_UNDER:
             {
                 int cursor_thickness = get_cursor_thickness();
                 cr.setSourceColor(drawcol);
@@ -788,11 +789,11 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
                 cr.fill();
             }
             break;
-        case CURSOR_BLINK_BAR:
+        case cursor_type::CURSOR_BLINK_BAR:
             if (g_term->mode()[MODE_BLINK])
                 break;
             // fall through
-        case CURSOR_STEADY_BAR:
+        case cursor_type::CURSOR_STEADY_BAR:
             {
                 int cursor_thickness = get_cursor_thickness();
                 cr.setSourceColor(drawcol);
