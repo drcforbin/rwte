@@ -3,7 +3,8 @@
 
 struct Cell
 {
-    int row, col;
+    int row = 0;
+    int col = 0;
 
     inline bool operator==(const Cell& other) const
     {
