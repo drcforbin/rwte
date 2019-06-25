@@ -1,10 +1,10 @@
 #ifndef RWTE_SELECTION_H
 #define RWTE_SELECTION_H
 
+#include "rwte/coords.h"
+
 #include <memory>
 #include <time.h>
-
-#include "rwte/coords.h"
 
 class Selection
 {

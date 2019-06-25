@@ -1,10 +1,10 @@
 #ifndef RWTE_TTY_H
 #define RWTE_TTY_H
 
+#include "rwte/event.h"
+
 #include <memory>
 #include <string>
-
-#include "rwte/event.h"
 
 class TtyImpl;
 

@@ -3,11 +3,9 @@
 
 #include "rwte/event.h"
 
-#include <cstdint>
 #include <ev++.h>
 #include <memory>
 #include <string>
-#include <sys/types.h>
 #include <vector>
 
 namespace lua

@@ -1,9 +1,9 @@
 #ifndef RWTE_WINDOW_H
 #define RWTE_WINDOW_H
 
-#include <memory>
-
 #include "rwte/event.h"
+
+#include <memory>
 
 class WindowImpl;
 

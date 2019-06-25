@@ -3,8 +3,8 @@
 
 #include <algorithm>
 #include <functional>
-#include <vector>
 #include <tuple>
+#include <vector>
 
 namespace detail {
 
