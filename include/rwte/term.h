@@ -1,11 +1,16 @@
 #ifndef RWTE_TERM_H
 #define RWTE_TERM_H
 
+#include "rwte/event.h"
+
 #include <bitset>
 #include <memory>
 
-#include "rwte/event.h"
-#include "rwte/selection.h"
+struct Cell;
+struct Cursor;
+struct Glyph;
+class Selection;
+enum class cursor_type;
 
 enum mouse_event_enum
 {
@@ -24,25 +29,6 @@ enum keymod_state_enum
 };
 
 using keymod_state = std::bitset<MOD_LAST+1>;
-
-enum glyph_attribute_enum
-{
-    ATTR_BOLD,
-    ATTR_FAINT,
-    ATTR_ITALIC,
-    ATTR_UNDERLINE,
-    ATTR_BLINK,
-    ATTR_REVERSE,
-    ATTR_INVISIBLE,
-    ATTR_STRUCK,
-    ATTR_WRAP,
-    ATTR_WIDE,
-    ATTR_WDUMMY,
-    ATTR_LAST = ATTR_WDUMMY
-    // ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
-};
-
-using glyph_attribute = std::bitset<ATTR_LAST+1>;
 
 enum term_mode_enum
 {
@@ -77,32 +63,6 @@ using term_mode = std::bitset<MODE_LAST+1>;
 const term_mode mouse_modes(
         1 << MODE_MOUSEBTN | 1 << MODE_MOUSEMOTION |
         1 << MODE_MOUSEX10 | 1 << MODE_MOUSEMANY);
-
-const char32_t empty_char = ' ';
-
-struct Glyph
-{
-    char32_t u = empty_char;           // character code
-    glyph_attribute attr;    // attribute flags
-    uint32_t fg = 0;      // foreground
-    uint32_t bg = 0;      // background
-};
-
-enum cursor_type
-{
-    CURSOR_BLINK_BLOCK,
-    CURSOR_STEADY_BLOCK,
-    CURSOR_BLINK_UNDER,
-    CURSOR_STEADY_UNDER,
-    CURSOR_BLINK_BAR,
-    CURSOR_STEADY_BAR
-};
-
-struct Cursor : public Cell
-{
-    Glyph attr; // current char attributes
-    char state = 0;
-};
 
 class TermImpl;
 
