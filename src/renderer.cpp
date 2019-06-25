@@ -5,7 +5,7 @@
 #include "rwte/logging.h"
 #include "rwte/renderer.h"
 #include "rwte/rwte.h"
-//#include "rwte/screen.h"
+#include "rwte/screen.h"
 #include "rwte/selection.h"
 #include "rwte/term.h"
 #include "rwte/utf8.h"
