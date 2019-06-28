@@ -20,6 +20,4 @@
 #define CONFIG_FILE "~/.rwte.lua"
 #define RWTE_LIB_PATH "/usr/share/rwte/lib"
 
-#define DOUBLE_BUFFER false
-
 #endif // RWTE_CONFIG_H

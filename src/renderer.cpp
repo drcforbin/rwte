@@ -279,37 +279,22 @@ public:
         m_fo(std::move(fo)),
         m_drawsurf(nullptr)
     {
-#if DOUBLE_BUFFER
-        init_draw_surface(width, height);
-#else
         m_drawsurf = m_surface;
         m_drawcr = m_surfcr;
 
         set_defaults(m_drawcr);
 
         m_layout = create_layout(m_drawcr);
-#endif
-
-        // initial fill
-        m_drawcr.setSourceColor(g_term->defbg());
-        m_drawcr.paint();
     }
 
     void resize(int width, int height)
     {
-        cairo_xcb_surface_set_size(m_surface.get(), width, height);
-
-#if DOUBLE_BUFFER
-        init_draw_surface(width, height);
-#endif
+        if (cairo_surface_get_type(m_surface.get()) == CAIRO_SURFACE_TYPE_XCB)
+            cairo_xcb_surface_set_size(m_surface.get(), width, height);
     }
 
     void flush()
     {
-#if DOUBLE_BUFFER
-        m_surfcr.setSourceSurface(m_drawsurf);
-        m_surfcr.paint();
-#endif
         cairo_surface_flush(m_surface.get());
     }
 
@@ -317,30 +302,6 @@ public:
     PangoLayout *layout() const { return m_layout.get(); }
 
 private:
-
-#if DOUBLE_BUFFER
-    void init_draw_surface(int width, int height)
-    {
-        auto newsurf = make_shared(
-                cairo_surface_create_similar_image(
-                    m_surface.get(), CAIRO_FORMAT_RGB24, width, height));
-        Context ctx(newsurf.get());
-        set_defaults(ctx);
-
-        if (m_drawsurf)
-        {
-            // paint old surface to new one if it exists
-            newcr.setSourceSurface(m_drawsurf);
-            newcr.paint();
-        }
-
-        // replace old drawcr, layout, and surface
-        m_drawcr = std::move(ctx);
-        m_layout = create_layout(m_drawcr);
-        m_drawsurf = newsurf;
-    }
-#endif
-
     unique_layout create_layout(Context& cr)
     {
         PangoContext *context = pango_cairo_create_context(cr.get());
