@@ -48,7 +48,8 @@ struct PointerFrame {
     int mousey = 0;
 };
 
-// todo: figure out how to work frame & release
+// todo: figure out how to coordinate frame & release,
+// we should really only need one buffer, right?
 const int NumBuffers = 2;
 
 class Buffer : public wayland::Buffer<Buffer> {
@@ -405,6 +406,9 @@ public:
     uint16_t rows() const { return m_rows; }
     uint16_t cols() const { return m_cols; }
 
+    // todo: make private
+    void drawCore();
+
     void draw();
     void settitle(const std::string& name);
 
@@ -579,8 +583,17 @@ bool WlWindow::create(int cols, int rows)
     }
     LOGGER()->debug("created buffers");
 
-    // is an initial draw needed?
-    // draw();
+    // initial draw to get the window mapped
+    auto image = shm->get_buffer();
+    if (image) {
+        // todo: initial fill of image with bg color?
+
+        surface->attach(image->buffer->get(), 0, 0);
+        surface->damage_buffer(0, 0, m_width, m_height);
+        surface->commit();
+    } else {
+        LOGGER()->warn("unable to get a draw buffer");
+    }
 
     // start our event watchers
     m_prepare.start();
@@ -621,7 +634,7 @@ void WlWindow::destroy()
     LOGGER()->debug("disconnected from display");
 }
 
-void WlWindow::draw()
+void WlWindow::drawCore()
 {
     LOGGER()->debug("WlWindow draw {}x{}", m_width, m_height);
 
@@ -634,6 +647,29 @@ void WlWindow::draw()
         surface->commit();
     } else {
         LOGGER()->warn("unable to get a draw buffer");
+    }
+}
+
+// todo: suspicious static
+bool queued = false;
+
+static const struct wl_callback_listener frame_listener = {
+    // done event
+    [](void *data, struct wl_callback *cb, uint32_t time) {
+        queued = false;
+        LOGGER()->debug("FRAME RECEIVED");
+        static_cast<WlWindow *>(data)->drawCore();
+    }
+};
+
+void WlWindow::draw()
+{
+    if (!queued) {
+        auto cb = wl_surface_frame(surface->get());
+        wl_callback_add_listener(cb, &frame_listener, this);
+        wl_surface_commit(surface->get());
+        LOGGER()->debug("QUEUED FRAME");
+        queued = true;
     }
 }
 
