@@ -5,33 +5,31 @@
 
 #include <memory>
 
-class WindowImpl;
-
 class Window
 {
 public:
-    Window(std::shared_ptr<RwteBus> bus);
-    ~Window();
+    virtual ~Window() { }
 
-    bool create(int cols, int rows);
-    void destroy();
+    virtual bool create(int cols, int rows) = 0;
+    virtual void destroy() = 0;
 
-    uint32_t windowid() const;
+    // todo: x specific?
+    virtual uint32_t windowid() const = 0;
 
-    void draw();
+    virtual void draw() = 0;
 
-    void settitle(const std::string& name);
-    void seturgent(bool urgent);
-    void bell(int volume);
+    virtual void settitle(const std::string& name) = 0;
+    virtual void seturgent(bool urgent) = 0;
+    virtual void bell(int volume) = 0;
 
-    void setsel();
-    void selpaste();
-    void setclip();
-    void clippaste();
-
-private:
-    std::unique_ptr<WindowImpl> impl;
+    // todo: x specific?
+    virtual void setsel() = 0;
+    virtual void selpaste() = 0;
+    virtual void setclip() = 0;
+    virtual void clippaste() = 0;
 };
+
+std::unique_ptr<Window> createXcbWindow(std::shared_ptr<RwteBus> bus);
 
 extern std::unique_ptr<Window> window;
 

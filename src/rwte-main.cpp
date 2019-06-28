@@ -364,8 +364,8 @@ int main(int argc, char *argv[])
 
     g_term = std::make_unique<Term>(bus, cols, rows);
 
-    // todo: width and height are arbitrary
-    window = std::make_unique<Window>(bus);
+    window = createXcbWindow(bus);
+
     if (!window->create(cols, rows))
         return 1;
 
