@@ -388,7 +388,10 @@ void RendererImpl::set_surface(cairo_surface_t *surface, int width, int height)
     m_width = width;
     m_height = height;
 
-    m_surface = std::make_unique<Surface>(surface, m_fo, width, height);
+    if (surface)
+        m_surface = std::make_unique<Surface>(surface, m_fo, width, height);
+    else
+        m_surface.reset();
 }
 
 void RendererImpl::resize(int width, int height)

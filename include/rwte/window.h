@@ -30,6 +30,7 @@ public:
 };
 
 std::unique_ptr<Window> createXcbWindow(std::shared_ptr<RwteBus> bus);
+std::unique_ptr<Window> createWlWindow(std::shared_ptr<RwteBus> bus);
 
 extern std::unique_ptr<Window> window;
 

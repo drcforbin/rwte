@@ -204,6 +204,7 @@ int main(int argc, char *argv[])
         {"line", required_argument, nullptr, 'l'},
         {"help", no_argument, nullptr, 'h'},
         {"bench", no_argument, nullptr, 'b'},
+        {"wayland", no_argument, nullptr, 'x'},
         {"version", no_argument, nullptr, 'v'},
         {nullptr, 0, nullptr, 0}
     };
@@ -215,7 +216,8 @@ int main(int argc, char *argv[])
     bool got_exe = false;
     bool got_bench = false;
     bool got_title = false;
-    while ((opt = getopt_long(argc, argv, "-c:w:af:g:t:n:o:l:hbve:",
+    bool got_wayland = false;
+    while ((opt = getopt_long(argc, argv, "-c:w:af:g:t:n:o:l:hbve:x",
                 long_options, nullptr)) != -1)
     {
         switch (opt)
@@ -262,6 +264,10 @@ int main(int argc, char *argv[])
             LOGGER()->info("exe: {}", optarg);
             options.cmd.push_back(optarg);
             got_exe = true;
+            break;
+        case 'x':
+            LOGGER()->info("using wayland", optarg);
+            got_wayland = true;
             break;
         case 1:
             fprintf(stderr, "%s: invalid arg -- '%s'\n",
@@ -364,7 +370,10 @@ int main(int argc, char *argv[])
 
     g_term = std::make_unique<Term>(bus, cols, rows);
 
-    window = createXcbWindow(bus);
+    if (!got_wayland)
+        window = createXcbWindow(bus);
+    else
+        window = createWlWindow(bus);
 
     if (!window->create(cols, rows))
         return 1;
