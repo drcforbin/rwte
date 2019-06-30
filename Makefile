@@ -1,3 +1,4 @@
+CC := clang
 CXX := clang++
 
 SRCDIR := src
@@ -15,14 +16,16 @@ INSTALLBINDIR := x
 # Code Lists
 SRCEXT := cpp
 HEADERS := $(shell find $(INCDIR) -type f -name *.h)
-ALL_SOURCES := $(shell find $(SRCDIR) -type f -name *.$(SRCEXT))
+ALL_SOURCES := $(shell find $(SRCDIR) -type f -name *.$(SRCEXT)) $(shell find $(SRCDIR) -type f -name *.c)
 
 # sources without test main
 SOURCES := $(filter-out $(SRCDIR)/rwte-test.cpp, $(ALL_SOURCES))
-OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
+SRC_TO_OBJ1 := $(SOURCES:.$(SRCEXT)=.o)
+OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SRC_TO_OBJ1:.c=.o))
 # sources with test main
 TEST_SOURCES := $(filter-out $(SRCDIR)/rwte-main.cpp, $(ALL_SOURCES))
-TEST_OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(TEST_SOURCES:.$(SRCEXT)=.o))
+SRC_TO_OBJ2 := $(TEST_SOURCES:.$(SRCEXT)=.o)
+TEST_OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SRC_TO_OBJ2:.c=.o))
 
 # Folder Lists
 # Note: Intentionally excludes the root of the include folder so the lists are clean
@@ -30,17 +33,22 @@ INCDIRS := $(shell find $(INCDIR)/**/* -name '*.h' -exec dirname {} \; | sort | 
 #INCLIST := $(patsubst include/%,-I include/%,$(INCDIRS))
 BUILDLIST := $(patsubst include/%,$(BUILDDIR)/%,$(INCDIRS))
 
-PKGLIBS=libxdg-basedir xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb lua
+PKGLIBS=libxdg-basedir xcb xcb-util cairo pangocairo xkbcommon xkbcommon-x11 xcb-xkb wayland-client wayland-cursor lua
 
 # Shared Compiler Flags
 #INC := -I include $(INCLIST) -I /usr/local/include
 INC := -I include -I /usr/local/include
-# eventually, -O3 rather than -g
-CFLAGS = -c -Wall -pedantic -std=c++17 -O3 `pkg-config --cflags $(PKGLIBS)`
-LDFLAGS= -O3 -lev -lutil `pkg-config --libs $(PKGLIBS)`
-#CFLAGS = -c -Wall -pedantic -std=c++17 -g `pkg-config --cflags $(PKGLIBS)`
-#LDFLAGS= -g -lev -lutil `pkg-config --libs $(PKGLIBS)`
+
+# todo: add -flto
+CFLAGS = -c -O3 -Wall -pedantic `pkg-config --cflags $(PKGLIBS)`
+CXXFLAGS = -c -O3 -Wall -pedantic -std=c++17 -O3 `pkg-config --cflags $(PKGLIBS)`
+LDFLAGS= -O3 -lev -lutil -lrt `pkg-config --libs $(PKGLIBS)`
 TIDYFLAGS = -std=c++17 $(INC) `pkg-config --cflags $(PKGLIBS)`
+
+# todo: use some kinda debug flag to control this?
+# CFLAGS = -c -g -Wall -pedantic `pkg-config --cflags $(PKGLIBS)`
+# CXXFLAGS = -c -g -Wall -pedantic -std=c++17 `pkg-config --cflags $(PKGLIBS)`
+# LDFLAGS= -g -lev -lutil -lrt `pkg-config --libs $(PKGLIBS)`
 
 $(TARGET): $(OBJECTS)
 	@mkdir -p $(TARGETDIR)
@@ -54,7 +62,11 @@ $(TEST_TARGET): $(TEST_OBJECTS)
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)
 	@mkdir -p $(BUILDLIST)
-	@echo "Compiling $<..."; $(CXX) $(CFLAGS) $(INC) -c -o $@ $<
+	@echo "Compiling $<..."; $(CXX) $(CXXFLAGS) $(INC) -c -o $@ $<
+
+$(BUILDDIR)/%.o: $(SRCDIR)/%.c
+	@mkdir -p $(BUILDLIST)
+	@echo "Compiling $<..."; $(CC) $(CFLAGS) $(INC) -c -o $@ $<
 
 #tidy:
 #    find src/* src/**/* -name '*.cpp' -print0 | xargs -0 -I{} echo {} -- $(TIDYFLAGS)
