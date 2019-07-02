@@ -1,6 +1,6 @@
 # rwte
 
-xcb terminal emulator, with lua, cairo, and pango
+xcb and wayland terminal emulator, with lua, cairo, and pango
 
 ## Todo
 
@@ -17,8 +17,7 @@ xcb terminal emulator, with lua, cairo, and pango
 
 Borrows code and ideas from all over
 * most code has been derived from st and rxvt-unicode, but xterm and vte
-  were involved too. This terminal has no real advantage over the others;
-  it's a toy project.
+  were involved too.
 * the excellent [fmt](https://github.com/fmtlib/fmt) library is embedded
 
 ## Lua API
@@ -38,6 +37,15 @@ created, but handlers may be registered).
 If the `-b` of `--bench` argument is supplied, rwte will exit after the config
 file is loaded/run. Lua code can look for these arguments to run tests and
 benchmarking.
+
+The default library used for display is xcb. By specifying `-x` of `--wayland`
+on the command line, it'll use wayland instead. Note that wayland support is
+missing some things (e.g., all clipboard), and isn't repainting properly. It's
+a work in progress.
+
+Re wayland repainting, now that we have multiple buffers, we need to use damage
+properly, as we don't fully repaint all the buffers, but we tell wayland to
+paint the whole buffer every time.
 
 The config file is expected to assign to set a global `config` object, and may
 also connect event handlers for `window` / `term` events.
