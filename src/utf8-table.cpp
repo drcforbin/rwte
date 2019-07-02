@@ -103,6 +103,8 @@ constexpr unsigned char TAIL3_lut_entry(int i)
     return lut_entry(0x80, 0xBF, ACTION_SET_BYTE3, STATE_TAIL2, i);
 }
 
+// todo: can this template be replaced with a constexpr function?
+
 // returns an array of bytes, where each element is the result
 // of calling entryfn on the next element of the input array
 template<int ...Is>

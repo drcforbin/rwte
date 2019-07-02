@@ -18,10 +18,13 @@
 
 #define LOGGER() (logging::get("term"))
 
+// todo: std::min, std::max
 #define MIN(a, b) ((a) < (b)? (a) : (b))
 #define MAX(a, b) ((a) < (b)? (b) : (a))
+
 #define DEFAULT(a, b)  (a) = (a) ? (a) : (b)
 
+// todo: constexpr
 #define TIMEDIFF(t1, t2) \
         (((t1).tv_sec-(t2).tv_sec)*1000 + \
          ((t1).tv_nsec-(t2).tv_nsec)/1E6)

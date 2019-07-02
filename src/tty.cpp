@@ -24,6 +24,7 @@
 
 #define LOGGER() (logging::get("tty"))
 
+// todo: std::min
 #define MIN(a, b) ((a) < (b)? (a) : (b))
 
 // most we write in a chunk

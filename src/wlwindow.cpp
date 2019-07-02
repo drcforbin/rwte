@@ -28,6 +28,14 @@
 
 #define LOGGER() (logging::get("wlwindow"))
 
+// todo: suspicious statics
+bool queued = false;
+bool prepared = false;
+
+// todo: figure out how to coordinate frame & release,
+// we should really only need one buffer, right?
+const int NumBuffers = 2;
+
 // todo: move this to a utils file
 static int get_border_px()
 {
@@ -48,19 +56,12 @@ struct PointerFrame {
     int mousey = 0;
 };
 
-// todo: figure out how to coordinate frame & release,
-// we should really only need one buffer, right?
-const int NumBuffers = 2;
-
 class Buffer : public wayland::Buffer<Buffer> {
 public:
     Buffer(Shm *shm, wl_buffer *buffer) :
         wayland::Buffer<Buffer>(buffer),
         shm(shm)
     { }
-
-    // todo: find better way
-    wl_buffer *get() { return m_buffer; }
 
 protected:
     friend class wayland::Buffer<Buffer>;
@@ -92,8 +93,6 @@ public:
     Shm(wl_shm *shm) :
         shm(shm)
     { }
-
-    // todo: add resize methods
 
     bool create_buffers(int width, int height);
     bool resize(int width, int height);
@@ -175,8 +174,6 @@ private:
         return fd;
     }
 
-    bool create_buffer(int width, int height);
-
     struct wl_shm *shm;
 
     std::vector<Image> buffers;
@@ -186,9 +183,6 @@ void Buffer::handle_release()
 {
     shm->release_buffer(*this);
 }
-
-// todo: running is no good anymore
-static bool running = true;
 
 class XdgToplevel :
     public wayland::XdgToplevel<XdgToplevel> {
@@ -206,8 +200,7 @@ protected:
 
     void handle_close()
     {
-        // todo: running is no good anymore
-        running = false;
+        // todo: do we need to stop the event loop?
     }
 
 private:
@@ -227,10 +220,7 @@ public:
         m_window(window)
     { }
 
-    // todo: better pointer type
-    WlWindow* window() {
-        return m_window;
-    }
+    WlWindow* window() { return m_window; }
 
     // todo: getter/setter?
     // todo: move to keyboard instead of seat?
@@ -238,13 +228,6 @@ public:
 
 protected:
     friend Base;
-
-    void handle_capabilities(uint32_t caps)
-    {
-        // todo: add'l keyboard setup?
-        if ((caps & WL_SEAT_CAPABILITY_KEYBOARD) && keyboard) {
-        }
-    }
 
     void handle_name(const char *name)
     {
@@ -430,6 +413,7 @@ public:
 
     // todo: rename?
     xkb_context *ctx;
+    // todo: compositor wrapper?
     struct wl_compositor *compositor = nullptr;
     std::unique_ptr<XdgWmBase> wmbase;
     std::unique_ptr<XdgToplevel> toplevel;
@@ -483,31 +467,6 @@ WlWindow::WlWindow(std::shared_ptr<RwteBus> bus) :
 
 WlWindow::~WlWindow()
 {
-    /*
-    todo: check out cleanup order
-    wl_list_for_each_safe(seat, tmp, &inter->seats, link)
-        seat_destroy(seat);
-
-    if (inter->xdg_surf)
-        zxdg_surface_v6_destroy(inter->xdg_surf);
-    if (inter->xdg_top)
-        zxdg_toplevel_v6_destroy(inter->xdg_top);
-    if (inter->wl_surf)
-        wl_surface_destroy(inter->wl_surf);
-    if (inter->shell)
-        zxdg_shell_v6_destroy(inter->shell);
-    if (inter->compositor)
-        wl_compositor_destroy(inter->compositor);
-    if (inter->shm)
-        wl_shm_destroy(inter->shm);
-
-    // Do one last roundtrip to try to destroy our wl_buffer.
-    wl_display_roundtrip(inter->dpy);
-
-    xkb_context_unref(inter->ctx);
-    wl_display_disconnect(inter->dpy);
-    */
-
     m_bus->unreg<ResizeEvt>(m_resizeReg);
 }
 
@@ -572,6 +531,8 @@ bool WlWindow::create(int cols, int rows)
 
     // todo: set app id
     // toplevel->set_app_id(?);
+
+    // set initial title
     settitle(options.title);
 
     // todo: move this somewhere
@@ -613,6 +574,9 @@ void WlWindow::destroy()
 {
     LOGGER()->debug("destroying window");
 
+    // todo: make sure these are ordered in the class
+    // so they can be destroyed by dtor without segfault
+
     // ordered cleanup...destroy toplevel, xdg_surface,
     // surface, then buffers
     toplevel.release();
@@ -649,9 +613,6 @@ void WlWindow::drawCore()
         LOGGER()->warn("unable to get a draw buffer");
     }
 }
-
-// todo: suspicious static
-bool queued = false;
 
 static const struct wl_callback_listener frame_listener = {
     // done event
@@ -729,19 +690,25 @@ void WlWindow::publishresize(uint16_t width, uint16_t height)
 
 void WlWindow::onresize(const ResizeEvt& evt)
 {
-    // todo: moved this to the painting...
-    // seems like doing it her would be a little better
-    // m_renderer->resize(evt.width, evt.height);
     LOGGER()->info("resize to {}x{}", evt.width, evt.height);
+
+    // todo: render resize is done while painting, because
+    // we have a hack in place that resizes every paint
+    // (since we don't let it keep state), but doing it
+    // here would be better
+    // m_renderer->resize(evt.width, evt.height);
+
+    // todo: figure out why we're painting badly on resize
+    // (we paint with an unresized surface, then resize
+    // and paint properly)
 
     shm->resize(evt.width, evt.height);
 }
 
-// todo: suspicious
-bool prepared = false;
-
 void WlWindow::preparecb(ev::prepare &, int)
 {
+    // todo: test different kinds of failures in here
+
     if (!prepared) {
         // announce intention to read; if that fails, dispatch
         // anything already pending and repeat until successful
@@ -779,6 +746,8 @@ void WlWindow::preparecb(ev::prepare &, int)
 
 void WlWindow::iocb(ev::io &, int revents)
 {
+    // todo: test different kinds of failures in here
+
     if (revents & ev::WRITE) {
         LOGGER()->debug("iocb WRITE");
 
@@ -833,19 +802,52 @@ void WlWindow::paint_pixels(Image *image)
     int height = image->height;
     int stride = image->stride;
 
-    // hack!
+    // hack! renderer should keep this surface as state, or
+    // we need to do something smarter about damaging the
+    // buffer for painting...when we paint to multiple buffers
+    // they aren't all fully painted
     auto surface = cairo_image_surface_create_for_data(image->data,
             CAIRO_FORMAT_ARGB32, width, height, stride);
     m_renderer->set_surface(surface, width, height);
-    // todo: this ok? done in onresize?
+    // todo: this ok? used to be done in onresize?
     m_renderer->resize(width, height);
     m_renderer->drawregion({0, 0}, {g_term->rows(), g_term->cols()});
     m_renderer->set_surface(nullptr, width, height);
 }
 
 bool Shm::create_buffers(int width, int height) {
+    int stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, width);
+    int size = stride * height;
+
     for (int i = 0; i < NumBuffers; i++ ) {
-        if (!create_buffer(width, height)) {
+        int fd = create_shm_file(size);
+        if (fd < 0) {
+            LOGGER()->fatal("creating a buffer file failed for {}: {}\n",
+                    size, strerror(errno));
+            return false; // won't return
+        }
+
+        auto data = (unsigned char *) mmap(nullptr, size,
+                PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if (data == MAP_FAILED) {
+            LOGGER()->fatal("mmap failed for {}, {}", size, strerror(errno));
+            close(fd); // won't get here, given fatal
+            return false;
+        }
+
+        // todo: keep pool, for resizing smaller?
+        struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
+        auto buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
+                    stride, WL_SHM_FORMAT_ARGB8888);
+        wl_shm_pool_destroy(pool);
+
+        // todo: are we leaking fd? we're leaking something...
+
+        if (buffer) {
+            buffers.emplace_back(this, buffer,
+                    data, width, height, stride);
+        } else {
+            LOGGER()->fatal("unable to create buffer {}", i);
             return false;
         }
     }
@@ -857,52 +859,15 @@ bool Shm::resize(int width, int height) {
     return create_buffers(width, height);
 }
 
-bool Shm::create_buffer(int width, int height) {
-    int stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, width);
-    int size = stride * height;
-
-    int fd = create_shm_file(size);
-    if (fd < 0) {
-        LOGGER()->fatal("creating a buffer file failed for {}: {}\n",
-                size, strerror(errno));
-        return false; // won't return
-    }
-
-    auto data = (unsigned char *) mmap(nullptr, size,
-            PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (data == MAP_FAILED) {
-        LOGGER()->fatal("mmap failed for {}, {}", size, strerror(errno));
-        close(fd); // won't get here, given fatal
-        return false;
-    }
-
-    // todo: keep pool, for resizing smaller?
-    struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
-    auto buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
-                stride, WL_SHM_FORMAT_ARGB8888);
-    wl_shm_pool_destroy(pool);
-
-    if (buffer) {
-        buffers.emplace_back(this, buffer,
-                data, width, height, stride);
-        return true;
-    } else {
-        LOGGER()->fatal("unable to create buffer {}", buffers.size());
-    }
-
-    return false;
-}
-
 void XdgToplevel::handle_configure(int32_t width, int32_t height,
         struct wl_array *states)
 {
     bool activated = false;
     bool fullscreen = false;
 
-    // todo: is this the right way to use wl_array,
-    // or are some of its funcs better to use?
-    xdg_toplevel_state *cur = static_cast<xdg_toplevel_state *>(states->data);
-    for ( ;
+    // wl_array's data is a void*, and size is in bytes, but
+    // it contains xdg_toplevel_state values
+    for (auto cur = static_cast<xdg_toplevel_state *>(states->data);
          (const char *) cur < ((const char *) states->data + states->size);
          cur++)
     {
@@ -913,10 +878,13 @@ void XdgToplevel::handle_configure(int32_t width, int32_t height,
         }
     }
 
+    // todo: remove? this doesn't drive behavior
     window->fullscreen = fullscreen;
 
     if (window->activated != activated) {
         LOGGER()->debug("focused {} (toplevel)", activated);
+
+        // todo: **** why doesn't this repaint when activated false??? ****
 
         g_term->setfocused(activated);
         window->activated = activated;
@@ -932,11 +900,7 @@ void XdgToplevel::handle_configure(int32_t width, int32_t height,
 void Pointer::handle_enter(uint32_t serial, struct wl_surface *surface,
             wl_fixed_t sx, wl_fixed_t sy)
 {
-    WlWindow *window = seat->window();
-
-    // todo: necessary?
-    if (!window)
-        return;
+    auto window = seat->window();
 
     frame.entered = true;
     frame.mousex = wl_fixed_to_int(sx);
@@ -1009,7 +973,7 @@ void Keyboard::handle_enter(uint32_t serial, struct wl_surface *surface,
 void Keyboard::handle_leave(uint32_t serial, struct wl_surface *surface)
 {
     auto window = seat->window();
-    window->setkbdfocus(true);
+    window->setkbdfocus(false);
 }
 
 void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
@@ -1020,6 +984,9 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
 
     // add 8, because that's how it works...it's in the docs somewhere
     key += 8;
+
+    // todo: a bunch of this code is shared with xcbwindow...move
+    // it somewhere common
 
     auto& mode = g_term->mode();
     if (mode[MODE_KBDLOCK])
@@ -1130,13 +1097,15 @@ void Keyboard::handle_modifiers(uint32_t serial, uint32_t mods_depressed,
     xkb_state_update_mask(state, mods_depressed, mods_latched,
             mods_locked, 0, 0, group);
 
-    // todo: keep these at object level?
+    // todo: keep these at object level instead of retrieving here?
     xkb_mod_index_t m_shift_modidx, m_ctrl_modidx, m_alt_modidx, m_logo_modidx;
     m_shift_modidx = xkb_keymap_mod_get_index(keymap, XKB_MOD_NAME_SHIFT);
     m_ctrl_modidx = xkb_keymap_mod_get_index(keymap, XKB_MOD_NAME_CTRL);
     m_alt_modidx = xkb_keymap_mod_get_index(keymap, XKB_MOD_NAME_ALT);
     m_logo_modidx = xkb_keymap_mod_get_index(keymap, XKB_MOD_NAME_LOGO);
 
+    // todo: this looks like it should be a single set operation after
+    // determining mods, rather than reset and bit flipping
     seat->keymod.reset();
     if (xkb_state_mod_index_is_active(state, m_shift_modidx,
                 XKB_STATE_MODS_EFFECTIVE) == 1)
@@ -1154,7 +1123,8 @@ void Keyboard::handle_modifiers(uint32_t serial, uint32_t mods_depressed,
 
 void Keyboard::handle_repeat_info(int32_t rate, int32_t delay)
 {
-    // todo
+    // todo: we should store the info here, then when a key is
+    // pressed, add timer events to repeat the pressed key
 }
 
 void Surface::handle_enter(struct wl_output *output)

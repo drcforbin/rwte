@@ -23,7 +23,7 @@ constexpr T limit(T x, T a, T b) {
     return x < a? a : (x > b? b : x);
 }
 
-static uint16_t sixd_to_16bit(int x)
+constexpr uint16_t sixd_to_16bit(int x)
 {
 	return x == 0 ? 0 : 0x3737 + 0x2828 * x;
 }
@@ -432,6 +432,18 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
 
     auto cr = m_surface->cr();
     auto layout = m_surface->layout();
+
+    /*
+    // test painting
+    cr.setOperator(CAIRO_OPERATOR_SOURCE);
+    if (g_term->focused())
+        cr.setSourceRgb(1, 0, 0);
+    else
+        cr.setSourceRgb(0, 0, 1);
+    cr.paint();
+    m_surface->flush();
+    return;
+    */
 
     auto& sel = g_term->sel();
     bool ena_sel = !sel.empty() && sel.alt == g_term->mode()[MODE_ALTSCREEN];

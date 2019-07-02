@@ -34,9 +34,11 @@
 
 #define LOGGER() (logging::get("xcbwindow"))
 
+// todo: std::max
 #define MAX(a, b) ((a) < (b)? (b) : (a))
 
 // XEMBED messages
+// todo: static const / constexpr
 #define XEMBED_FOCUS_IN  4
 #define XEMBED_FOCUS_OUT 5
 

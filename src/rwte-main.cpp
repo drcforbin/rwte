@@ -22,8 +22,8 @@
 
 #define LOGGER() (logging::get("rwte-main"))
 
+// todo: std::max
 #define MAX(a, b) ((a) < (b)? (b) : (a))
-
 
 static void add_to_search_path(lua::State *L, const std::vector<std::string>& searchpaths, bool for_lua)
 {
@@ -137,6 +137,7 @@ static void exit_help(int code)
         "                        device\n"
         "  -h, --help            show help\n"
         "  -b, --bench           run config and exit\n"
+        "  -x, --wayland         use wayland rather than xcb\n"
         "  -v, --version         show version and exit\n");
     exit(code);
 }
@@ -375,6 +376,7 @@ int main(int argc, char *argv[])
     else
         window = createWlWindow(bus);
 
+    // todo: replace create/destroy with ctor/dtor
     if (!window->create(cols, rows))
         return 1;
 
