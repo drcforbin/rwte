@@ -25,7 +25,7 @@ constexpr T limit(T x, T a, T b) {
 
 constexpr uint16_t sixd_to_16bit(int x)
 {
-	return x == 0 ? 0 : 0x3737 + 0x2828 * x;
+    return x == 0 ? 0 : 0x3737 + 0x2828 * x;
 }
 
 static uint32_t lookup_color(uint32_t color)
@@ -51,7 +51,7 @@ static uint32_t lookup_color(uint32_t color)
         }
         else
         {
-		    if (16 <= color && color <= 255)
+            if (16 <= color && color <= 255)
             {
                 // 256 color
                 if (color < 6*6*6+16)
@@ -506,7 +506,7 @@ Cell RendererImpl::pxtocell(int x, int y) const
 
     return {
         limit(row, 0, (m_height/m_ch)-1),
-	    limit(col, 0, (m_width/m_cw)-1)
+        limit(col, 0, (m_width/m_cw)-1)
     };
 }
 

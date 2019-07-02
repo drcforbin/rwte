@@ -420,12 +420,12 @@ public:
     std::unique_ptr<Seat> seat;
     std::unique_ptr<Shm> shm;
 
-	struct wl_cursor_theme *cursor_theme = nullptr;
-	struct wl_cursor *default_cursor = nullptr;
-	struct wl_surface *cursor_surface = nullptr;
+    struct wl_cursor_theme *cursor_theme = nullptr;
+    struct wl_cursor *default_cursor = nullptr;
+    struct wl_surface *cursor_surface = nullptr;
 
-	bool fullscreen = false;
-	bool activated = false;
+    bool fullscreen = false;
+    bool activated = false;
     bool visible = false;
 
     std::shared_ptr<RwteBus> m_bus;
@@ -519,7 +519,7 @@ bool WlWindow::create(int cols, int rows)
         LOGGER()->debug("found compositor");
     }
 
-	surface = std::make_unique<Surface>(this,
+    surface = std::make_unique<Surface>(this,
             wl_compositor_create_surface(compositor));
     xdg_surface = wmbase->get_xdg_surface(
             surface.get());
