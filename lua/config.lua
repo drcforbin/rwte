@@ -3,6 +3,8 @@ local util = require("util")
 -- set up some logging defaults
 logging.get("term").level = logging.debug
 logging.get("tty").level = logging.debug
+logging.get("xcbwindow").level = logging.debug
+logging.get("wlwindow").level = logging.debug
 
 -- solarized
 local function color_table()
