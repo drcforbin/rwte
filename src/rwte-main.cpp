@@ -374,7 +374,10 @@ int main(int argc, char *argv[])
     if (!got_wayland)
         window = createXcbWindow(bus);
     else
+    {
+        options.throttledraw = false;
         window = createWlWindow(bus);
+    }
 
     // todo: replace create/destroy with ctor/dtor
     if (!window->create(cols, rows))

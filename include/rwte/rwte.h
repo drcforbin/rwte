@@ -23,7 +23,8 @@ struct Options
     std::string font;
     std::string io;
     std::string line;
-    bool noalt {false};
+    bool noalt = false;
+    bool throttledraw = true;
 };
 
 extern Options options;

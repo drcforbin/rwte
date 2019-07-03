@@ -47,8 +47,15 @@ void Rwte::watch_child(pid_t pid)
 
 void Rwte::refresh()
 {
-    if (!m_flush.is_active())
-        m_flush.start(1.0/60.0);
+    // with xcb, we throttle drawing here
+    if (options.throttledraw) {
+        if (!m_flush.is_active())
+            m_flush.start(1.0/60.0);
+    } else {
+        // for wayland, we let the window throttle
+        if (window)
+            window->draw();
+    }
 }
 
 void Rwte::start_blink()
