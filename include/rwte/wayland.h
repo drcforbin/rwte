@@ -10,10 +10,6 @@
 
 #define LOGGER() (logging::get("wayland"))
 
-class Shm;
-struct xkb_keymap;
-struct xkb_state;
-
 namespace wayland {
 
 template<class T>
@@ -77,10 +73,12 @@ private:
     static const struct wl_buffer_listener listener;
 };
 
+/// \cond HIDE_STAT_CONST
 template<class T>
 const struct wl_buffer_listener Buffer<T>::listener = {
     &Buffer<T>::handle_release
 };
+/// \endcond
 
 template<class T>
 class Pointer {
@@ -161,6 +159,7 @@ private:
     static const struct wl_pointer_listener listener;
 };
 
+/// \cond HIDE_STAT_CONST
 template<class T>
 const struct wl_pointer_listener Pointer<T>::listener = {
     &Pointer<T>::handle_enter,
@@ -173,6 +172,7 @@ const struct wl_pointer_listener Pointer<T>::listener = {
     &Pointer<T>::handle_axis_stop,
     &Pointer<T>::handle_axis_discrete
 };
+/// \endcond
 
 template<class T>
 class Keyboard {
@@ -242,6 +242,7 @@ private:
     static const struct wl_keyboard_listener listener;
 };
 
+/// \cond HIDE_STAT_CONST
 template<class T>
 const struct wl_keyboard_listener Keyboard<T>::listener = {
     &Keyboard<T>::handle_keymap,
@@ -251,6 +252,7 @@ const struct wl_keyboard_listener Keyboard<T>::listener = {
     &Keyboard<T>::handle_modifiers,
     &Keyboard<T>::handle_repeat_info
 };
+/// \endcond
 
 template<class T>
 class Touch {
@@ -318,6 +320,7 @@ private:
     static const struct wl_touch_listener listener;
 };
 
+/// \cond HIDE_STAT_CONST
 template<class T>
 const struct wl_touch_listener Touch<T>::listener = {
     &Touch<T>::handle_down,
@@ -328,6 +331,7 @@ const struct wl_touch_listener Touch<T>::listener = {
     &Touch<T>::handle_shape,
     &Touch<T>::handle_orientation
 };
+/// \endcond
 
 template<
     class T,
@@ -397,11 +401,13 @@ private:
     static const struct wl_seat_listener listener;
 };
 
+/// \cond HIDE_STAT_CONST
 template<class T, class PointerT, class KeyboardT, class TouchT>
 const struct wl_seat_listener Seat<T, PointerT, KeyboardT, TouchT>::listener = {
     &Seat<T, PointerT, KeyboardT, TouchT>::handle_capabilities,
     &Seat<T, PointerT, KeyboardT, TouchT>::handle_name
 };
+/// \endcond
 
 template<class T>
 class XdgToplevel {
@@ -459,11 +465,13 @@ private:
     static const struct xdg_toplevel_listener listener;
 };
 
+/// \cond HIDE_STAT_CONST
 template<class T>
 const struct xdg_toplevel_listener XdgToplevel<T>::listener = {
     &XdgToplevel<T>::handle_configure,
     &XdgToplevel<T>::handle_close
 };
+/// \endcond
 
 template<class T, class WindowT, class XdgToplevelT>
 class XdgSurface {
@@ -506,10 +514,12 @@ private:
     static const struct xdg_surface_listener listener;
 };
 
+/// \cond HIDE_STAT_CONST
 template<class T, class WindowT, class XdgToplevelT>
 const struct xdg_surface_listener XdgSurface<T, WindowT, XdgToplevelT>::listener = {
     &XdgSurface<T, WindowT, XdgToplevelT>::handle_configure
 };
+/// \endcond
 
 template<class T, class WindowT, class SurfaceT, class XdgSurfaceT>
 class XdgWmBase {
@@ -553,10 +563,12 @@ private:
     static const struct xdg_wm_base_listener listener;
 };
 
+/// \cond HIDE_STAT_CONST
 template<class T, class WT, class ST, class XST>
 const struct xdg_wm_base_listener XdgWmBase<T, WT, ST, XST>::listener = {
     &XdgWmBase<T, WT, ST, XST>::handle_ping
 };
+/// \endcond
 
 template<class T>
 class Registry {
@@ -595,11 +607,13 @@ private:
     static const struct wl_registry_listener listener;
 };
 
+/// \cond HIDE_STAT_CONST
 template<class T>
 const struct wl_registry_listener Registry<T>::listener = {
     &Registry<T>::handle_global,
     &Registry<T>::handle_global_remove
 };
+/// \endcond
 
 template<class T>
 class Surface {
@@ -657,11 +671,13 @@ private:
     static const struct wl_surface_listener listener;
 };
 
+/// \cond HIDE_STAT_CONST
 template<class T>
 const struct wl_surface_listener Surface<T>::listener = {
     &Surface<T>::handle_enter,
     &Surface<T>::handle_leave
 };
+/// \endcond
 
 } // namespace wayland
 

@@ -1,0 +1,182 @@
+\hypertarget{classlua_1_1State}{}\section{lua\+::State Class Reference}
+\label{classlua_1_1State}\index{lua::State@{lua::State}}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a9c4a8420956b85366165c3b30c29240e}\label{classlua_1_1State_a9c4a8420956b85366165c3b30c29240e}} 
+{\bfseries State} (lua\+\_\+\+State $\ast$L)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a324f8b53a042c415c2b9975536155d0f}\label{classlua_1_1State_a324f8b53a042c415c2b9975536155d0f}} 
+lua\+\_\+\+State $\ast$ {\bfseries state} () const
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a453a6fa5ebbecac1f3f605d3787c8eb6}\label{classlua_1_1State_a453a6fa5ebbecac1f3f605d3787c8eb6}} 
+void {\bfseries openlibs} ()
+\item 
+\mbox{\Hypertarget{classlua_1_1State_aa889c55efd7eb4b9c3921e1fdf9e41bb}\label{classlua_1_1State_aa889c55efd7eb4b9c3921e1fdf9e41bb}} 
+int {\bfseries loadfile} (const char $\ast$filename)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a1027ae103ab5add6f09efbc8568a2c53}\label{classlua_1_1State_a1027ae103ab5add6f09efbc8568a2c53}} 
+void {\bfseries call} (int nargs, int nresults)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a0e21adad577d4fb240150e3c82914c90}\label{classlua_1_1State_a0e21adad577d4fb240150e3c82914c90}} 
+int {\bfseries pcall} (int nargs, int nresults, int msgh)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_af168818928399ff608b45eacfeb078a5}\label{classlua_1_1State_af168818928399ff608b45eacfeb078a5}} 
+void {\bfseries pop} (int n=1)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a900759e80c3e59bc5b97f6267027623f}\label{classlua_1_1State_a900759e80c3e59bc5b97f6267027623f}} 
+void {\bfseries remove} (int index)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a48d2798bb51cd6dfcd33590be6a98ff8}\label{classlua_1_1State_a48d2798bb51cd6dfcd33590be6a98ff8}} 
+void {\bfseries pushvalue} (int index)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a6c211871187978af27fab76d8737e120}\label{classlua_1_1State_a6c211871187978af27fab76d8737e120}} 
+int {\bfseries gettop} ()
+\item 
+\mbox{\Hypertarget{classlua_1_1State_adbf92f3f483fea8ac70d58d4c5ad06ce}\label{classlua_1_1State_adbf92f3f483fea8ac70d58d4c5ad06ce}} 
+void {\bfseries newlib} (const lua\+L\+\_\+\+Reg $\ast$l, int entries=0)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a0f6789f0f3ed289d18dec8b74adc363f}\label{classlua_1_1State_a0f6789f0f3ed289d18dec8b74adc363f}} 
+void {\bfseries setfuncs} (const lua\+L\+\_\+\+Reg $\ast$l, int nup=0)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a8971a613aa3486fae93fd17bb59ec538}\label{classlua_1_1State_a8971a613aa3486fae93fd17bb59ec538}} 
+void {\bfseries requiref} (const char $\ast$modname, lua\+\_\+\+C\+Function openf, bool glb)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a88ec520c2ecccc598b592e5c8f3fc81f}\label{classlua_1_1State_a88ec520c2ecccc598b592e5c8f3fc81f}} 
+void {\bfseries pushcfunction} (lua\+\_\+\+C\+Function f)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a274c3ce8a58e9082bda2a92fea890c1c}\label{classlua_1_1State_a274c3ce8a58e9082bda2a92fea890c1c}} 
+void {\bfseries pushnil} ()
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a72674c84e98aadea69eafd5424789a7f}\label{classlua_1_1State_a72674c84e98aadea69eafd5424789a7f}} 
+void {\bfseries pushlightuserdata} (void $\ast$p)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a858c8fbd31b49f540b0c6d6a4a4ceca4}\label{classlua_1_1State_a858c8fbd31b49f540b0c6d6a4a4ceca4}} 
+void $\ast$ {\bfseries touserdata} (int index)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a67a47a69089a119843e2238ad5d3dfc4}\label{classlua_1_1State_a67a47a69089a119843e2238ad5d3dfc4}} 
+void {\bfseries pushcclosure} (int($\ast$fn)(lua\+\_\+\+State $\ast$), int n)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a4b23c6d654d2e7072406e86be68d89f1}\label{classlua_1_1State_a4b23c6d654d2e7072406e86be68d89f1}} 
+void {\bfseries newtable} ()
+\item 
+\mbox{\Hypertarget{classlua_1_1State_ab0b644f91f9855336dd8e8612e9effa4}\label{classlua_1_1State_ab0b644f91f9855336dd8e8612e9effa4}} 
+void {\bfseries setmetatable} (int index)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_ae6d5c8c2c31f174e54fa3d20d88eb889}\label{classlua_1_1State_ae6d5c8c2c31f174e54fa3d20d88eb889}} 
+bool {\bfseries newmetatable} (const char $\ast$tname)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a96eb75943261fa23bb86feb21c3f60cd}\label{classlua_1_1State_a96eb75943261fa23bb86feb21c3f60cd}} 
+void {\bfseries setmetatable} (const char $\ast$tname)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_ac47548f3396d21cd777b2dec0bdae0e4}\label{classlua_1_1State_ac47548f3396d21cd777b2dec0bdae0e4}} 
+int {\bfseries getglobal} (const char $\ast$name)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_ad110f235dd19f4c2409de5cfd62222fd}\label{classlua_1_1State_ad110f235dd19f4c2409de5cfd62222fd}} 
+void {\bfseries setglobal} (const char $\ast$name)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a39eb52fe6b301ab7169149da013075ff}\label{classlua_1_1State_a39eb52fe6b301ab7169149da013075ff}} 
+void {\bfseries concat} (int n)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_aacdae6b5e24a87acd23e702b775fb99e}\label{classlua_1_1State_aacdae6b5e24a87acd23e702b775fb99e}} 
+int {\bfseries type} (int index)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_ae36960f81c8554bd8580de79c16c31bb}\label{classlua_1_1State_ae36960f81c8554bd8580de79c16c31bb}} 
+bool {\bfseries isnil} (int index)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_ae2329d1e53b711f68b13d7a2b57a5b56}\label{classlua_1_1State_ae2329d1e53b711f68b13d7a2b57a5b56}} 
+bool {\bfseries istable} (int index)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a2c126bb2c15a3fd9aa39ba7de5a76fb8}\label{classlua_1_1State_a2c126bb2c15a3fd9aa39ba7de5a76fb8}} 
+int {\bfseries getfield} (int index, const char $\ast$k)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_aae6dd036cbc7bf1d490ad2179300ca12}\label{classlua_1_1State_aae6dd036cbc7bf1d490ad2179300ca12}} 
+void {\bfseries setfield} (int index, const char $\ast$k)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_aff18ee323aa5cf8851f1e06dcd1bb2fc}\label{classlua_1_1State_aff18ee323aa5cf8851f1e06dcd1bb2fc}} 
+int {\bfseries geti} (int index, int i)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_aba751b4585be9011f2a6a4019009a742}\label{classlua_1_1State_aba751b4585be9011f2a6a4019009a742}} 
+void {\bfseries seti} (int index, int n)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a8faf61c805c97bdf947882ad76f613e9}\label{classlua_1_1State_a8faf61c805c97bdf947882ad76f613e9}} 
+const char $\ast$ {\bfseries tostring} (int index)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_aa55cd3180350a020941b4ba4108d2057}\label{classlua_1_1State_aa55cd3180350a020941b4ba4108d2057}} 
+const char $\ast$ {\bfseries tolstring} (int index, size\+\_\+t $\ast$len)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_aaf94e52cbf1b849943cc1ddcb4bbd640}\label{classlua_1_1State_aaf94e52cbf1b849943cc1ddcb4bbd640}} 
+const char $\ast$ {\bfseries checkstring} (int arg)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a2eb2a0ef66a612ac8569eae56f932202}\label{classlua_1_1State_a2eb2a0ef66a612ac8569eae56f932202}} 
+const char $\ast$ {\bfseries checklstring} (int arg, size\+\_\+t $\ast$l)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a6cfe41f8b84496836d273447a2be8244}\label{classlua_1_1State_a6cfe41f8b84496836d273447a2be8244}} 
+void {\bfseries pushstring} (const char $\ast$s)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a772e65ddd5b6a8c7396dcbd6ab2810a6}\label{classlua_1_1State_a772e65ddd5b6a8c7396dcbd6ab2810a6}} 
+void {\bfseries pushstring} (const std\+::string \&s)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a00313b3fa899a49316c827c15b408a3d}\label{classlua_1_1State_a00313b3fa899a49316c827c15b408a3d}} 
+int {\bfseries tointeger} (int index)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a205ca78d9061fabce463a3fcc3772995}\label{classlua_1_1State_a205ca78d9061fabce463a3fcc3772995}} 
+int {\bfseries tointegerx} (int index, int $\ast$isnum)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a1856631b3efb23d96ae6ec8f9704f7c9}\label{classlua_1_1State_a1856631b3efb23d96ae6ec8f9704f7c9}} 
+int {\bfseries tointegerdef} (int index, int def)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a60a2c3a082988f8a92809f86afa0e746}\label{classlua_1_1State_a60a2c3a082988f8a92809f86afa0e746}} 
+int {\bfseries checkinteger} (int arg)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a6646a8ceec719037fa8a15a95b11c91b}\label{classlua_1_1State_a6646a8ceec719037fa8a15a95b11c91b}} 
+void {\bfseries pushinteger} (int n)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_aebf7c9578653ee1c2b6af88d70dab863}\label{classlua_1_1State_aebf7c9578653ee1c2b6af88d70dab863}} 
+float {\bfseries tonumber} (int index)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_ae096ee580681ff0db132d6223dcd04b9}\label{classlua_1_1State_ae096ee580681ff0db132d6223dcd04b9}} 
+float {\bfseries tonumberx} (int index, int $\ast$isnum)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a4feec3d35795db8c9ece553d950020b4}\label{classlua_1_1State_a4feec3d35795db8c9ece553d950020b4}} 
+float {\bfseries tonumberdef} (int index, float def)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a5fbde8810d5ccf1a83c61e033f348dc3}\label{classlua_1_1State_a5fbde8810d5ccf1a83c61e033f348dc3}} 
+bool {\bfseries tobool} (int index)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_aebe01d51876d575cb6a5d0c2e1d0b839}\label{classlua_1_1State_aebe01d51876d575cb6a5d0c2e1d0b839}} 
+bool {\bfseries tobooldef} (int index, bool def)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_af24947ed63f848146901fa445397f7bf}\label{classlua_1_1State_af24947ed63f848146901fa445397f7bf}} 
+void {\bfseries pushbool} (bool b)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_aad191bd1628fa2de924441cc07d1642f}\label{classlua_1_1State_aad191bd1628fa2de924441cc07d1642f}} 
+void {\bfseries setobjfuncs} (const char $\ast$tname, const lua\+L\+\_\+\+Reg $\ast$funcs)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a0ee389d97e492b1d6e3310f275df55eb}\label{classlua_1_1State_a0ee389d97e492b1d6e3310f275df55eb}} 
+{\footnotesize template$<$typename T $>$ }\\T $\ast$ {\bfseries newobj} (const char $\ast$tname=nullptr)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a96c4f8852c01c5f15ebf0f0dd2b6b377}\label{classlua_1_1State_a96c4f8852c01c5f15ebf0f0dd2b6b377}} 
+{\footnotesize template$<$typename T $>$ }\\T $\ast$ {\bfseries checkobj} (int arg, const char $\ast$tname)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a2cc0bbaab97752b91b7f63df4334553c}\label{classlua_1_1State_a2cc0bbaab97752b91b7f63df4334553c}} 
+{\footnotesize template$<$typename T $>$ }\\void {\bfseries delobj} (int arg, const char $\ast$tname)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a8e514745be5fd79a056f8adc9e05a192}\label{classlua_1_1State_a8e514745be5fd79a056f8adc9e05a192}} 
+int {\bfseries setfuncref} (int arg, int oldref=L\+U\+A\+\_\+\+N\+O\+R\+EF)
+\item 
+\mbox{\Hypertarget{classlua_1_1State_a7bef5c0ebe2f37d77b459fd34b5fea63}\label{classlua_1_1State_a7bef5c0ebe2f37d77b459fd34b5fea63}} 
+bool {\bfseries pushfuncref} (int ref)
+\end{DoxyCompactItemize}
+\subsection*{Static Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classlua_1_1State_af845a5ecb15f65f32395c6d6d02a4437}\label{classlua_1_1State_af845a5ecb15f65f32395c6d6d02a4437}} 
+static int {\bfseries upvalueindex} (int i)
+\end{DoxyCompactItemize}
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+include/lua/state.\+h\item 
+src/lua/state.\+cpp\end{DoxyCompactItemize}

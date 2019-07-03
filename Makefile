@@ -95,6 +95,7 @@ clang-tidy:  $(SOURCES:%=build/%.clang-tidy)
 .PHONY: docs
 docs: $(HEADERS) $(SOURCES)
 	@ldoc .
+	@doxygen
 
 .PHONY: test
 test: $(TEST_TARGET)

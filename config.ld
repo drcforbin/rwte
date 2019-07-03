@@ -10,6 +10,6 @@ project = "rwte"
 title = "rwte Lua Documentation"
 description = "rwte lua"
 
-dir = "docs"
+dir = "ldocs"
 format = "markdown"
 topics = {}

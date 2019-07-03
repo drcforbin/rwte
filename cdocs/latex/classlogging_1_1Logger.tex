@@ -1,0 +1,73 @@
+\hypertarget{classlogging_1_1Logger}{}\section{logging\+::Logger Class Reference}
+\label{classlogging_1_1Logger}\index{logging::Logger@{logging::Logger}}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_abcc3c11a5d2c676403f69d943a9ae001}\label{classlogging_1_1Logger_abcc3c11a5d2c676403f69d943a9ae001}} 
+{\bfseries Logger} (std\+::string name)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a7c38500187960d6849411aa37b426506}\label{classlogging_1_1Logger_a7c38500187960d6849411aa37b426506}} 
+{\bfseries Logger} (const \mbox{\hyperlink{classlogging_1_1Logger}{Logger}} \&)=delete
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_ab78f0150de2caf60d13d24fc6a6e244e}\label{classlogging_1_1Logger_ab78f0150de2caf60d13d24fc6a6e244e}} 
+\mbox{\hyperlink{classlogging_1_1Logger}{Logger}} \& {\bfseries operator=} (const \mbox{\hyperlink{classlogging_1_1Logger}{Logger}} \&)=delete
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a05497cc7118ccde7e83387e0c4ae4c2d}\label{classlogging_1_1Logger_a05497cc7118ccde7e83387e0c4ae4c2d}} 
+const std\+::string \& {\bfseries name} () const
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_aeb9985179cb57ad07095191891d81bf4}\label{classlogging_1_1Logger_aeb9985179cb57ad07095191891d81bf4}} 
+level\+\_\+enum {\bfseries level} ()
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_af9c1d197602912a233406440ebd98e2c}\label{classlogging_1_1Logger_af9c1d197602912a233406440ebd98e2c}} 
+void {\bfseries level} (level\+\_\+enum val)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a36b8c67383917dc85fc30ad652f97102}\label{classlogging_1_1Logger_a36b8c67383917dc85fc30ad652f97102}} 
+{\footnotesize template$<$typename... Args$>$ }\\void {\bfseries log} (level\+\_\+enum lvl, const char $\ast$fmt, const Args \&... args)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a5c98f92df5a65614b62d836ab75ae7fc}\label{classlogging_1_1Logger_a5c98f92df5a65614b62d836ab75ae7fc}} 
+{\footnotesize template$<$typename... Args$>$ }\\void {\bfseries log} (level\+\_\+enum lvl, const char $\ast$msg)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_afcabd701258eb21fff6065fbbec482ee}\label{classlogging_1_1Logger_afcabd701258eb21fff6065fbbec482ee}} 
+{\footnotesize template$<$typename Arg1 , typename... Args$>$ }\\void {\bfseries trace} (const char $\ast$fmt, const Arg1 \&, const Args \&... args)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a6b6b5a5a46d0fa86dda1f0ead94d11d9}\label{classlogging_1_1Logger_a6b6b5a5a46d0fa86dda1f0ead94d11d9}} 
+{\footnotesize template$<$typename Arg1 , typename... Args$>$ }\\void {\bfseries debug} (const char $\ast$fmt, const Arg1 \&, const Args \&... args)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a9e84f520b4d0d59767c703cfa42892a3}\label{classlogging_1_1Logger_a9e84f520b4d0d59767c703cfa42892a3}} 
+{\footnotesize template$<$typename Arg1 , typename... Args$>$ }\\void {\bfseries info} (const char $\ast$fmt, const Arg1 \&, const Args \&... args)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_aa8ee4ba78a72ed8d34a810cd2b8013c7}\label{classlogging_1_1Logger_aa8ee4ba78a72ed8d34a810cd2b8013c7}} 
+{\footnotesize template$<$typename Arg1 , typename... Args$>$ }\\void {\bfseries warn} (const char $\ast$fmt, const Arg1 \&, const Args \&... args)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a2c966ec22aaa7ec6378b2542a9f27cce}\label{classlogging_1_1Logger_a2c966ec22aaa7ec6378b2542a9f27cce}} 
+{\footnotesize template$<$typename Arg1 , typename... Args$>$ }\\void {\bfseries error} (const char $\ast$fmt, const Arg1 \&, const Args \&... args)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a629b17f9522d324db02a91c83464dae3}\label{classlogging_1_1Logger_a629b17f9522d324db02a91c83464dae3}} 
+{\footnotesize template$<$typename Arg1 , typename... Args$>$ }\\void {\bfseries fatal} (const char $\ast$fmt, const Arg1 \&, const Args \&... args)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a38c3ad77f938400f56e4a10dc9c8e9e8}\label{classlogging_1_1Logger_a38c3ad77f938400f56e4a10dc9c8e9e8}} 
+{\footnotesize template$<$typename T $>$ }\\void {\bfseries log} (level\+\_\+enum lvl, const T \&)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_afe1625ac4624fda3d8826e4be966c711}\label{classlogging_1_1Logger_afe1625ac4624fda3d8826e4be966c711}} 
+{\footnotesize template$<$typename T $>$ }\\void {\bfseries trace} (const T \&)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a106668f8208d41ae498aec08d965351c}\label{classlogging_1_1Logger_a106668f8208d41ae498aec08d965351c}} 
+{\footnotesize template$<$typename T $>$ }\\void {\bfseries debug} (const T \&)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a280960827e9b058864e78672fe64b8e3}\label{classlogging_1_1Logger_a280960827e9b058864e78672fe64b8e3}} 
+{\footnotesize template$<$typename T $>$ }\\void {\bfseries info} (const T \&)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a9e04b11bf7b4b6026d4f44a0fae4f44f}\label{classlogging_1_1Logger_a9e04b11bf7b4b6026d4f44a0fae4f44f}} 
+{\footnotesize template$<$typename T $>$ }\\void {\bfseries warn} (const T \&)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_a9ad1f20fcdb3e97395232c76160c7890}\label{classlogging_1_1Logger_a9ad1f20fcdb3e97395232c76160c7890}} 
+{\footnotesize template$<$typename T $>$ }\\void {\bfseries error} (const T \&)
+\item 
+\mbox{\Hypertarget{classlogging_1_1Logger_af47e80ea44904db87b2d68aca6d642a6}\label{classlogging_1_1Logger_af47e80ea44904db87b2d68aca6d642a6}} 
+{\footnotesize template$<$typename T $>$ }\\void {\bfseries fatal} (const T \&)
+\end{DoxyCompactItemize}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+include/rwte/logging.\+h\end{DoxyCompactItemize}

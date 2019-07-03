@@ -1,0 +1,445 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<head>
+    <title>rwte Lua Documentation</title>
+    <link rel="stylesheet" href="../ldoc.css" type="text/css" />
+</head>
+<body>
+
+<div id="container">
+
+<div id="product">
+	<div id="product_logo"></div>
+	<div id="product_name"><big><b></b></big></div>
+	<div id="product_description"></div>
+</div> <!-- id="product" -->
+
+
+<div id="main">
+
+
+<!-- Menu -->
+
+<div id="navigation">
+<br/>
+<h1>rwte</h1>
+
+<ul>
+  <li><a href="../index.html">Index</a></li>
+</ul>
+
+<h2>Contents</h2>
+<ul>
+<li><a href="#Class_Logger">Class Logger </a></li>
+<li><a href="#Functions">Functions </a></li>
+<li><a href="#Fields">Fields </a></li>
+</ul>
+
+
+<h2>Modules</h2>
+<ul class="nowrap">
+  <li><strong>logging</strong></li>
+  <li><a href="../modules/term.html">term</a></li>
+  <li><a href="../modules/window.html">window</a></li>
+</ul>
+
+</div>
+
+<div id="content">
+
+<h1>Module <code>logging</code></h1>
+<p>Logging module; this is the api for logging.</p>
+<p>
+
+</p>
+
+
+<h2><a href="#Class_Logger">Class Logger </a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#Logger:log">Logger:log (level, ...)</a></td>
+	<td class="summary">Writes log entry with specified level.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#Logger:trace">Logger:trace (...)</a></td>
+	<td class="summary">Writes trace level log entry.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#Logger:debug">Logger:debug (...)</a></td>
+	<td class="summary">Writes debug level log entry.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#Logger:info">Logger:info (...)</a></td>
+	<td class="summary">Writes info level log entry.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#Logger:warn">Logger:warn (...)</a></td>
+	<td class="summary">Writes warn level log entry.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#Logger:err">Logger:err (...)</a></td>
+	<td class="summary">Writes error level log entry.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#Logger:fatal">Logger:fatal (...)</a></td>
+	<td class="summary">Writes fatal level log entry.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#Logger.level">Logger.level</a></td>
+	<td class="summary">Log level for this logger.</td>
+	</tr>
+</table>
+<h2><a href="#Functions">Functions </a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#get">get (nm)</a></td>
+	<td class="summary">Retrieves a named <a href="../modules/logging.html#Logger">Logger</a> instance.</td>
+	</tr>
+</table>
+<h2><a href="#Fields">Fields </a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#trace">trace</a></td>
+	<td class="summary">Trace level</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#debug">debug</a></td>
+	<td class="summary">Debug level</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#info">info</a></td>
+	<td class="summary">Info level</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#warn">warn</a></td>
+	<td class="summary">Warn level</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#err">err</a></td>
+	<td class="summary">Error level</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#fatal">fatal</a></td>
+	<td class="summary">Fatal level</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#off">off</a></td>
+	<td class="summary">Logging off</td>
+	</tr>
+</table>
+
+<br/>
+<br/>
+
+
+    <h2 class="section-header has-description"><a name="Class_Logger"></a>Class Logger </h2>
+
+          <div class="section-description">
+          Logger class.
+          </div>
+    <dl class="function">
+    <dt>
+    <a name = "Logger:log"></a>
+    <strong>Logger:log (level, ...)</strong>
+    </dt>
+    <dd>
+    Writes log entry with specified level.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">level</span>
+            <span class="types"><span class="type">int</span></span>
+         Log level
+        </li>
+        <li><span class="parameter">...</span>
+         Values to include in the entry (<a href="https://www.lua.org/manual/5.3/manual.html#pdf-tostring">tostring</a> will be called for each)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "Logger:trace"></a>
+    <strong>Logger:trace (...)</strong>
+    </dt>
+    <dd>
+    Writes trace level log entry.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">...</span>
+         Values to include in the entry (<a href="https://www.lua.org/manual/5.3/manual.html#pdf-tostring">tostring</a> will be called for each)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "Logger:debug"></a>
+    <strong>Logger:debug (...)</strong>
+    </dt>
+    <dd>
+    Writes debug level log entry.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">...</span>
+         Values to include in the entry (<a href="https://www.lua.org/manual/5.3/manual.html#pdf-tostring">tostring</a> will be called for each)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "Logger:info"></a>
+    <strong>Logger:info (...)</strong>
+    </dt>
+    <dd>
+    Writes info level log entry.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">...</span>
+         Values to include in the entry (<a href="https://www.lua.org/manual/5.3/manual.html#pdf-tostring">tostring</a> will be called for each)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "Logger:warn"></a>
+    <strong>Logger:warn (...)</strong>
+    </dt>
+    <dd>
+    Writes warn level log entry.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">...</span>
+         Values to include in the entry (<a href="https://www.lua.org/manual/5.3/manual.html#pdf-tostring">tostring</a> will be called for each)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "Logger:err"></a>
+    <strong>Logger:err (...)</strong>
+    </dt>
+    <dd>
+    Writes error level log entry.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">...</span>
+         Values to include in the entry (<a href="https://www.lua.org/manual/5.3/manual.html#pdf-tostring">tostring</a> will be called for each)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "Logger:fatal"></a>
+    <strong>Logger:fatal (...)</strong>
+    </dt>
+    <dd>
+    Writes fatal level log entry.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">...</span>
+         Values to include in the entry (<a href="https://www.lua.org/manual/5.3/manual.html#pdf-tostring">tostring</a> will be called for each)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "Logger.level"></a>
+    <strong>Logger.level</strong>
+    </dt>
+    <dd>
+    Log level for this logger. </p>
+
+<p> (implemented via <code>__index</code> / <code>__newindex</code>)
+
+
+
+
+
+
+
+</dd>
+</dl>
+    <h2 class="section-header "><a name="Functions"></a>Functions </h2>
+
+    <dl class="function">
+    <dt>
+    <a name = "get"></a>
+    <strong>get (nm)</strong>
+    </dt>
+    <dd>
+    Retrieves a named <a href="../modules/logging.html#Logger">Logger</a> instance.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">nm</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.3/manual.html#6.4">string</a></span>
+         Name of the logger to create/retrieve.
+        </li>
+    </ul>
+
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">logger = logging.get(<span class="string">"config"</span>)</pre>
+    </ul>
+
+</dd>
+</dl>
+    <h2 class="section-header "><a name="Fields"></a>Fields </h2>
+
+    <dl class="function">
+    <dt>
+    <a name = "trace"></a>
+    <strong>trace</strong>
+    </dt>
+    <dd>
+    Trace level
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "debug"></a>
+    <strong>debug</strong>
+    </dt>
+    <dd>
+    Debug level
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "info"></a>
+    <strong>info</strong>
+    </dt>
+    <dd>
+    Info level
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "warn"></a>
+    <strong>warn</strong>
+    </dt>
+    <dd>
+    Warn level
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "err"></a>
+    <strong>err</strong>
+    </dt>
+    <dd>
+    Error level
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "fatal"></a>
+    <strong>fatal</strong>
+    </dt>
+    <dd>
+    Fatal level
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "off"></a>
+    <strong>off</strong>
+    </dt>
+    <dd>
+    Logging off
+
+
+
+
+
+
+
+</dd>
+</dl>
+
+
+</div> <!-- id="content" -->
+</div> <!-- id="main" -->
+<div id="about">
+<i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.6</a></i>
+<i style="float:right;">Last updated 2019-07-03 11:57:43 </i>
+</div> <!-- id="about" -->
+</div> <!-- id="container" -->
+</body>
+</html>
