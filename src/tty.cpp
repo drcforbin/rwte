@@ -152,7 +152,7 @@ static void stty()
 class TtyImpl: public AsyncIO<TtyImpl, max_write>
 {
 public:
-    TtyImpl(std::shared_ptr<RwteBus> bus);
+    TtyImpl(std::shared_ptr<event::Bus> bus);
     ~TtyImpl();
 
     void print(const char *data, std::size_t len);
@@ -160,22 +160,22 @@ public:
     void hup();
 
 private:
-    void onresize(const ResizeEvt& evt);
+    void onresize(const event::Resize& evt);
 
     friend class AsyncIO<TtyImpl, max_write>;
     void log_write(bool initial, const char *data, size_t len);
     std::size_t onread(const char *ptr, std::size_t len);
 
-    std::shared_ptr<RwteBus> m_bus;
+    std::shared_ptr<event::Bus> m_bus;
     int m_resizeReg;
     pid_t m_pid;
     int m_iofd;
 };
 
 
-TtyImpl::TtyImpl(std::shared_ptr<RwteBus> bus) :
+TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus) :
     m_bus(std::move(bus)),
-    m_resizeReg(m_bus->reg<ResizeEvt, TtyImpl, &TtyImpl::onresize>(this)),
+    m_resizeReg(m_bus->reg<event::Resize, TtyImpl, &TtyImpl::onresize>(this)),
     m_pid(0),
     m_iofd(-1)
 {
@@ -245,7 +245,7 @@ TtyImpl::TtyImpl(std::shared_ptr<RwteBus> bus) :
 
 TtyImpl::~TtyImpl()
 {
-    m_bus->unreg<ResizeEvt>(m_resizeReg);
+    m_bus->unreg<event::Resize>(m_resizeReg);
 
     if (m_iofd)
         close(m_iofd);
@@ -280,7 +280,7 @@ void TtyImpl::hup()
     kill(m_pid, SIGHUP);
 }
 
-void TtyImpl::onresize(const ResizeEvt& evt)
+void TtyImpl::onresize(const event::Resize& evt)
 {
     LOGGER()->info("resize to {}x{}", evt.cols, evt.rows);
 
@@ -345,7 +345,7 @@ std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
     return len;
 }
 
-Tty::Tty(std::shared_ptr<RwteBus> bus) :
+Tty::Tty(std::shared_ptr<event::Bus> bus) :
     impl(std::make_unique<TtyImpl>(std::move(bus)))
 { }
 

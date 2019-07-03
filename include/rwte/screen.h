@@ -70,7 +70,7 @@ class ScreenImpl;
 class Screen
 {
 public:
-    Screen(std::shared_ptr<RwteBus> bus);
+    Screen(std::shared_ptr<event::Bus> bus);
     ~Screen();
 
     void reset();

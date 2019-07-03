@@ -69,7 +69,7 @@ class TermImpl;
 class Term
 {
 public:
-    Term(std::shared_ptr<RwteBus> bus, int cols, int rows);
+    Term(std::shared_ptr<event::Bus> bus, int cols, int rows);
     ~Term();
 
     const Glyph& glyph(const Cell& cell) const;

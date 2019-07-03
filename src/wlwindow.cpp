@@ -40,6 +40,7 @@ static int get_border_px()
     return lua::config::get_int("border_px", 2);
 }
 
+class Shm;
 class WlWindow;
 class Seat;
 class XdgWmBase;
@@ -370,7 +371,7 @@ private:
 class WlWindow : public Window
 {
 public:
-    WlWindow(std::shared_ptr<RwteBus> bus);
+    WlWindow(std::shared_ptr<event::Bus> bus);
     ~WlWindow();
 
     bool create(int cols, int rows);
@@ -423,10 +424,10 @@ public:
     bool activated = false;
     bool visible = false;
 
-    std::shared_ptr<RwteBus> m_bus;
+    std::shared_ptr<event::Bus> m_bus;
 
 private:
-    void onresize(const ResizeEvt& evt);
+    void onresize(const event::Resize& evt);
 
     void iocb(ev::io &, int);
     void preparecb(ev::prepare &, int);
@@ -452,9 +453,9 @@ private:
     bool kbdfocus;
 };
 
-WlWindow::WlWindow(std::shared_ptr<RwteBus> bus) :
+WlWindow::WlWindow(std::shared_ptr<event::Bus> bus) :
     m_bus(std::move(bus)),
-    m_resizeReg(m_bus->reg<ResizeEvt, WlWindow, &WlWindow::onresize>(this))
+    m_resizeReg(m_bus->reg<event::Resize, WlWindow, &WlWindow::onresize>(this))
 {
     m_prepare.set<WlWindow,&WlWindow::preparecb>(this);
     m_io.set<WlWindow,&WlWindow::iocb>(this);
@@ -462,7 +463,7 @@ WlWindow::WlWindow(std::shared_ptr<RwteBus> bus) :
 
 WlWindow::~WlWindow()
 {
-    m_bus->unreg<ResizeEvt>(m_resizeReg);
+    m_bus->unreg<event::Resize>(m_resizeReg);
 }
 
 bool WlWindow::create(int cols, int rows)
@@ -680,13 +681,13 @@ void WlWindow::publishresize(uint16_t width, uint16_t height)
             m_width, m_height, m_cols, m_rows);
 
     m_bus->publish(
-        ResizeEvt{
+        event::Resize{
             m_width, m_height,
             m_cols, m_rows
         });
 }
 
-void WlWindow::onresize(const ResizeEvt& evt)
+void WlWindow::onresize(const event::Resize& evt)
 {
     LOGGER()->info("resize to {}x{}", evt.width, evt.height);
 
@@ -1180,6 +1181,6 @@ void Registry::handle_global(uint32_t name, const char *interface, uint32_t vers
     }
 }
 
-std::unique_ptr<Window> createWlWindow(std::shared_ptr<RwteBus> bus) {
+std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus) {
     return std::make_unique<WlWindow>(bus);
 }

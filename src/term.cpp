@@ -181,7 +181,7 @@ static uint32_t defcolor(int *attr, int *npar, int l)
 class TermImpl
 {
 public:
-    TermImpl(std::shared_ptr<RwteBus> bus, int cols, int rows);
+    TermImpl(std::shared_ptr<event::Bus> bus, int cols, int rows);
     ~TermImpl();
 
     const Glyph& glyph(const Cell& cell) const
@@ -232,7 +232,7 @@ public:
     void send(const char *data, std::size_t len);
 
 private:
-    void onresize(const ResizeEvt& evt);
+    void onresize(const event::Resize& evt);
     void resizeCore(int cols, int rows);
     void start_blink();
 
@@ -264,7 +264,7 @@ private:
     void getbuttoninfo(const Cell& cell, const keymod_state& mod);
     std::shared_ptr<char> getsel();
 
-    std::shared_ptr<RwteBus> m_bus;
+    std::shared_ptr<event::Bus> m_bus;
     int m_resizeReg;
 
     Screen m_screen;
@@ -284,9 +284,9 @@ private:
 };
 
 
-TermImpl::TermImpl(std::shared_ptr<RwteBus> bus, int cols, int rows) :
+TermImpl::TermImpl(std::shared_ptr<event::Bus> bus, int cols, int rows) :
     m_bus(std::move(bus)),
-    m_resizeReg(m_bus->reg<ResizeEvt, TermImpl, &TermImpl::onresize>(this)),
+    m_resizeReg(m_bus->reg<event::Resize, TermImpl, &TermImpl::onresize>(this)),
     m_screen(m_bus),
     m_focused(false)
 {
@@ -302,7 +302,7 @@ TermImpl::TermImpl(std::shared_ptr<RwteBus> bus, int cols, int rows) :
 
 TermImpl::~TermImpl()
 {
-    m_bus->unreg<ResizeEvt>(m_resizeReg);
+    m_bus->unreg<event::Resize>(m_resizeReg);
 }
 
 void TermImpl::reset()
@@ -430,7 +430,7 @@ void TermImpl::blink()
     rwte->refresh();
 }
 
-void TermImpl::onresize(const ResizeEvt& evt)
+void TermImpl::onresize(const event::Resize& evt)
 {
     resizeCore(evt.cols, evt.rows);
 }
@@ -2131,7 +2131,7 @@ std::shared_ptr<char> TermImpl::getsel()
     return std::shared_ptr<char>(str, std::default_delete<char[]>());
 }
 
-Term::Term(std::shared_ptr<RwteBus> bus, int cols, int rows) :
+Term::Term(std::shared_ptr<event::Bus> bus, int cols, int rows) :
     impl(std::make_unique<TermImpl>(std::move(bus), cols, rows))
 { }
 

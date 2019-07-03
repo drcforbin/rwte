@@ -53,7 +53,7 @@ static int get_border_px()
 class XcbWindow : public Window
 {
 public:
-    XcbWindow(std::shared_ptr<RwteBus> bus);
+    XcbWindow(std::shared_ptr<event::Bus> bus);
     ~XcbWindow();
 
     bool create(int cols, int rows);
@@ -84,7 +84,7 @@ private:
     bool load_keymap();
 
     void publishresize(uint16_t width, uint16_t height);
-    void onresize(const ResizeEvt& evt);
+    void onresize(const event::Resize& evt);
 
     void handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event);
     void handle_client_message(ev::loop_ref& loop, xcb_client_message_event_t *event);
@@ -145,7 +145,7 @@ private:
     void setup_xkb();
     bool load_compose_table(const char *locale);
 
-    std::shared_ptr<RwteBus> m_bus;
+    std::shared_ptr<event::Bus> m_bus;
     int m_resizeReg;
 
     uint16_t m_width, m_height;
@@ -173,9 +173,9 @@ private:
     uint32_t m_eventmask;
 };
 
-XcbWindow::XcbWindow(std::shared_ptr<RwteBus> bus) :
+XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus) :
     m_bus(std::move(bus)),
-    m_resizeReg(m_bus->reg<ResizeEvt, XcbWindow, &XcbWindow::onresize>(this)),
+    m_resizeReg(m_bus->reg<event::Resize, XcbWindow, &XcbWindow::onresize>(this)),
     m_eventmask(0)
 {
     // this io watcher is just to to kick the loop around
@@ -187,7 +187,7 @@ XcbWindow::XcbWindow(std::shared_ptr<RwteBus> bus) :
 
 XcbWindow::~XcbWindow()
 {
-    m_bus->unreg<ResizeEvt>(m_resizeReg);
+    m_bus->unreg<event::Resize>(m_resizeReg);
 }
 
 bool XcbWindow::create(int cols, int rows)
@@ -607,13 +607,13 @@ void XcbWindow::publishresize(uint16_t width, uint16_t height)
     m_rows = (height - 2 * border_px) / ch;
 
     m_bus->publish(
-        ResizeEvt{
+        event::Resize{
             m_width, m_height,
             m_cols, m_rows
         });
 }
 
-void XcbWindow::onresize(const ResizeEvt& evt)
+void XcbWindow::onresize(const event::Resize& evt)
 {
     m_renderer->resize(evt.width, evt.height);
     LOGGER()->info("resize to {}x{}", evt.width, evt.height);
@@ -1178,6 +1178,6 @@ void XcbWindow::checkcb(ev::check &w, int)
     }
 }
 
-std::unique_ptr<Window> createXcbWindow(std::shared_ptr<RwteBus> bus) {
+std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus) {
     return std::make_unique<XcbWindow>(bus);
 }

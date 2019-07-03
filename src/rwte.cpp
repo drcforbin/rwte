@@ -22,9 +22,9 @@ lua_State * g_L = nullptr;
 // a default value in config
 static const float DEFAULT_BLINK_RATE = 0.6;
 
-Rwte::Rwte(std::shared_ptr<RwteBus> bus) :
+Rwte::Rwte(std::shared_ptr<event::Bus> bus) :
     m_bus(std::move(bus)),
-    m_refreshReg(m_bus->reg<RefreshEvt, Rwte, &Rwte::onrefresh>(this)),
+    m_refreshReg(m_bus->reg<event::Refresh, Rwte, &Rwte::onrefresh>(this)),
     m_lua(std::make_shared<lua::State>())
 {
     m_lua->openlibs();
@@ -36,7 +36,7 @@ Rwte::Rwte(std::shared_ptr<RwteBus> bus) :
 
 Rwte::~Rwte()
 {
-    m_bus->unreg<RefreshEvt>(m_refreshReg);
+    m_bus->unreg<event::Refresh>(m_refreshReg);
 }
 
 void Rwte::watch_child(pid_t pid)
@@ -82,7 +82,7 @@ void Rwte::stop_blink()
         m_blink.stop();
 }
 
-void Rwte::onrefresh(const RefreshEvt& evt)
+void Rwte::onrefresh(const event::Refresh& evt)
 {
     refresh();
 }
@@ -105,4 +105,3 @@ void Rwte::blinkcb(ev::timer &, int)
 {
     g_term->blink();
 }
-

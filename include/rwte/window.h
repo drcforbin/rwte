@@ -29,8 +29,8 @@ public:
     virtual void clippaste() = 0;
 };
 
-std::unique_ptr<Window> createXcbWindow(std::shared_ptr<RwteBus> bus);
-std::unique_ptr<Window> createWlWindow(std::shared_ptr<RwteBus> bus);
+std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus);
+std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus);
 
 extern std::unique_ptr<Window> window;
 

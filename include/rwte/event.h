@@ -4,20 +4,24 @@
 #include "rwte/bus.h"
 #include <memory>
 
-class SetPrintModeEvt {};
+namespace event {
 
-struct ResizeEvt
+class SetPrintMode {};
+
+struct Resize
 {
     size_t width, height;
     int cols, rows;
 };
 
-struct RefreshEvt {};
+struct Refresh {};
 
 typedef Bus<
-    SetPrintModeEvt,
-    ResizeEvt,
-    RefreshEvt
-> RwteBus;
+    SetPrintMode,
+    Resize,
+    Refresh
+> Bus;
+
+} // namespace event
 
 #endif // RWTE_EVENT_H

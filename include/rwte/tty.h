@@ -11,7 +11,7 @@ class TtyImpl;
 class Tty
 {
 public:
-    Tty(std::shared_ptr<RwteBus> bus);
+    Tty(std::shared_ptr<event::Bus> bus);
     ~Tty();
 
     void write(const std::string& data);

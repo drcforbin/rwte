@@ -32,7 +32,7 @@ extern Options options;
 class Rwte
 {
 public:
-    Rwte(std::shared_ptr<RwteBus> bus);
+    Rwte(std::shared_ptr<event::Bus> bus);
     ~Rwte();
 
     void watch_child(pid_t pid);
@@ -45,13 +45,13 @@ public:
     std::shared_ptr<lua::State> lua() { return m_lua; }
 
 private:
-    void onrefresh(const RefreshEvt& evt);
+    void onrefresh(const event::Refresh& evt);
 
     void childcb(ev::child &w, int);
     void flushcb(ev::timer &w, int);
     void blinkcb(ev::timer &w, int);
 
-    std::shared_ptr<RwteBus> m_bus;
+    std::shared_ptr<event::Bus> m_bus;
     int m_refreshReg;
 
     ev::child m_child;

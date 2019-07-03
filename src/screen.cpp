@@ -60,7 +60,7 @@ static bool isdelim(char32_t c)
 class ScreenImpl
 {
 public:
-    ScreenImpl(std::shared_ptr<RwteBus> bus) :
+    ScreenImpl(std::shared_ptr<event::Bus> bus) :
         m_bus(bus),
         m_rows(0), m_cols(0),
         m_top(0), m_bot(0)
@@ -177,7 +177,7 @@ public:
         m_lines[cell.row][cell.col] = glyph;
         m_dirty[cell.row] = true;
 
-        m_bus->publish(RefreshEvt{});
+        m_bus->publish(event::Refresh{});
     }
 
     void newline(bool first_col)
@@ -291,7 +291,7 @@ public:
         m_cursor.col = limit(cell.col, 0, m_cols-1);
         m_cursor.row = limit(cell.row, minrow, maxrow);
 
-        m_bus->publish(RefreshEvt{});
+        m_bus->publish(event::Refresh{});
     }
 
     // for absolute user moves, when decom is set
@@ -484,7 +484,7 @@ public:
         for (int i = top; i <= bot; i++)
             m_dirty[i] = true;
 
-        m_bus->publish(RefreshEvt{});
+        m_bus->publish(event::Refresh{});
     }
 
     screenRows& lines() { return m_lines; }
@@ -502,7 +502,7 @@ public:
     void setCursor(const Cursor& cursor)
     {
         m_cursor = cursor;
-        m_bus->publish(RefreshEvt{});
+        m_bus->publish(event::Refresh{});
     }
 
     const Cursor& storedCursor(int idx) const
@@ -536,10 +536,10 @@ private:
             m_dirty[row] = true;
         }
 
-        m_bus->publish(RefreshEvt{});
+        m_bus->publish(event::Refresh{});
     }
 
-    std::shared_ptr<RwteBus> m_bus;
+    std::shared_ptr<event::Bus> m_bus;
     screenRows m_lines;     // screen
     screenRows m_alt_lines; // alternate screen
 
@@ -555,7 +555,7 @@ private:
     Selection m_sel;
 };
 
-Screen::Screen(std::shared_ptr<RwteBus> bus) :
+Screen::Screen(std::shared_ptr<event::Bus> bus) :
     impl(std::make_unique<ScreenImpl>(std::move(bus)))
 { }
 

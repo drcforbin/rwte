@@ -173,7 +173,7 @@ static bool parse_geometry(const char *g, int *cols, int *rows)
 
 int main(int argc, char *argv[])
 {
-    auto bus = std::make_shared<RwteBus>();
+    auto bus = std::make_shared<event::Bus>();
     rwte = std::make_unique<Rwte>(bus);
     auto L = rwte->lua();
 
