@@ -1,0 +1,88 @@
+\hypertarget{classterm_1_1TermImpl}{}\section{term\+::Term\+Impl Class Reference}
+\label{classterm_1_1TermImpl}\index{term::TermImpl@{term::TermImpl}}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a79fc364ba79f28198d4d1fb6dafe6b4e}\label{classterm_1_1TermImpl_a79fc364ba79f28198d4d1fb6dafe6b4e}} 
+{\bfseries Term\+Impl} (std\+::shared\+\_\+ptr$<$ event\+::\+Bus $>$ bus, int cols, int rows)
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_ad7a5604ebcb7d11a7ef4d5a5ffab121d}\label{classterm_1_1TermImpl_ad7a5604ebcb7d11a7ef4d5a5ffab121d}} 
+const \mbox{\hyperlink{structscreen_1_1Glyph}{screen\+::\+Glyph}} \& {\bfseries glyph} (const \mbox{\hyperlink{structCell}{Cell}} \&cell) const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a61d4159e349cfc25269fec4212cbd54f}\label{classterm_1_1TermImpl_a61d4159e349cfc25269fec4212cbd54f}} 
+\mbox{\hyperlink{structscreen_1_1Glyph}{screen\+::\+Glyph}} \& {\bfseries glyph} (const \mbox{\hyperlink{structCell}{Cell}} \&cell)
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_ab061914de857be46d790e3b5d6843e10}\label{classterm_1_1TermImpl_ab061914de857be46d790e3b5d6843e10}} 
+void {\bfseries reset} ()
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_acc4513a99e212cccc001312d47646456}\label{classterm_1_1TermImpl_acc4513a99e212cccc001312d47646456}} 
+void {\bfseries setprint} ()
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_abff11f008f05cf164095d8f1abb607e3}\label{classterm_1_1TermImpl_abff11f008f05cf164095d8f1abb607e3}} 
+const term\+\_\+mode \& {\bfseries mode} () const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_acdabe902d812780624855aea25a67095}\label{classterm_1_1TermImpl_acdabe902d812780624855aea25a67095}} 
+void {\bfseries blink} ()
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_adba4aff1c50384c51985af6e45c62eaa}\label{classterm_1_1TermImpl_adba4aff1c50384c51985af6e45c62eaa}} 
+const \mbox{\hyperlink{classSelection}{Selection}} \& {\bfseries sel} () const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_acb042185b92338e3971f86a4a340d8da}\label{classterm_1_1TermImpl_acb042185b92338e3971f86a4a340d8da}} 
+const \mbox{\hyperlink{structscreen_1_1Cursor}{screen\+::\+Cursor}} \& {\bfseries cursor} () const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_aa0a4c859441b9371c5fc66dd60cfd7b9}\label{classterm_1_1TermImpl_aa0a4c859441b9371c5fc66dd60cfd7b9}} 
+screen\+::cursor\+\_\+type {\bfseries cursortype} () const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a31e87221963b8dd1db9cc775d29d4897}\label{classterm_1_1TermImpl_a31e87221963b8dd1db9cc775d29d4897}} 
+bool {\bfseries isdirty} (int row) const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_aa324fe9b8c4b8acebe28900ed3b6af9e}\label{classterm_1_1TermImpl_aa324fe9b8c4b8acebe28900ed3b6af9e}} 
+void {\bfseries setdirty} ()
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a1eb80006948ba09d49db0b5b3b6a4f9d}\label{classterm_1_1TermImpl_a1eb80006948ba09d49db0b5b3b6a4f9d}} 
+void {\bfseries cleardirty} (int row)
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a34582e3cb94065e2722bdea7f2371e3c}\label{classterm_1_1TermImpl_a34582e3cb94065e2722bdea7f2371e3c}} 
+void {\bfseries putc} (char32\+\_\+t u)
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_ad9c87266c937cfd9baaec99a727918e2}\label{classterm_1_1TermImpl_ad9c87266c937cfd9baaec99a727918e2}} 
+void {\bfseries mousereport} (const \mbox{\hyperlink{structCell}{Cell}} \&cell, mouse\+\_\+event\+\_\+enum evt, int button, const keymod\+\_\+state \&mod)
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a897cbb0a5a7ce09bafd42fa13eb953eb}\label{classterm_1_1TermImpl_a897cbb0a5a7ce09bafd42fa13eb953eb}} 
+int {\bfseries rows} () const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a43576f0c380f0e5aa94fa1e4f0fbc63a}\label{classterm_1_1TermImpl_a43576f0c380f0e5aa94fa1e4f0fbc63a}} 
+int {\bfseries cols} () const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a9d3458310ddd6bc8296910348c7294a8}\label{classterm_1_1TermImpl_a9d3458310ddd6bc8296910348c7294a8}} 
+uint32\+\_\+t {\bfseries deffg} () const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a5125e2130dd28044cce5754cfb6d59d1}\label{classterm_1_1TermImpl_a5125e2130dd28044cce5754cfb6d59d1}} 
+uint32\+\_\+t {\bfseries defbg} () const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_af6dccce9ed22750d371f747e800a25af}\label{classterm_1_1TermImpl_af6dccce9ed22750d371f747e800a25af}} 
+uint32\+\_\+t {\bfseries defcs} () const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_afbbc0b094a26031290a8afbdf6780f99}\label{classterm_1_1TermImpl_afbbc0b094a26031290a8afbdf6780f99}} 
+uint32\+\_\+t {\bfseries defrcs} () const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a5d84ac27a26b62e9889568d81ebc0edf}\label{classterm_1_1TermImpl_a5d84ac27a26b62e9889568d81ebc0edf}} 
+void {\bfseries setfocused} (bool focused)
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_ae3ff92d975b557f0897ff67d7a5f8a07}\label{classterm_1_1TermImpl_ae3ff92d975b557f0897ff67d7a5f8a07}} 
+bool {\bfseries focused} () const
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a185d4d80c9ffb588ede18490939b0e2a}\label{classterm_1_1TermImpl_a185d4d80c9ffb588ede18490939b0e2a}} 
+void {\bfseries selclear} ()
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a5b96429de317b98bc89c5b7230ad920d}\label{classterm_1_1TermImpl_a5b96429de317b98bc89c5b7230ad920d}} 
+void {\bfseries clipcopy} ()
+\item 
+\mbox{\Hypertarget{classterm_1_1TermImpl_a22cb2bcd745c998d79c00f936563a4c5}\label{classterm_1_1TermImpl_a22cb2bcd745c998d79c00f936563a4c5}} 
+void {\bfseries send} (const char $\ast$data, std\+::size\+\_\+t len)
+\end{DoxyCompactItemize}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/term.\+cpp\end{DoxyCompactItemize}

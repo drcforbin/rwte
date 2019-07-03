@@ -1,7 +1,7 @@
 var searchData=
 [
   ['cell',['Cell',['../structCell.html',1,'']]],
-  ['context',['Context',['../classContext.html',1,'']]],
-  ['csiescape',['CSIEscape',['../structCSIEscape.html',1,'']]],
-  ['cursor',['Cursor',['../structCursor.html',1,'']]]
+  ['context',['Context',['../classrenderer_1_1Context.html',1,'renderer']]],
+  ['csiescape',['CSIEscape',['../structterm_1_1CSIEscape.html',1,'term']]],
+  ['cursor',['Cursor',['../structscreen_1_1Cursor.html',1,'screen']]]
 ];

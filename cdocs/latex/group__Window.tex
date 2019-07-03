@@ -1,0 +1,41 @@
+\hypertarget{group__Window}{}\section{Window}
+\label{group__Window}\index{Window@{Window}}
+\subsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+class \mbox{\hyperlink{classWindow}{Window}}
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{group__Window_gae7405bad5f194a339d31fe12f32029b4}\label{group__Window_gae7405bad5f194a339d31fe12f32029b4}} 
+std\+::unique\+\_\+ptr$<$ \mbox{\hyperlink{classWindow}{Window}} $>$ {\bfseries create\+Wl\+Window} (std\+::shared\+\_\+ptr$<$ event\+::\+Bus $>$ bus)
+\item 
+\mbox{\Hypertarget{group__Window_ga1f489491cdf4aaecd51da4acc36fb681}\label{group__Window_ga1f489491cdf4aaecd51da4acc36fb681}} 
+std\+::unique\+\_\+ptr$<$ \mbox{\hyperlink{classWindow}{Window}} $>$ {\bfseries create\+Xcb\+Window} (std\+::shared\+\_\+ptr$<$ event\+::\+Bus $>$ bus)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{group__Window_ga9065e9e2f7be15d04d2d656743eeba96}\label{group__Window_ga9065e9e2f7be15d04d2d656743eeba96}} 
+std\+::unique\+\_\+ptr$<$ \mbox{\hyperlink{classWindow}{Window}} $>$ {\bfseries window}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+Returns a \mbox{\hyperlink{classWindow}{Window}} implemented with wayland 
+\begin{DoxyParams}{Parameters}
+{\em global} & bus \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+\mbox{\hyperlink{classWindow}{Window}} object
+\end{DoxyReturn}
+Returns a \mbox{\hyperlink{classWindow}{Window}} implemented with xcb 
+\begin{DoxyParams}{Parameters}
+{\em global} & bus \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+\mbox{\hyperlink{classWindow}{Window}} object 
+\end{DoxyReturn}
