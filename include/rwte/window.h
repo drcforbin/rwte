@@ -5,6 +5,8 @@
 
 #include <memory>
 
+/// \addtogroup Window
+/// @{
 class Window
 {
 public:
@@ -33,5 +35,6 @@ std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus);
 std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus);
 
 extern std::unique_ptr<Window> window;
+/// @}
 
 #endif // RWTE_WINDOW_H
