@@ -103,6 +103,8 @@ test: $(TEST_TARGET)
 
 clean:
 	@echo "Cleaning $(TARGET)..."; $(RM) -r $(BUILDDIR) $(TARGET)
+	@echo "Cleaning cdocs..."; $(RM) -r ldocs/*
+	@echo "Cleaning ldocs..."; $(RM) -r cdocs/*
 
 install:
 	@echo "Installing $(EXECUTABLE)..."; cp $(TARGET) $(INSTALLBINDIR)
