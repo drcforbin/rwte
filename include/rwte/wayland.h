@@ -483,7 +483,7 @@ public:
 
     std::unique_ptr<XdgToplevelT> get_xdg_toplevel() {
         // LOGGER()->debug("XdgSurface get_xdg_toplevel");
-		return std::make_unique<XdgToplevelT>(window,
+        return std::make_unique<XdgToplevelT>(window,
                 xdg_surface_get_toplevel(surface));
     }
 
@@ -530,7 +530,7 @@ public:
     std::unique_ptr<XdgSurfaceT> get_xdg_surface(SurfaceT *surface) {
         // LOGGER()->debug("XdgWmBase get_xdg_surface");
         // todo: better way than this get?
-		return std::make_unique<XdgSurfaceT>(window,
+        return std::make_unique<XdgSurfaceT>(window,
                 xdg_wm_base_get_xdg_surface(wmbase, surface->get()));
     }
 
