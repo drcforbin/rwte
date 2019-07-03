@@ -30,7 +30,6 @@
 bool queued = false;
 bool prepared = false;
 
-// todo: figure out how to coordinate frame & release,
 // we should really only need one buffer, right?
 const int NumBuffers = 2;
 
@@ -99,7 +98,7 @@ public:
         for (int i = 0; i < NumBuffers; i++) {
             // hack!
             if (!buffers[i].busy) {
-                LOGGER()->debug("got buffer {}", i);
+                LOGGER()->trace("got buffer {}", i);
                 buffers[i].busy = true;
                 return &buffers[i];
             }
@@ -112,15 +111,13 @@ public:
 protected:
     friend class Buffer;
 
-    // todo: reeeeally shouldn't be using the buffer again until
-    // it has been released
     void release_buffer(const Buffer& buffer) {
         int idx = 0;
         while (buffer != *buffers[idx].buffer)
             idx++;
 
         if (idx < NumBuffers) {
-            LOGGER()->debug("released buffer {}", idx);
+            LOGGER()->trace("released buffer {}", idx);
             buffers[idx].busy = false;
         } else {
             LOGGER()->warn("released unknown buffer!");
@@ -598,7 +595,7 @@ void WlWindow::destroy()
 
 void WlWindow::drawCore()
 {
-    LOGGER()->debug("WlWindow draw {}x{}", m_width, m_height);
+    LOGGER()->trace("draw {}x{}", m_width, m_height);
 
     auto image = shm->get_buffer();
     if (image) {
@@ -616,7 +613,7 @@ static const struct wl_callback_listener frame_listener = {
     // done event
     [](void *data, struct wl_callback *cb, uint32_t time) {
         queued = false;
-        LOGGER()->debug("FRAME RECEIVED");
+        LOGGER()->trace("frame received");
         static_cast<WlWindow *>(data)->drawCore();
     }
 };
@@ -627,7 +624,7 @@ void WlWindow::draw()
         auto cb = wl_surface_frame(surface->get());
         wl_callback_add_listener(cb, &frame_listener, this);
         wl_surface_commit(surface->get());
-        LOGGER()->debug("QUEUED FRAME");
+        LOGGER()->trace("queued frame");
         queued = true;
     }
 }
@@ -656,7 +653,7 @@ void WlWindow::setpointer(const PointerFrame& frame)
 void WlWindow::setkbdfocus(bool focus)
 {
     if (kbdfocus != focus) {
-        LOGGER()->debug("focused {} (keyboard)", focus);
+        LOGGER()->trace("focused {} (keyboard)", focus);
 
         kbdfocus = focus;
         g_term->setfocused(focus);
@@ -713,12 +710,12 @@ void WlWindow::preparecb(ev::prepare &, int)
     if (!prepared) {
         // announce intention to read; if that fails, dispatch
         // anything already pending and repeat until successful
-        LOGGER()->debug("preparecb prepare_read");
+        LOGGER()->trace("preparecb prepare_read");
         while (wl_display_prepare_read(display) != 0)
             wl_display_dispatch_pending(display);
 
         // flush anything outgoing to the server
-        LOGGER()->debug("preparecb flush");
+        LOGGER()->trace("preparecb flush");
         int ret = wl_display_flush(display);
         if (ret == -1) {
             if (errno == EAGAIN) {
@@ -740,7 +737,7 @@ void WlWindow::preparecb(ev::prepare &, int)
             }
         }
 
-        LOGGER()->debug("preparecb prepare done");
+        LOGGER()->trace("preparecb prepare done");
         prepared = true;
     }
 }
@@ -750,7 +747,7 @@ void WlWindow::iocb(ev::io &, int revents)
     // todo: test different kinds of failures in here
 
     if (revents & ev::WRITE) {
-        LOGGER()->debug("iocb WRITE");
+        LOGGER()->trace("iocb WRITE");
 
         // we're ready to write. try flushing again; if it
         // succeeds or fails with something other than eagain,
@@ -777,9 +774,9 @@ void WlWindow::iocb(ev::io &, int revents)
         //     wl_display_cancel_read(display);
 
         // try reading and dispatching
-        LOGGER()->debug("iocb read_events");
+        LOGGER()->trace("iocb read_events");
         if (wl_display_read_events(display) != -1) {
-            LOGGER()->debug("iocb dispatch_pending");
+            LOGGER()->trace("iocb dispatch_pending");
             wl_display_dispatch_pending(display);
         } else if (errno && errno != EAGAIN) {
             LOGGER()->debug("iocb dispatch_pending error: {}", strerror(errno));
@@ -792,7 +789,7 @@ void WlWindow::iocb(ev::io &, int revents)
             LOGGER()->debug("iocb dispatch_pending EAGAIN");
         }
 
-        LOGGER()->debug("iocb read done");
+        LOGGER()->trace("iocb read done");
         prepared = false;
     }
 }
