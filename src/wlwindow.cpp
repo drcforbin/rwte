@@ -14,9 +14,7 @@
 #include "rwte/window.h"
 #include "xdg-shell/xdg-shell-client-protocol.h"
 
-// todo: remove when using renderer
 #include <cairo/cairo.h>
-
 #include <ev++.h>
 #include <fcntl.h>
 #include <linux/input.h>
@@ -658,7 +656,10 @@ void WlWindow::setpointer(const PointerFrame& frame)
 void WlWindow::setkbdfocus(bool focus)
 {
     if (kbdfocus != focus) {
+        LOGGER()->debug("focused {} (keyboard)", focus);
+
         kbdfocus = focus;
+        g_term->setfocused(focus);
     }
 }
 
@@ -881,12 +882,11 @@ void XdgToplevel::handle_configure(int32_t width, int32_t height,
     // todo: remove? this doesn't drive behavior
     window->fullscreen = fullscreen;
 
+    // todo: remove this too? also doesn't drive behavior
     if (window->activated != activated) {
-        LOGGER()->debug("focused {} (toplevel)", activated);
-
-        // todo: **** why doesn't this repaint when activated false??? ****
-
-        g_term->setfocused(activated);
+        // docs say we shouldn't use this to assume the window actually
+        // has keyboard or pointer focus, so lets do it instead in
+        // keyboard enter/leave (this is just bookkeeping)
         window->activated = activated;
     }
 
