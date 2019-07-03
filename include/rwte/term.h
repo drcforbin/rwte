@@ -7,10 +7,14 @@
 #include <memory>
 
 struct Cell;
-struct Cursor;
-struct Glyph;
 class Selection;
-enum class cursor_type;
+namespace screen {
+    struct Cursor;
+    enum class cursor_type;
+    struct Glyph;
+} // namespace screen
+
+namespace term {
 
 enum mouse_event_enum
 {
@@ -72,8 +76,8 @@ public:
     Term(std::shared_ptr<event::Bus> bus, int cols, int rows);
     ~Term();
 
-    const Glyph& glyph(const Cell& cell) const;
-    Glyph& glyph(const Cell& cell);
+    const screen::Glyph& glyph(const Cell& cell) const;
+    screen::Glyph& glyph(const Cell& cell);
 
     void reset();
 
@@ -84,8 +88,8 @@ public:
     void blink();
 
     const Selection& sel() const;
-    const Cursor& cursor() const;
-    cursor_type cursortype() const;
+    const screen::Cursor& cursor() const;
+    screen::cursor_type cursortype() const;
 
     bool isdirty(int row) const;
     void setdirty();
@@ -117,5 +121,7 @@ private:
 };
 
 extern std::unique_ptr<Term> g_term;
+
+} // namespace term
 
 #endif // RWTE_TERM_H

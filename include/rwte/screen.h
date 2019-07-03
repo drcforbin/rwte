@@ -8,6 +8,10 @@
 #include <memory>
 #include <vector>
 
+class Selection;
+
+namespace screen {
+
 enum glyph_attribute_enum
 {
     ATTR_BOLD,
@@ -37,6 +41,7 @@ struct Glyph
     uint32_t bg = 0;      // background
 };
 
+// todo: drop cursor_ prefix
 enum class cursor_type
 {
     CURSOR_BLINK_BLOCK,
@@ -47,6 +52,7 @@ enum class cursor_type
     CURSOR_STEADY_BAR
 };
 
+// todo: make enum class, drop cursor_ prefix
 enum cursor_state
 {
     CURSOR_DEFAULT  = 0,
@@ -62,8 +68,6 @@ struct Cursor : public Cell
 
 using screenRow = std::vector<Glyph>;
 using screenRows = std::vector<screenRow>;
-
-class Selection;
 
 class ScreenImpl;
 
@@ -140,5 +144,7 @@ public:
 private:
     std::unique_ptr<ScreenImpl> impl;
 };
+
+} // namespace screen
 
 #endif // RWTE_SCREEN_H

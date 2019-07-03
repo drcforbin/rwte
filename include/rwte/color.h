@@ -3,6 +3,8 @@
 
 #include <type_traits>
 
+namespace color {
+
 constexpr bool isTruecol(uint32_t x) {
     return 1 << 24 & x;
 }
@@ -24,5 +26,7 @@ constexpr uint8_t greenByte(uint32_t c) {
 constexpr uint8_t blueByte(uint32_t c) {
     return c & 0x0000FF;
 }
+
+} // namespace color
 
 #endif // RWTE_COLOR_H

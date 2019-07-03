@@ -8,6 +8,8 @@ struct _cairo_surface;
 typedef _cairo_surface cairo_surface_t;
 struct Cell;
 
+namespace renderer {
+
 class RendererImpl;
 
 class Renderer
@@ -32,5 +34,7 @@ public:
 private:
     std::unique_ptr<RendererImpl> impl;
 };
+
+} // namespace renderer
 
 #endif // RWTE_RENDERER_H

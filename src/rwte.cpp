@@ -12,7 +12,9 @@
 std::unique_ptr<Window> window;
 Options options;
 std::unique_ptr<Rwte> rwte;
-std::unique_ptr<Term> g_term;
+namespace term {
+    std::unique_ptr<Term> g_term;
+} // namespace term
 std::unique_ptr<Tty> g_tty;
 lua_State * g_L = nullptr;
 
@@ -103,5 +105,5 @@ void Rwte::flushcb(ev::timer &, int)
 
 void Rwte::blinkcb(ev::timer &, int)
 {
-    g_term->blink();
+    term::g_term->blink();
 }

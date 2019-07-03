@@ -19,9 +19,9 @@ namespace window
 {
 
 bool call_mouse_press(State *L, const Cell& cell, int button,
-        const keymod_state& mods);
+        const term::keymod_state& mods);
 bool call_key_press(State *L, int keysym,
-        const keymod_state& mods);
+        const term::keymod_state& mods);
 
 } // namespace window
 } // namespace lua

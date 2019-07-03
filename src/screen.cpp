@@ -12,6 +12,8 @@
 #define MIN(a, b) ((a) < (b)? (a) : (b))
 #define MAX(a, b) ((a) < (b)? (b) : (a))
 
+namespace screen {
+
 template<typename T,
     typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
 constexpr T limit(T x, T a, T b) {
@@ -693,3 +695,4 @@ Selection& Screen::sel()
 const Selection& Screen::sel() const
 { return impl->sel(); }
 
+} // namespace screen

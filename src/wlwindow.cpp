@@ -26,6 +26,11 @@
 
 #define LOGGER() (logging::get("wlwindow"))
 
+/// @file
+/// @brief Implements a wayland based window
+
+namespace wlwin {
+
 // todo: suspicious statics
 bool queued = false;
 bool prepared = false;
@@ -220,7 +225,7 @@ public:
 
     // todo: getter/setter?
     // todo: move to keyboard instead of seat?
-    keymod_state keymod;
+    term::keymod_state keymod;
 
 protected:
     friend Base;
@@ -442,7 +447,7 @@ private:
     ev::prepare m_prepare;
     ev::io m_io;
 
-    std::unique_ptr<Renderer> m_renderer;
+    std::unique_ptr<renderer::Renderer> m_renderer;
 
     // todo: make unique ptr? private?
     struct wl_display *display = nullptr;
@@ -477,7 +482,7 @@ bool WlWindow::create(int cols, int rows)
     }
     LOGGER()->debug("connected to display");
 
-    m_renderer = std::make_unique<Renderer>();
+    m_renderer = std::make_unique<renderer::Renderer>();
 
     {
         // arbitrary width and height
@@ -644,7 +649,7 @@ void WlWindow::setpointer(const PointerFrame& frame)
         (currPointer.mousex != frame.mousex ||
         currPointer.mousey != frame.mousey)) {
         auto cell = m_renderer->pxtocell(frame.mousex, frame.mousey);
-        g_term->mousereport(cell, MOUSE_MOTION, 0, seat->keymod);
+        term::g_term->mousereport(cell, term::MOUSE_MOTION, 0, seat->keymod);
     }
 
     currPointer = frame;
@@ -657,7 +662,7 @@ void WlWindow::setkbdfocus(bool focus)
         LOGGER()->trace("focused {} (keyboard)", focus);
 
         kbdfocus = focus;
-        g_term->setfocused(focus);
+        term::g_term->setfocused(focus);
     }
 }
 
@@ -810,7 +815,7 @@ void WlWindow::paint_pixels(Image *image)
     m_renderer->set_surface(surface, width, height);
     // todo: this ok? used to be done in onresize?
     m_renderer->resize(width, height);
-    m_renderer->drawregion({0, 0}, {g_term->rows(), g_term->cols()});
+    m_renderer->drawregion({0, 0}, {term::g_term->rows(), term::g_term->cols()});
     m_renderer->set_surface(nullptr, width, height);
 }
 
@@ -986,8 +991,8 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
     // todo: a bunch of this code is shared with xcbwindow...move
     // it somewhere common
 
-    auto& mode = g_term->mode();
-    if (mode[MODE_KBDLOCK])
+    auto& mode = term::g_term->mode();
+    if (mode[term::MODE_KBDLOCK])
     {
         LOGGER()->info("key press while locked {}", key);
         return;
@@ -1041,9 +1046,9 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
         case XKB_KEY_Down:
             buffer[0] = '\033';
 
-            if (seat->keymod[MOD_SHIFT] || seat->keymod[MOD_CTRL])
+            if (seat->keymod[term::MOD_SHIFT] || seat->keymod[term::MOD_CTRL])
             {
-                if (!seat->keymod[MOD_CTRL])
+                if (!seat->keymod[term::MOD_CTRL])
                     buffer[1] = '[';
                 else
                     buffer[1] = 'O';
@@ -1052,7 +1057,7 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
             }
             else
             {
-                if (!mode[MODE_APPCURSOR])
+                if (!mode[term::MODE_APPCURSOR])
                     buffer[1] = '[';
                 else
                     buffer[1] = 'O';
@@ -1061,7 +1066,7 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
             }
 
             buffer[3] = 0;
-            g_term->send(buffer);
+            term::g_term->send(buffer);
             return;
     }
 
@@ -1069,9 +1074,9 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
     if (lua::window::call_key_press(L.get(), ksym, seat->keymod))
         return;
 
-    if (len == 1 && seat->keymod[MOD_ALT])
+    if (len == 1 && seat->keymod[term::MOD_ALT])
     {
-        if (mode[MODE_8BIT])
+        if (mode[term::MODE_8BIT])
         {
             if (*buffer < 0177) {
                 char32_t c = *buffer | 0x80;
@@ -1107,16 +1112,16 @@ void Keyboard::handle_modifiers(uint32_t serial, uint32_t mods_depressed,
     seat->keymod.reset();
     if (xkb_state_mod_index_is_active(state, m_shift_modidx,
                 XKB_STATE_MODS_EFFECTIVE) == 1)
-        seat->keymod.set(MOD_SHIFT);
+        seat->keymod.set(term::MOD_SHIFT);
     if (xkb_state_mod_index_is_active(state, m_alt_modidx,
                 XKB_STATE_MODS_EFFECTIVE) == 1)
-        seat->keymod.set(MOD_ALT);
+        seat->keymod.set(term::MOD_ALT);
     if (xkb_state_mod_index_is_active(state, m_ctrl_modidx,
                 XKB_STATE_MODS_EFFECTIVE) == 1)
-        seat->keymod.set(MOD_CTRL);
+        seat->keymod.set(term::MOD_CTRL);
     if (xkb_state_mod_index_is_active(state, m_logo_modidx,
                 XKB_STATE_MODS_EFFECTIVE) == 1)
-        seat->keymod.set(MOD_LOGO);
+        seat->keymod.set(term::MOD_LOGO);
 }
 
 void Keyboard::handle_repeat_info(int32_t rate, int32_t delay)
@@ -1128,7 +1133,7 @@ void Keyboard::handle_repeat_info(int32_t rate, int32_t delay)
 void Surface::handle_enter(struct wl_output *output)
 {
     window->visible = true;
-    g_term->setdirty();
+    term::g_term->setdirty();
 }
 
 void Surface::handle_leave(struct wl_output *output)
@@ -1181,6 +1186,14 @@ void Registry::handle_global(uint32_t name, const char *interface, uint32_t vers
     }
 }
 
+} // namespace wlwin
+
+/// Returns a Window implemented with wayland
+/// \param global bus
+/// \return Window object
+/// \addtogroup Window
+/// @{
 std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus) {
-    return std::make_unique<WlWindow>(bus);
+    return std::make_unique<wlwin::WlWindow>(bus);
 }
+/// @}

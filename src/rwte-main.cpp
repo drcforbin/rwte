@@ -369,7 +369,7 @@ int main(int argc, char *argv[])
     // get ready, loop!
     ev::default_loop main_loop;
 
-    g_term = std::make_unique<Term>(bus, cols, rows);
+    term::g_term = std::make_unique<term::Term>(bus, cols, rows);
 
     if (!got_wayland)
         window = createXcbWindow(bus);

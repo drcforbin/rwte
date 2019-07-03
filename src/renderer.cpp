@@ -17,6 +17,8 @@
 
 #define LOGGER() (logging::get("renderer"))
 
+namespace renderer {
+
 template<typename T,
     typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
 constexpr T limit(T x, T a, T b) {
@@ -31,7 +33,7 @@ constexpr uint16_t sixd_to_16bit(int x)
 static uint32_t lookup_color(uint32_t color)
 {
     // only need to lookup color if the magic bit is set
-    if (!isTruecol(color))
+    if (!color::isTruecol(color))
     {
         // get colors lut
         auto L = rwte->lua();
@@ -57,13 +59,14 @@ static uint32_t lookup_color(uint32_t color)
                 if (color < 6*6*6+16)
                 {
                     // same colors as xterm
-                    color = truecol(sixd_to_16bit( ((color-16)/36)%6 ),
+                    color = color::truecol(
+                            sixd_to_16bit( ((color-16)/36)%6 ),
                             sixd_to_16bit( ((color-16)/6) %6 ),
                             sixd_to_16bit( ((color-16)/1) %6 ));
                 } else {
                     // greyscale
                     int val = 0x0808 + 0x0a0a * (color - (6*6*6+16));
-                    color = truecol(val, val, val);
+                    color = color::truecol(val, val, val);
                 }
             }
             else
@@ -199,9 +202,9 @@ public:
         // make sure we have a real color
         color = lookup_color(color);
 
-        double r = redByte(color) / 255.0;
-        double g = greenByte(color) / 255.0;
-        double b = blueByte(color) / 255.0;
+        double r = color::redByte(color) / 255.0;
+        double g = color::greenByte(color) / 255.0;
+        double b = color::blueByte(color) / 255.0;
 
         setSourceRgb(r, g, b);
     }
@@ -349,10 +352,10 @@ public:
 
 private:
     void clear(Context& cr, int x1, int y1, int x2, int y2);
-    void drawglyph(Context& cr, PangoLayout *layout, const Glyph& glyph,
-            const Cell& cell);
+    void drawglyph(Context& cr, PangoLayout *layout,
+            const screen::Glyph& glyph, const Cell& cell);
     void drawglyphs(Context& cr, PangoLayout *layout,
-            const glyph_attribute& attr, uint32_t fg, uint32_t bg,
+            const screen::glyph_attribute& attr, uint32_t fg, uint32_t bg,
             const std::vector<char32_t>& runes, const Cell& cell);
     void drawcursor(Context& cr, PangoLayout *layout);
     void load_font(Context& cr);
@@ -405,7 +408,7 @@ void RendererImpl::resize(int width, int height)
     {
         // paint from old width to new width, top to old height
         auto cr = m_surface->cr();
-        cr.setSourceColor(g_term->defbg());
+        cr.setSourceColor(term::g_term->defbg());
         cr.rectangle(m_width, 0, width, m_height);
         cr.fill();
     }
@@ -414,7 +417,7 @@ void RendererImpl::resize(int width, int height)
     {
         // paint from old height to new height, all the way across
         auto cr = m_surface->cr();
-        cr.setSourceColor(g_term->defbg());
+        cr.setSourceColor(term::g_term->defbg());
         cr.rectangle(0, m_height, width, height);
         cr.fill();
     }
@@ -445,17 +448,18 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
     return;
     */
 
-    auto& sel = g_term->sel();
-    bool ena_sel = !sel.empty() && sel.alt == g_term->mode()[MODE_ALTSCREEN];
+    auto& sel = term::g_term->sel();
+    bool ena_sel = !sel.empty() &&
+        sel.alt == term::g_term->mode()[term::MODE_ALTSCREEN];
 
     std::vector<char32_t> runes;
     Cell cell;
     for (cell.row = begin.row; cell.row < end.row; cell.row++)
     {
-        if (!g_term->isdirty(cell.row))
+        if (!term::g_term->isdirty(cell.row))
             continue;
 
-        g_term->cleardirty(cell.row);
+        term::g_term->cleardirty(cell.row);
 
         cell.col = begin.col;
         while (cell.col < end.col)
@@ -464,23 +468,24 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
 
             // making a copy, because we want to reverse it if it's
             // selected, without modifying the original
-            Glyph g = g_term->glyph(cell);
-            if (!g.attr[ATTR_WDUMMY])
+            screen::Glyph g = term::g_term->glyph(cell);
+            if (!g.attr[screen::ATTR_WDUMMY])
             {
                 if (ena_sel && sel.selected(cell))
-                    g.attr.flip(ATTR_REVERSE);
+                    g.attr.flip(screen::ATTR_REVERSE);
             }
 
             runes.push_back(g.u);
 
             for (int lookahead = cell.col + 1; lookahead < end.col; lookahead++)
             {
-                const Glyph& g2 = g_term->glyph({cell.row, lookahead});
-                glyph_attribute attr2 = g2.attr;
-                if (!attr2[ATTR_WDUMMY])
+                const screen::Glyph& g2 = term::g_term->glyph(
+                        {cell.row, lookahead});
+                screen::glyph_attribute attr2 = g2.attr;
+                if (!attr2[screen::ATTR_WDUMMY])
                 {
                     if (ena_sel && sel.selected({cell.row, lookahead}))
-                        attr2.flip(ATTR_REVERSE);
+                        attr2.flip(screen::ATTR_REVERSE);
                 }
 
                 if (g.attr != attr2 || g.fg != g2.fg || g.bg != g2.bg)
@@ -513,10 +518,10 @@ Cell RendererImpl::pxtocell(int x, int y) const
 void RendererImpl::clear(Context& cr, int x1, int y1, int x2, int y2)
 {
     uint32_t color;
-    if (!g_term->mode()[MODE_REVERSE])
-        color = g_term->defbg();
+    if (!term::g_term->mode()[term::MODE_REVERSE])
+        color = term::g_term->defbg();
     else
-        color = g_term->deffg();
+        color = term::g_term->deffg();
 
     cr.setSourceColor(color);
     cr.setOperator(CAIRO_OPERATOR_SOURCE);
@@ -524,74 +529,83 @@ void RendererImpl::clear(Context& cr, int x1, int y1, int x2, int y2)
     cr.fill();
 }
 
-void RendererImpl::drawglyph(Context& cr, PangoLayout *layout, const Glyph& glyph,
-        const Cell& cell)
+void RendererImpl::drawglyph(Context& cr, PangoLayout *layout,
+        const screen::Glyph& glyph, const Cell& cell)
 {
     const std::vector<char32_t> rune {glyph.u};
     drawglyphs(cr, layout, glyph.attr, glyph.fg, glyph.bg, rune, cell);
 }
 
 void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
-        const glyph_attribute& attr, uint32_t fg, uint32_t bg,
+        const screen::glyph_attribute& attr, uint32_t fg, uint32_t bg,
         const std::vector<char32_t>& runes, const Cell& cell)
 {
-    int charlen = runes.size() * (attr[ATTR_WIDE] ? 2 : 1);
+    int charlen = runes.size() * (attr[screen::ATTR_WIDE] ? 2 : 1);
     int winx = m_border_px + cell.col * m_cw;
     int winy = m_border_px + cell.row * m_ch;
     int width = charlen * m_cw;
 
     // change basic system colors [0-7] to bright system colors [8-15]
-    if (attr[ATTR_BOLD] && fg <= 7)
+    if (attr[screen::ATTR_BOLD] && fg <= 7)
         fg = lookup_color(fg + 8);
 
-    if (g_term->mode()[MODE_REVERSE])
+    if (term::g_term->mode()[term::MODE_REVERSE])
     {
         // if the fg or bg color is a default, use the other one,
         // otherwise invert them bitwise
 
         fg = lookup_color(fg);
-        if (fg == lookup_color(g_term->deffg()))
-            fg = g_term->defbg();
+        if (fg == lookup_color(term::g_term->deffg()))
+            fg = term::g_term->defbg();
         else
-            fg = truecol(~redByte(fg), ~greenByte(fg), ~blueByte(fg));
+            fg = color::truecol(
+                    ~color::redByte(fg),
+                    ~color::greenByte(fg),
+                    ~color::blueByte(fg));
 
         bg = lookup_color(bg);
-        if (bg == lookup_color(g_term->defbg()))
-            bg = g_term->deffg();
+        if (bg == lookup_color(term::g_term->defbg()))
+            bg = term::g_term->deffg();
         else
-            bg = truecol(~redByte(bg), ~greenByte(bg), ~blueByte(bg));
+            bg = color::truecol(
+                    ~color::redByte(bg),
+                    ~color::greenByte(bg),
+                    ~color::blueByte(bg));
     }
 
     // todo: this assumes darker is fainter
-    if (attr[ATTR_FAINT])
+    if (attr[screen::ATTR_FAINT])
     {
         fg = lookup_color(fg);
-        fg = truecol(redByte(fg) / 2, greenByte(fg) / 2, blueByte(fg) / 2);
+        fg = color::truecol(
+                color::redByte(fg) / 2,
+                color::greenByte(fg) / 2,
+                color::blueByte(fg) / 2);
     }
 
-    if (attr[ATTR_REVERSE])
+    if (attr[screen::ATTR_REVERSE])
         std::swap(fg, bg);
 
-    if (attr[ATTR_BLINK] && g_term->mode()[MODE_BLINK])
+    if (attr[screen::ATTR_BLINK] && term::g_term->mode()[term::MODE_BLINK])
         fg = bg;
 
-    if (attr[ATTR_INVISIBLE])
+    if (attr[screen::ATTR_INVISIBLE])
         fg = bg;
 
     // border cleanup
     if (cell.col == 0)
     {
         clear(cr, 0, (cell.row == 0)? 0 : winy, m_border_px,
-            winy + m_ch + ((cell.row >= g_term->rows()-1)? m_height : 0));
+            winy + m_ch + ((cell.row >= term::g_term->rows()-1)? m_height : 0));
     }
-    if (cell.col + charlen >= g_term->cols())
+    if (cell.col + charlen >= term::g_term->cols())
     {
         clear(cr, winx + width, (cell.row == 0)? 0 : winy, m_width,
-            ((cell.row >= g_term->rows()-1)? m_height : (winy + m_ch)));
+            ((cell.row >= term::g_term->rows()-1)? m_height : (winy + m_ch)));
     }
     if (cell.row == 0)
         clear(cr, winx, 0, winx + width, m_border_px);
-    if (cell.row == g_term->rows()-1)
+    if (cell.row == term::g_term->rows()-1)
         clear(cr, winx, winy + m_ch, winx + width, m_height);
 
     // clean up the region we want to draw to.
@@ -623,14 +637,14 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
 
     PangoAttrList *attrlist = nullptr;
 
-    if (attr[ATTR_ITALIC])
+    if (attr[screen::ATTR_ITALIC])
     {
         attrlist = pango_attr_list_new();
         auto attr = pango_attr_style_new(PANGO_STYLE_ITALIC);
         pango_attr_list_insert(attrlist, attr);
     }
 
-    if (attr[ATTR_BOLD])
+    if (attr[screen::ATTR_BOLD])
     {
         if (!attrlist)
             attrlist = pango_attr_list_new();
@@ -638,7 +652,7 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
         pango_attr_list_insert(attrlist, attr);
     }
 
-    if (attr[ATTR_UNDERLINE])
+    if (attr[screen::ATTR_UNDERLINE])
     {
         if (!attrlist)
             attrlist = pango_attr_list_new();
@@ -646,7 +660,7 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
         pango_attr_list_insert(attrlist, attr);
     }
 
-    if (attr[ATTR_STRUCK])
+    if (attr[screen::ATTR_STRUCK])
     {
         if (!attrlist)
             attrlist = pango_attr_list_new();
@@ -665,94 +679,96 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
 
 void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
 {
-    Glyph g;
+    screen::Glyph g;
     g.u = ' ';
-    g.fg = g_term->defbg();
-    g.bg = g_term->defcs();
+    g.fg = term::g_term->defbg();
+    g.bg = term::g_term->defcs();
 
-    auto& cursor = g_term->cursor();
+    auto& cursor = term::g_term->cursor();
 
-    m_lastcur.col = limit(m_lastcur.col, 0, g_term->cols()-1);
-    m_lastcur.row = limit(m_lastcur.row, 0, g_term->rows()-1);
+    m_lastcur.col = limit(m_lastcur.col, 0, term::g_term->cols()-1);
+    m_lastcur.row = limit(m_lastcur.row, 0, term::g_term->rows()-1);
 
     int curcol = cursor.col;
 
     // adjust position if in dummy
-    if (g_term->glyph(m_lastcur).attr[ATTR_WDUMMY])
+    if (term::g_term->glyph(m_lastcur).attr[screen::ATTR_WDUMMY])
         m_lastcur.col--;
-    if (g_term->glyph({cursor.row, curcol}).attr[ATTR_WDUMMY])
+    if (term::g_term->glyph({cursor.row, curcol}).attr[screen::ATTR_WDUMMY])
         curcol--;
 
-    auto& sel = g_term->sel();
-    bool ena_sel = !sel.empty() && sel.alt == g_term->mode()[MODE_ALTSCREEN];
+    auto& sel = term::g_term->sel();
+    bool ena_sel = !sel.empty() &&
+        sel.alt == term::g_term->mode()[term::MODE_ALTSCREEN];
 
     // remove the old cursor
     // making a copy, because we want to reverse it if it's
     // selected, without modifying the original
-    Glyph og = g_term->glyph(m_lastcur);
+    screen::Glyph og = term::g_term->glyph(m_lastcur);
     if (ena_sel && sel.selected(m_lastcur))
-        og.attr.flip(ATTR_REVERSE);
+        og.attr.flip(screen::ATTR_REVERSE);
     drawglyph(cr, layout, og, m_lastcur);
 
-    auto& oldg = g_term->glyph(cursor);
+    auto& oldg = term::g_term->glyph(cursor);
     g.u = oldg.u;
-    g.attr[ATTR_BOLD] = oldg.attr[ATTR_BOLD];
-    g.attr[ATTR_ITALIC] = oldg.attr[ATTR_ITALIC];
-    g.attr[ATTR_UNDERLINE] = oldg.attr[ATTR_UNDERLINE];
-    g.attr[ATTR_STRUCK] = oldg.attr[ATTR_STRUCK];
+    g.attr[screen::ATTR_BOLD] = oldg.attr[screen::ATTR_BOLD];
+    g.attr[screen::ATTR_ITALIC] = oldg.attr[screen::ATTR_ITALIC];
+    g.attr[screen::ATTR_UNDERLINE] = oldg.attr[screen::ATTR_UNDERLINE];
+    g.attr[screen::ATTR_STRUCK] = oldg.attr[screen::ATTR_STRUCK];
 
     // select the right color for the right mode.
     uint32_t drawcol;
-    if (g_term->mode()[MODE_REVERSE])
+    if (term::g_term->mode()[term::MODE_REVERSE])
     {
-        g.attr.set(ATTR_REVERSE);
-        g.bg = g_term->deffg();
+        g.attr.set(screen::ATTR_REVERSE);
+        g.bg = term::g_term->deffg();
         if (ena_sel && sel.selected(cursor))
         {
-            drawcol = g_term->defcs();
-            g.fg = g_term->defrcs();
+            drawcol = term::g_term->defcs();
+            g.fg = term::g_term->defrcs();
         }
         else
         {
-            drawcol = g_term->defrcs();
-            g.fg = g_term->defcs();
+            drawcol = term::g_term->defrcs();
+            g.fg = term::g_term->defcs();
         }
     }
     else
     {
         if (ena_sel && sel.selected(cursor))
         {
-            drawcol = g_term->defrcs();
-            g.fg = g_term->deffg();
-            g.bg = g_term->defrcs();
+            drawcol = term::g_term->defrcs();
+            g.fg = term::g_term->deffg();
+            g.bg = term::g_term->defrcs();
         }
         else
         {
-            drawcol = g_term->defcs();
+            drawcol = term::g_term->defcs();
         }
     }
 
-    if (g_term->mode()[MODE_HIDE])
+    if (term::g_term->mode()[term::MODE_HIDE])
         return;
 
     // draw the new one
-    if (g_term->focused())
+    if (term::g_term->focused())
     {
-        switch (g_term->cursortype())
+        switch (term::g_term->cursortype())
         {
-        case cursor_type::CURSOR_BLINK_BLOCK:
-            if (g_term->mode()[MODE_BLINK])
+        case screen::cursor_type::CURSOR_BLINK_BLOCK:
+            if (term::g_term->mode()[term::MODE_BLINK])
                 break;
             // fall through
-        case cursor_type::CURSOR_STEADY_BLOCK:
-            g.attr[ATTR_WIDE] = g_term->glyph({cursor.row, curcol}).attr[ATTR_WIDE];
+        case screen::cursor_type::CURSOR_STEADY_BLOCK:
+            g.attr[screen::ATTR_WIDE] = term::g_term->glyph({cursor.row, curcol})
+                .attr[screen::ATTR_WIDE];
             drawglyph(cr, layout, g, cursor);
             break;
-        case cursor_type::CURSOR_BLINK_UNDER:
-            if (g_term->mode()[MODE_BLINK])
+        case screen::cursor_type::CURSOR_BLINK_UNDER:
+            if (term::g_term->mode()[term::MODE_BLINK])
                 break;
             // fall through
-        case cursor_type::CURSOR_STEADY_UNDER:
+        case screen::cursor_type::CURSOR_STEADY_UNDER:
             {
                 int cursor_thickness = get_cursor_thickness();
                 cr.setSourceColor(drawcol);
@@ -765,11 +781,11 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
                 cr.fill();
             }
             break;
-        case cursor_type::CURSOR_BLINK_BAR:
-            if (g_term->mode()[MODE_BLINK])
+        case screen::cursor_type::CURSOR_BLINK_BAR:
+            if (term::g_term->mode()[term::MODE_BLINK])
                 break;
             // fall through
-        case cursor_type::CURSOR_STEADY_BAR:
+        case screen::cursor_type::CURSOR_STEADY_BAR:
             {
                 int cursor_thickness = get_cursor_thickness();
                 cr.setSourceColor(drawcol);
@@ -871,3 +887,5 @@ void Renderer::drawregion(const Cell& begin, const Cell& end)
 
 Cell Renderer::pxtocell(int x, int y) const
 { return impl->pxtocell(x, y); }
+
+} // namespace renderer

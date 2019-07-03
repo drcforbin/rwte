@@ -311,7 +311,7 @@ void lua::register_luawindow(lua::State *L)
 }
 
 bool lua::window::call_mouse_press(lua::State *L, const Cell& cell, int button,
-        const keymod_state& mods)
+        const term::keymod_state& mods)
 {
     // first, try to push the mouse_press ref
     if (!L->pushfuncref(window_mouse_press_ref))
@@ -321,13 +321,13 @@ bool lua::window::call_mouse_press(lua::State *L, const Cell& cell, int button,
     L->pushinteger(cell.row);
     L->pushinteger(button);
     L->newtable();
-    L->pushbool(mods[MOD_SHIFT]);
+    L->pushbool(mods[term::MOD_SHIFT]);
     L->setfield(-2, "shift");
-    L->pushbool(mods[MOD_CTRL]);
+    L->pushbool(mods[term::MOD_CTRL]);
     L->setfield(-2, "ctrl");
-    L->pushbool(mods[MOD_ALT]);
+    L->pushbool(mods[term::MOD_ALT]);
     L->setfield(-2, "alt");
-    L->pushbool(mods[MOD_LOGO]);
+    L->pushbool(mods[term::MOD_LOGO]);
     L->setfield(-2, "logo");
     // todo: include num
 
@@ -346,7 +346,7 @@ bool lua::window::call_mouse_press(lua::State *L, const Cell& cell, int button,
 }
 
 bool lua::window::call_key_press(lua::State *L, int keysym,
-        const keymod_state& mods)
+        const term::keymod_state& mods)
 {
     // first, try to push the key_press ref
     if (!L->pushfuncref(window_key_press_ref))
@@ -354,13 +354,13 @@ bool lua::window::call_key_press(lua::State *L, int keysym,
 
     L->pushinteger(keysym);
     L->newtable();
-    L->pushbool(mods[MOD_SHIFT]);
+    L->pushbool(mods[term::MOD_SHIFT]);
     L->setfield(-2, "shift");
-    L->pushbool(mods[MOD_CTRL]);
+    L->pushbool(mods[term::MOD_CTRL]);
     L->setfield(-2, "ctrl");
-    L->pushbool(mods[MOD_ALT]);
+    L->pushbool(mods[term::MOD_ALT]);
     L->setfield(-2, "alt");
-    L->pushbool(mods[MOD_LOGO]);
+    L->pushbool(mods[term::MOD_LOGO]);
     L->setfield(-2, "logo");
     // todo: include num
 

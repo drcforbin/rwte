@@ -42,6 +42,11 @@
 #define XEMBED_FOCUS_IN  4
 #define XEMBED_FOCUS_OUT 5
 
+/// @file
+/// @brief Implements a xcb based window
+
+namespace xcbwin {
+
 // todo: move this to a utils file
 static int get_border_px()
 {
@@ -166,9 +171,9 @@ private:
     ev::prepare m_prepare;
     ev::check m_check;
 
-    std::unique_ptr<Renderer> m_renderer;
+    std::unique_ptr<renderer::Renderer> m_renderer;
 
-    keymod_state m_keymod;
+    term::keymod_state m_keymod;
     xkb_mod_index_t m_shift_modidx, m_ctrl_modidx, m_alt_modidx, m_logo_modidx;
     uint32_t m_eventmask;
 };
@@ -207,7 +212,7 @@ bool XcbWindow::create(int cols, int rows)
         return false;
     }
 
-    m_renderer = std::make_unique<Renderer>();
+    m_renderer = std::make_unique<renderer::Renderer>();
 
     // arbitrary width and height
     auto root_surface = cairo_xcb_surface_create(connection,
@@ -299,7 +304,7 @@ void XcbWindow::draw()
     if (!visible)
         return;
 
-    m_renderer->drawregion({0, 0}, {g_term->rows(), g_term->cols()});
+    m_renderer->drawregion({0, 0}, {term::g_term->rows(), term::g_term->cols()});
 }
 
 static std::string get_term_name()
@@ -336,7 +341,7 @@ void XcbWindow::setsel()
     if (reply)
     {
         if (reply->owner != win)
-            g_term->selclear();
+            term::g_term->selclear();
 
         std::free(reply);
     }
@@ -359,7 +364,7 @@ void XcbWindow::setclip()
     if (reply)
     {
         if (reply->owner != win)
-            g_term->selclear();
+            term::g_term->selclear();
 
         std::free(reply);
     }
@@ -621,8 +626,8 @@ void XcbWindow::onresize(const event::Resize& evt)
 
 void XcbWindow::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
 {
-    auto& mode = g_term->mode();
-    if (mode[MODE_KBDLOCK])
+    auto& mode = term::g_term->mode();
+    if (mode[term::MODE_KBDLOCK])
     {
         LOGGER()->info("key press while locked {}", event->detail);
         return;
@@ -669,9 +674,9 @@ void XcbWindow::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
         case XKB_KEY_Down:
             buffer[0] = '\033';
 
-            if (m_keymod[MOD_SHIFT] || m_keymod[MOD_CTRL])
+            if (m_keymod[term::MOD_SHIFT] || m_keymod[term::MOD_CTRL])
             {
-                if (!m_keymod[MOD_CTRL])
+                if (!m_keymod[term::MOD_CTRL])
                     buffer[1] = '[';
                 else
                     buffer[1] = 'O';
@@ -680,7 +685,7 @@ void XcbWindow::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
             }
             else
             {
-                if (!mode[MODE_APPCURSOR])
+                if (!mode[term::MODE_APPCURSOR])
                     buffer[1] = '[';
                 else
                     buffer[1] = 'O';
@@ -689,7 +694,7 @@ void XcbWindow::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
             }
 
             buffer[3] = 0;
-            g_term->send(buffer);
+            term::g_term->send(buffer);
             return;
     }
 
@@ -697,9 +702,9 @@ void XcbWindow::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
     if (lua::window::call_key_press(L.get(), ksym, m_keymod))
         return;
 
-    if (len == 1 && m_keymod[MOD_ALT])
+    if (len == 1 && m_keymod[term::MOD_ALT])
     {
-        if (mode[MODE_8BIT])
+        if (mode[term::MODE_8BIT])
         {
             if (*buffer < 0177) {
                 char32_t c = *buffer | 0x80;
@@ -756,7 +761,7 @@ void XcbWindow::handle_client_message(ev::loop_ref& loop, xcb_client_message_eve
 void XcbWindow::handle_motion_notify(ev::loop_ref&, xcb_motion_notify_event_t *event)
 {
     auto cell = m_renderer->pxtocell(event->event_x, event->event_y);
-    g_term->mousereport(cell, MOUSE_MOTION, 0, m_keymod);
+    term::g_term->mousereport(cell, term::MOUSE_MOTION, 0, m_keymod);
 }
 
 void XcbWindow::handle_visibility_notify(ev::loop_ref&, xcb_visibility_notify_event_t *event)
@@ -772,12 +777,12 @@ void XcbWindow::handle_unmap_notify(ev::loop_ref&, xcb_unmap_notify_event_t *eve
 void XcbWindow::handle_focus_in(ev::loop_ref&, xcb_focus_in_event_t *event)
 {
     seturgent(false);
-    g_term->setfocused(true);
+    term::g_term->setfocused(true);
 }
 
 void XcbWindow::handle_focus_out(ev::loop_ref&, xcb_focus_out_event_t *event)
 {
-    g_term->setfocused(false);
+    term::g_term->setfocused(false);
 }
 
 void XcbWindow::handle_button(ev::loop_ref&, xcb_button_press_event_t *event)
@@ -786,13 +791,14 @@ void XcbWindow::handle_button(ev::loop_ref&, xcb_button_press_event_t *event)
     bool press = (event->response_type & 0x7F) == XCB_BUTTON_PRESS;
 
     auto cell = m_renderer->pxtocell(event->event_x, event->event_y);
-    mouse_event_enum mouse_evt = press? MOUSE_PRESS : MOUSE_RELEASE;
-    g_term->mousereport(cell, mouse_evt, button, m_keymod);
+    term::mouse_event_enum mouse_evt =
+        press? term::MOUSE_PRESS : term::MOUSE_RELEASE;
+    term::g_term->mousereport(cell, mouse_evt, button, m_keymod);
 }
 
 void XcbWindow::handle_selection_clear(ev::loop_ref&, xcb_selection_clear_event_t *event)
 {
-    g_term->selclear();
+    term::g_term->selclear();
 }
 
 void XcbWindow::handle_selection_notify(ev::loop_ref&, xcb_selection_notify_event_t *event)
@@ -872,9 +878,9 @@ void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_ev
         // requestor. not our problem, use utf8
         std::shared_ptr<char> seltext;
         if (event->selection == XCB_ATOM_PRIMARY)
-            seltext = g_term->sel().primary;
+            seltext = term::g_term->sel().primary;
         else if (event->selection == m_clipboard)
-            seltext = g_term->sel().clipboard;
+            seltext = term::g_term->sel().clipboard;
         else
         {
             LOGGER()->error("unhandled selection {:#x}", event->selection);
@@ -960,7 +966,7 @@ void XcbWindow::handle_expose(ev::loop_ref&, xcb_expose_event_t *event)
     // redraw only on the last expose event in the sequence
     if (event->count == 0 && mapped && visible)
     {
-        g_term->setdirty();
+        term::g_term->setdirty();
         draw();
     }
 }
@@ -1014,16 +1020,16 @@ void XcbWindow::handle_xkb_event(xcb_generic_event_t *gevent)
             m_keymod.reset();
             if (xkb_state_mod_index_is_active(xkb_state, m_shift_modidx,
                         XKB_STATE_MODS_EFFECTIVE) == 1)
-                m_keymod.set(MOD_SHIFT);
+                m_keymod.set(term::MOD_SHIFT);
             if (xkb_state_mod_index_is_active(xkb_state, m_alt_modidx,
                         XKB_STATE_MODS_EFFECTIVE) == 1)
-                m_keymod.set(MOD_ALT);
+                m_keymod.set(term::MOD_ALT);
             if (xkb_state_mod_index_is_active(xkb_state, m_ctrl_modidx,
                         XKB_STATE_MODS_EFFECTIVE) == 1)
-                m_keymod.set(MOD_CTRL);
+                m_keymod.set(term::MOD_CTRL);
             if (xkb_state_mod_index_is_active(xkb_state, m_logo_modidx,
                         XKB_STATE_MODS_EFFECTIVE) == 1)
-                m_keymod.set(MOD_LOGO);
+                m_keymod.set(term::MOD_LOGO);
 
             break;
         default:
@@ -1126,7 +1132,7 @@ void XcbWindow::selnotify(xcb_atom_t property, bool propnotify)
                 *repl++ = '\r';
 
             // todo: move to a Term::paste function
-            bool brcktpaste = g_term->mode()[MODE_BRCKTPASTE];
+            bool brcktpaste = term::g_term->mode()[term::MODE_BRCKTPASTE];
             if (brcktpaste)
                 g_tty->write("\033[200~", 6);
             g_tty->write(data, len);
@@ -1178,6 +1184,14 @@ void XcbWindow::checkcb(ev::check &w, int)
     }
 }
 
+} // namespace xcbwin
+
+/// Returns a Window implemented with xcb
+/// \param global bus
+/// \return Window object
+/// \addtogroup Window
+/// @{
 std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus) {
     return std::make_unique<XcbWindow>(bus);
 }
+/// @}

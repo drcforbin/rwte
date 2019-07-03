@@ -183,7 +183,7 @@ TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus) :
     {
         LOGGER()->debug("logging to {}", options.io);
 
-        g_term->setprint();
+        term::g_term->setprint();
         m_iofd = (options.io == "-") ?
                 STDOUT_FILENO : open(options.io.c_str(), O_WRONLY | O_CREAT, 0666);
         if (m_iofd < 0)
@@ -210,7 +210,11 @@ TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus) :
 
     // open pseudoterminal
     int parent, child;
-    struct winsize w = {(uint16_t) g_term->rows(), (uint16_t) g_term->cols(), 0, 0};
+    struct winsize w = {
+        (uint16_t) term::g_term->rows(),
+        (uint16_t) term::g_term->cols(),
+        0, 0
+    };
     if (openpty(&parent, &child, nullptr, nullptr, &w) < 0)
         LOGGER()->fatal("openpty failed: {}", strerror(errno));
 
@@ -320,7 +324,8 @@ std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
     for (;;)
     {
         // UTF8 but not SIXEL
-        if (g_term->mode()[MODE_UTF8] && !g_term->mode()[MODE_SIXEL])
+        if (term::g_term->mode()[term::MODE_UTF8] &&
+                !term::g_term->mode()[term::MODE_SIXEL])
         {
             // process a complete utf8 char
             char32_t unicodep;
@@ -328,7 +333,7 @@ std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
             if (charsize == 0)
                 break; // incomplete char
 
-            g_term->putc(unicodep);
+            term::g_term->putc(unicodep);
             ptr += charsize;
             len -= charsize;
         }
@@ -337,7 +342,7 @@ std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
             if (len <= 0)
                 break;
 
-            g_term->putc(*ptr++ & 0xFF);
+            term::g_term->putc(*ptr++ & 0xFF);
             len--;
         }
     }

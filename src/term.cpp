@@ -29,6 +29,8 @@
         (((t1).tv_sec-(t2).tv_sec)*1000 + \
          ((t1).tv_nsec-(t2).tv_nsec)/1E6)
 
+namespace term {
+
 template<typename T,
     typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
 constexpr T limit(T x, T a, T b) {
@@ -153,7 +155,7 @@ static uint32_t defcolor(int *attr, int *npar, int l)
         if (!(0 <= r && r <= 255) || !(0 <= g && g <= 255) || !(0 <= b && b <= 255))
             LOGGER()->error("erresc: bad rgb color ({},{},{})", r, g, b);
         else
-            idx = truecol(r, g, b);
+            idx = color::truecol(r, g, b);
         break;
     case 5: // indexed color
         if (*npar + 2 >= l) {
@@ -184,12 +186,12 @@ public:
     TermImpl(std::shared_ptr<event::Bus> bus, int cols, int rows);
     ~TermImpl();
 
-    const Glyph& glyph(const Cell& cell) const
+    const screen::Glyph& glyph(const Cell& cell) const
     {
         return m_screen.glyph(cell);
     }
 
-    Glyph& glyph(const Cell& cell)
+    screen::Glyph& glyph(const Cell& cell)
     {
         return m_screen.glyph(cell);
     }
@@ -203,8 +205,8 @@ public:
     void blink();
 
     const Selection& sel() const { return m_screen.sel(); }
-    const Cursor& cursor() const { return m_screen.cursor(); }
-    cursor_type cursortype() const { return m_screen.cursortype(); }
+    const screen::Cursor& cursor() const { return m_screen.cursor(); }
+    screen::cursor_type cursortype() const { return m_screen.cursortype(); }
 
     bool isdirty(int row) const { return m_screen.isdirty(row); }
     void setdirty() { m_screen.setdirty(0, m_screen.rows()-1); }
@@ -242,7 +244,7 @@ private:
 
     void selsnap(int *col, int *row, int direction);
 
-    void setchar(char32_t u, const Glyph& attr, const Cell& cell);
+    void setchar(char32_t u, const screen::Glyph& attr, const Cell& cell);
     void defutf8(char ascii);
     void deftran(char ascii);
     void dectest(char c);
@@ -267,7 +269,7 @@ private:
     std::shared_ptr<event::Bus> m_bus;
     int m_resizeReg;
 
-    Screen m_screen;
+    screen::Screen m_screen;
 
     term_mode m_mode; // terminal mode
     escape_state m_esc; // escape mode
@@ -339,7 +341,7 @@ void TermImpl::reset()
 
     L->pop(6);
 
-    Cursor c{};
+    screen::Cursor c{};
     c.attr.fg = default_fg;
     c.attr.bg = default_bg;
 
@@ -384,9 +386,9 @@ void TermImpl::reset()
     m_screen.reset();
 
     // todo: needs blink func?
-    if (m_screen.cursortype() == cursor_type::CURSOR_BLINK_BLOCK ||
-            m_screen.cursortype() == cursor_type::CURSOR_BLINK_UNDER ||
-            m_screen.cursortype() == cursor_type::CURSOR_BLINK_BAR)
+    if (m_screen.cursortype() == screen::cursor_type::CURSOR_BLINK_BLOCK ||
+            m_screen.cursortype() == screen::cursor_type::CURSOR_BLINK_UNDER ||
+            m_screen.cursortype() == screen::cursor_type::CURSOR_BLINK_BAR)
         start_blink();
 }
 
@@ -397,16 +399,17 @@ void TermImpl::setprint()
 
 void TermImpl::blink()
 {
-    bool need_blink = m_screen.cursortype() == cursor_type::CURSOR_BLINK_BLOCK ||
-            m_screen.cursortype() == cursor_type::CURSOR_BLINK_UNDER ||
-            m_screen.cursortype() == cursor_type::CURSOR_BLINK_BAR;
+    bool need_blink =
+        m_screen.cursortype() == screen::cursor_type::CURSOR_BLINK_BLOCK ||
+        m_screen.cursortype() == screen::cursor_type::CURSOR_BLINK_UNDER ||
+        m_screen.cursortype() == screen::cursor_type::CURSOR_BLINK_BAR;
 
     // see if we have anything blinking and mark blinking lines dirty
     for (int i = 0; i < m_screen.rows(); i++)
     {
         for (const auto& g : m_screen.line(i))
         {
-            if (g.attr[ATTR_BLINK])
+            if (g.attr[screen::ATTR_BLINK])
             {
                 need_blink = true;
                 m_screen.setdirty(i, i);
@@ -475,7 +478,7 @@ void TermImpl::resizeCore(int cols, int rows)
 
     // store cursor
     // todo: move to screen too, when mode moves. move cursor(int) too
-    Cursor c = m_screen.cursor();
+    screen::Cursor c = m_screen.cursor();
     // clear both screens (dirties all lines)
     for (int i = 0; i < 2; i++)
     {
@@ -658,10 +661,10 @@ void TermImpl::putc(char32_t u)
             sel.ob.row <= cursor.row && cursor.row <= sel.oe.row)
         m_screen.selclear();
 
-    Glyph *gp = &m_screen.glyph(cursor);
-    if (m_mode[MODE_WRAP] && (cursor.state & CURSOR_WRAPNEXT))
+    screen::Glyph *gp = &m_screen.glyph(cursor);
+    if (m_mode[MODE_WRAP] && (cursor.state & screen::CURSOR_WRAPNEXT))
     {
-        gp->attr.set(ATTR_WRAP);
+        gp->attr.set(screen::ATTR_WRAP);
         m_screen.newline(true);
         gp = &m_screen.glyph(cursor);
     }
@@ -669,7 +672,8 @@ void TermImpl::putc(char32_t u)
     // todo: it's not cool to dig into / make assumptions about screen here
     if (m_mode[MODE_INSERT] && cursor.col+width < m_screen.cols())
         // todo: check
-        std::memmove(gp+width, gp, (m_screen.cols() - cursor.col - width) * sizeof(Glyph));
+        std::memmove(gp+width, gp,
+                (m_screen.cols() - cursor.col - width) * sizeof(screen::Glyph));
 
     if (cursor.col+width > m_screen.cols())
     {
@@ -681,12 +685,12 @@ void TermImpl::putc(char32_t u)
 
     if (width == 2)
     {
-        gp->attr.set(ATTR_WIDE);
+        gp->attr.set(screen::ATTR_WIDE);
         if (cursor.col+1 < m_screen.cols())
         {
             gp[1].u = '\0';
             gp[1].attr.reset();
-            gp[1].attr.set(ATTR_WDUMMY);
+            gp[1].attr.set(screen::ATTR_WDUMMY);
         }
     }
 
@@ -696,8 +700,8 @@ void TermImpl::putc(char32_t u)
     else
     {
         // todo: some better way than this temporary?
-        Cursor cur = cursor;
-        cur.state |= CURSOR_WRAPNEXT;
+        screen::Cursor cur = cursor;
+        cur.state |= screen::CURSOR_WRAPNEXT;
         m_screen.setCursor(cur);
     }
 }
@@ -998,7 +1002,7 @@ void TermImpl::send(const char *data, std::size_t len)
     g_tty->write(data, len);
 }
 
-void TermImpl::setchar(char32_t u, const Glyph& attr, const Cell& cell)
+void TermImpl::setchar(char32_t u, const screen::Glyph& attr, const Cell& cell)
 {
     const char *vt100_0[62] = { // 0x41 - 0x7e
         "↑", "↓", "→", "←", "█", "▚", "☃", // A - G
@@ -1018,21 +1022,21 @@ void TermImpl::setchar(char32_t u, const Glyph& attr, const Cell& cell)
         utf8decode(vt100_0[u - 0x41], &u, utf_size);
 
     auto thisGlyph = m_screen.glyph(cell);
-    if (thisGlyph.attr[ATTR_WIDE])
+    if (thisGlyph.attr[screen::ATTR_WIDE])
     {
         if (cell.col+1 < m_screen.cols())
         {
             auto nextGlyph = m_screen.glyph({cell.row, cell.col+1});
-            nextGlyph.u = empty_char;
-            nextGlyph.attr.reset(ATTR_WDUMMY);
+            nextGlyph.u = screen::empty_char;
+            nextGlyph.attr.reset(screen::ATTR_WDUMMY);
             m_screen.setGlyph({cell.row, cell.col+1}, nextGlyph);
         }
     }
-    else if (thisGlyph.attr[ATTR_WDUMMY])
+    else if (thisGlyph.attr[screen::ATTR_WDUMMY])
     {
         auto prevGlyph = m_screen.glyph({cell.row, cell.col-1});
-        prevGlyph.u = empty_char;
-        prevGlyph.attr.reset(ATTR_WIDE);
+        prevGlyph.u = screen::empty_char;
+        prevGlyph.attr.reset(screen::ATTR_WIDE);
         m_screen.setGlyph({cell.row, cell.col-1}, prevGlyph);
     }
 
@@ -1040,7 +1044,7 @@ void TermImpl::setchar(char32_t u, const Glyph& attr, const Cell& cell)
     thisGlyph.u = u;
     m_screen.setGlyph(cell, thisGlyph);
 
-    if (attr.attr[ATTR_BLINK])
+    if (attr.attr[screen::ATTR_BLINK])
         start_blink();
 }
 
@@ -1719,26 +1723,26 @@ void TermImpl::csihandle()
             switch(m_csiesc.arg[0])
             {
             case 2: // Steady Block
-                m_screen.setCursortype(cursor_type::CURSOR_STEADY_BLOCK);
+                m_screen.setCursortype(screen::cursor_type::CURSOR_STEADY_BLOCK);
                 break;
             case 3: // Blinking Underline
-                m_screen.setCursortype(cursor_type::CURSOR_BLINK_UNDER);
+                m_screen.setCursortype(screen::cursor_type::CURSOR_BLINK_UNDER);
                 start_blink();
                 break;
             case 4: // Steady Underline
-                m_screen.setCursortype(cursor_type::CURSOR_STEADY_UNDER);
+                m_screen.setCursortype(screen::cursor_type::CURSOR_STEADY_UNDER);
                 break;
             case 5: // Blinking bar
-                m_screen.setCursortype(cursor_type::CURSOR_BLINK_BAR);
+                m_screen.setCursortype(screen::cursor_type::CURSOR_BLINK_BAR);
                 start_blink();
                 break;
             case 6: // Steady bar
-                m_screen.setCursortype(cursor_type::CURSOR_STEADY_BAR);
+                m_screen.setCursortype(screen::cursor_type::CURSOR_STEADY_BAR);
                 break;
             case 0: // Blinking Block
             case 1: // Blinking Block (Default)
             default:
-                m_screen.setCursortype(cursor_type::CURSOR_BLINK_BLOCK);
+                m_screen.setCursortype(screen::cursor_type::CURSOR_BLINK_BLOCK);
                 start_blink();
                 LOGGER()->error("unknown cursor {}", m_csiesc.arg[0]);
                 break;
@@ -1789,78 +1793,78 @@ void TermImpl::setattr(int *attr, int len)
         switch (attr[i])
         {
         case 0:
-            cursor.attr.attr.reset(ATTR_BOLD);
-            cursor.attr.attr.reset(ATTR_FAINT);
-            cursor.attr.attr.reset(ATTR_ITALIC);
-            cursor.attr.attr.reset(ATTR_UNDERLINE);
-            cursor.attr.attr.reset(ATTR_BLINK);
-            cursor.attr.attr.reset(ATTR_REVERSE);
-            cursor.attr.attr.reset(ATTR_INVISIBLE);
-            cursor.attr.attr.reset(ATTR_STRUCK);
+            cursor.attr.attr.reset(screen::ATTR_BOLD);
+            cursor.attr.attr.reset(screen::ATTR_FAINT);
+            cursor.attr.attr.reset(screen::ATTR_ITALIC);
+            cursor.attr.attr.reset(screen::ATTR_UNDERLINE);
+            cursor.attr.attr.reset(screen::ATTR_BLINK);
+            cursor.attr.attr.reset(screen::ATTR_REVERSE);
+            cursor.attr.attr.reset(screen::ATTR_INVISIBLE);
+            cursor.attr.attr.reset(screen::ATTR_STRUCK);
             cursor.attr.fg = m_deffg;
             cursor.attr.bg = m_defbg;
             m_screen.setCursor(cursor);
             break;
         case 1:
-            cursor.attr.attr.set(ATTR_BOLD);
+            cursor.attr.attr.set(screen::ATTR_BOLD);
             m_screen.setCursor(cursor);
             break;
         case 2:
-            cursor.attr.attr.set(ATTR_FAINT);
+            cursor.attr.attr.set(screen::ATTR_FAINT);
             m_screen.setCursor(cursor);
             break;
         case 3:
-            cursor.attr.attr.set(ATTR_ITALIC);
+            cursor.attr.attr.set(screen::ATTR_ITALIC);
             m_screen.setCursor(cursor);
             break;
         case 4:
-            cursor.attr.attr.set(ATTR_UNDERLINE);
+            cursor.attr.attr.set(screen::ATTR_UNDERLINE);
             m_screen.setCursor(cursor);
             break;
         case 5: // slow blink
         case 6: // rapid blink
-            cursor.attr.attr.set(ATTR_BLINK);
+            cursor.attr.attr.set(screen::ATTR_BLINK);
             m_screen.setCursor(cursor);
             break;
         case 7:
-            cursor.attr.attr.set(ATTR_REVERSE);
+            cursor.attr.attr.set(screen::ATTR_REVERSE);
             m_screen.setCursor(cursor);
             break;
         case 8:
-            cursor.attr.attr.set(ATTR_INVISIBLE);
+            cursor.attr.attr.set(screen::ATTR_INVISIBLE);
             m_screen.setCursor(cursor);
             break;
         case 9:
-            cursor.attr.attr.set(ATTR_STRUCK);
+            cursor.attr.attr.set(screen::ATTR_STRUCK);
             m_screen.setCursor(cursor);
             break;
         case 22:
-            cursor.attr.attr.reset(ATTR_BOLD);
-            cursor.attr.attr.reset(ATTR_FAINT);
+            cursor.attr.attr.reset(screen::ATTR_BOLD);
+            cursor.attr.attr.reset(screen::ATTR_FAINT);
             m_screen.setCursor(cursor);
             break;
         case 23:
-            cursor.attr.attr.reset(ATTR_ITALIC);
+            cursor.attr.attr.reset(screen::ATTR_ITALIC);
             m_screen.setCursor(cursor);
             break;
         case 24:
-            cursor.attr.attr.reset(ATTR_UNDERLINE);
+            cursor.attr.attr.reset(screen::ATTR_UNDERLINE);
             m_screen.setCursor(cursor);
             break;
         case 25:
-            cursor.attr.attr.reset(ATTR_BLINK);
+            cursor.attr.attr.reset(screen::ATTR_BLINK);
             m_screen.setCursor(cursor);
             break;
         case 27:
-            cursor.attr.attr.reset(ATTR_REVERSE);
+            cursor.attr.attr.reset(screen::ATTR_REVERSE);
             m_screen.setCursor(cursor);
             break;
         case 28:
-            cursor.attr.attr.reset(ATTR_INVISIBLE);
+            cursor.attr.attr.reset(screen::ATTR_INVISIBLE);
             m_screen.setCursor(cursor);
             break;
         case 29:
-            cursor.attr.attr.reset(ATTR_STRUCK);
+            cursor.attr.attr.reset(screen::ATTR_STRUCK);
             m_screen.setCursor(cursor);
             break;
         case 38:
@@ -1948,9 +1952,9 @@ void TermImpl::settmode(bool priv, bool set, int *args, int narg)
             {
                 auto cursor = m_screen.cursor();
                 if (set)
-                    cursor.state |= CURSOR_ORIGIN;
+                    cursor.state |= screen::CURSOR_ORIGIN;
                 else
-                    cursor.state &= ~CURSOR_ORIGIN;
+                    cursor.state &= ~screen::CURSOR_ORIGIN;
                 m_screen.setCursor(cursor);
 
                 m_screen.moveato({0, 0});
@@ -2081,7 +2085,7 @@ std::shared_ptr<char> TermImpl::getsel()
 {
     char *str, *ptr;
     int row, bufsize, lastcol, llen;
-    Glyph *gp, *last;
+    screen::Glyph *gp, *last;
 
     const auto& sel = m_screen.sel();
     if (sel.empty())
@@ -2111,19 +2115,20 @@ std::shared_ptr<char> TermImpl::getsel()
             lastcol = (sel.ne.row == row) ? sel.ne.col : m_screen.cols()-1;
         }
         last = &m_screen.glyph({row, MIN(lastcol, llen-1)});
-        while (last >= gp && last->u == empty_char)
+        while (last >= gp && last->u == screen::empty_char)
             --last;
 
         for ( ; gp <= last; ++gp)
         {
-            if (gp->attr[ATTR_WDUMMY])
+            if (gp->attr[screen::ATTR_WDUMMY])
                 continue;
 
             ptr += utf8encode(gp->u, ptr);
         }
 
         // use \n for line ending in outgoing data
-        if ((row < sel.ne.row || lastcol >= llen) && !(last->attr[ATTR_WRAP]))
+        if ((row < sel.ne.row || lastcol >= llen) &&
+                !(last->attr[screen::ATTR_WRAP]))
             *ptr++ = '\n';
     }
     *ptr = 0;
@@ -2137,10 +2142,10 @@ Term::Term(std::shared_ptr<event::Bus> bus, int cols, int rows) :
 
 Term::~Term() = default;
 
-const Glyph& Term::glyph(const Cell& cell) const
+const screen::Glyph& Term::glyph(const Cell& cell) const
 { return impl->glyph(cell); }
 
-Glyph& Term::glyph(const Cell& cell)
+screen::Glyph& Term::glyph(const Cell& cell)
 { return impl->glyph(cell); }
 
 void Term::reset()
@@ -2158,10 +2163,10 @@ void Term::blink()
 const Selection& Term::sel() const
 { return impl->sel(); }
 
-const Cursor& Term::cursor() const
+const screen::Cursor& Term::cursor() const
 { return impl->cursor(); }
 
-cursor_type Term::cursortype() const
+screen::cursor_type Term::cursortype() const
 { return impl->cursortype(); }
 
 bool Term::isdirty(int row) const
@@ -2216,3 +2221,5 @@ void Term::send(const char *data, std::size_t len /* = 0 */)
         len = std::strlen(data);
     impl->send(data, len);
 }
+
+} // namespace term
