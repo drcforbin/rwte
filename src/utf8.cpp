@@ -36,6 +36,77 @@ enum utf_action_enum
     ACT_INVALID
 };
 
+constexpr unsigned char transition(unsigned char action, unsigned char state) {
+    return action << 4 | state;
+}
+
+constexpr auto make_transitions() {
+    std::array<std::array<unsigned char, 256>, 8> arr {};
+    unsigned char invalid_val = transition(ACT_INVALID, UTF8_GROUND);
+
+    for (int i = 0; i < 256; i++) {
+        if (0x00 <= i && i <= 0x7F)
+            arr[UTF8_GROUND][i] = transition(ACT_EMIT, UTF8_GROUND);
+        else if (0xC2 <= i && i <= 0xDF)
+            arr[UTF8_GROUND][i] = transition(ACT_SET_BYTE2_TOP, UTF8_TAIL1);
+        else if (0xE0 <= i && i <= 0xE0)
+            arr[UTF8_GROUND][i] = transition(ACT_NOOP, UTF8_U3_B2_E0);
+        else if (0xE1 <= i && i <= 0xEC)
+            arr[UTF8_GROUND][i] = transition(ACT_SET_BYTE3_TOP, UTF8_TAIL2);
+        else if (0xED <= i && i <= 0xED)
+            arr[UTF8_GROUND][i] = transition(ACT_SET_BYTE3_TOP, UTF8_U3_B2_ED);
+        else if (0xEE <= i && i <= 0xEF)
+            arr[UTF8_GROUND][i] = transition(ACT_SET_BYTE3_TOP, UTF8_TAIL2);
+        else if (0xF0 <= i && i <= 0xF0)
+            arr[UTF8_GROUND][i] = transition(ACT_SET_BYTE4_TOP, UTF8_U4_B3_F0);
+        else if (0xF1 <= i && i <= 0xF3)
+            arr[UTF8_GROUND][i] = transition(ACT_SET_BYTE4_TOP, UTF8_TAIL3);
+        else if (0xF4 <= i && i <= 0xF4)
+            arr[UTF8_GROUND][i] = transition(ACT_SET_BYTE4_TOP, UTF8_U4_B3_F4);
+        else
+            arr[UTF8_GROUND][i] = invalid_val;
+
+        if (0xA0 <= i && i <= 0xBF)
+            arr[UTF8_U3_B2_E0][i] = transition(ACT_SET_BYTE2, UTF8_TAIL1);
+        else
+            arr[UTF8_U3_B2_E0][i] = invalid_val;
+
+        if (0x80 <= i && i <= 0x9F)
+            arr[UTF8_U3_B2_ED][i] = transition(ACT_SET_BYTE2, UTF8_TAIL1);
+        else
+            arr[UTF8_U3_B2_ED][i] = invalid_val;
+
+        if (0x90 <= i && i <= 0xBF)
+            arr[UTF8_U4_B3_F0][i] = transition(ACT_SET_BYTE3, UTF8_TAIL2);
+        else
+            arr[UTF8_U4_B3_F0][i] = invalid_val;
+
+        if (0x80 <= i && i <= 0x8F)
+            arr[UTF8_U4_B3_F4][i] = transition(ACT_SET_BYTE3, UTF8_TAIL2);
+        else
+            arr[UTF8_U4_B3_F4][i] = invalid_val;
+
+        if (0x80 <= i && i <= 0xBF)
+            arr[UTF8_TAIL1][i] = transition(ACT_SET_BYTE1_EMIT, UTF8_GROUND);
+        else
+            arr[UTF8_TAIL1][i] = invalid_val;
+
+        if (0x80 <= i && i <= 0xBF)
+            arr[UTF8_TAIL2][i] = transition(ACT_SET_BYTE2, UTF8_TAIL1);
+        else
+            arr[UTF8_TAIL2][i] = invalid_val;
+
+        if (0x80 <= i && i <= 0xBF)
+            arr[UTF8_TAIL3][i] = transition(ACT_SET_BYTE3, UTF8_TAIL2);
+        else
+            arr[UTF8_TAIL3][i] = invalid_val;
+    }
+
+    return arr;
+}
+
+constexpr auto UTF8_TRANSITIONS = make_transitions();
+
 class Utf8Decoder
 {
 public:
@@ -48,8 +119,6 @@ private:
     utf8_state_enum m_state;
 };
 
-
-extern const std::array<unsigned char, 256> UTF8_TRANSITIONS[8];
 
 utf8_result Utf8Decoder::feed(unsigned char b, char32_t *cp)
 {
