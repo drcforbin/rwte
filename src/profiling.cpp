@@ -3,7 +3,7 @@
 
 #include <unordered_map>
 
-// global logger map
+// global profiler map
 static std::unordered_map<std::string, std::shared_ptr<profiling::Profiler>> g_profilers;
 
 std::shared_ptr<profiling::Profiler> profiling::get(const std::string& name)
