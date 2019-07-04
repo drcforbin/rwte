@@ -1192,6 +1192,6 @@ void XcbWindow::checkcb(ev::check &w, int)
 /// \addtogroup Window
 /// @{
 std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus) {
-    return std::make_unique<XcbWindow>(bus);
+    return std::make_unique<xcbwin::XcbWindow>(bus);
 }
 /// @}
