@@ -90,10 +90,10 @@ public:
             LOGGER()->debug("cursor {}, {}", m_cursor.row, m_cursor.col);
             LOGGER()->debug("removing {} lines for cursor",
                     (m_cursor.row - rows) + 1);
-            m_lines.erase(m_lines.begin(),
-                    m_lines.begin() + (m_cursor.row - rows) + 1);
-            m_alt_lines.erase(m_alt_lines.begin(),
-                    m_alt_lines.begin() + (m_cursor.row - rows) + 1);
+            m_lines.erase(m_lines.cbegin(),
+                    m_lines.cbegin() + (m_cursor.row - rows) + 1);
+            m_alt_lines.erase(m_alt_lines.cbegin(),
+                    m_alt_lines.cbegin() + (m_cursor.row - rows) + 1);
         }
 
         // resize to new height

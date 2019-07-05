@@ -459,13 +459,13 @@ void TermImpl::resizeCore(int cols, int rows)
                 "tab_spaces", DEFAULT_TAB_SPACES);
 
         // point to end of old size
-        auto bp = m_tabs.begin() + m_screen.cols();
+        auto bp = m_tabs.cbegin() + m_screen.cols();
         // back up to last tab (or begin)
-        if (bp != m_tabs.begin())
-            while (--bp != m_tabs.begin() && !*bp) {}
+        if (bp != m_tabs.cbegin())
+            while (--bp != m_tabs.cbegin() && !*bp) {}
         // set tabs from here (resize cleared newly added tabs)
         auto idx = static_cast<decltype(m_tabs)::size_type>(
-                std::distance(m_tabs.begin(), bp));
+                std::distance(m_tabs.cbegin(), bp));
         for (idx += tab_spaces; idx < m_tabs.size(); idx += tab_spaces)
             m_tabs[idx] = true;
     }
