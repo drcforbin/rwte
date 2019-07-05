@@ -21,12 +21,21 @@
 #include <xcb/xcb_aux.h>
 
 // xkb uses explicit as a field name. ugh.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wkeyword-macro"
+// clang complains about redefining explicit,
+// so we need to tell it to shut up, but GCC
+// don't care
+#if defined(__clang__)
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wkeyword-macro"
+#endif
+
 #define explicit _explicit
 #include <xcb/xkb.h>
 #undef explicit
-#pragma clang diagnostic pop
+
+#if defined(__clang__)
+    #pragma clang diagnostic pop
+#endif
 
 #include <xkbcommon/xkbcommon-compose.h>
 #include <xkbcommon/xkbcommon-x11.h>

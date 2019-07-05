@@ -83,10 +83,10 @@ const int str_arg_size = esc_arg_size;
 struct CSIEscape
 {
     char buf[esc_buf_size]; // raw string
-    int len;               // raw string length
+    std::size_t len;        // raw string length
     bool priv;
     int arg[esc_arg_size];
-    int narg;              // num args
+    int narg;               // num args
     char mode[2];
 };
 
@@ -94,11 +94,11 @@ struct CSIEscape
 // ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\'
 struct STREscape
 {
-    char type;             // ESC type ...
+    char type;              // ESC type ...
     char buf[str_buf_size]; // raw string
-    int len;               // raw string length
+    int len;                // raw string length
     char *args[str_arg_size];
-    int narg;              // nb of args
+    int narg;               // nb of args
 };
 
 // default values to use if we don't have
@@ -123,7 +123,7 @@ static int32_t hexcolor(const char *src)
     unsigned long val;
     char *e;
 
-    size_t in_len = std::strlen(src);
+    std::size_t in_len = std::strlen(src);
     if (in_len == 7 && src[0] == '#')
     {
         if ((val = strtoul(src+1, &e, 16)) != ULONG_MAX && (e == src+7))
@@ -461,10 +461,12 @@ void TermImpl::resizeCore(int cols, int rows)
         // point to end of old size
         auto bp = m_tabs.begin() + m_screen.cols();
         // back up to last tab (or begin)
-        while (--bp != m_tabs.begin() && !*bp) {}
+        if (bp != m_tabs.begin())
+            while (--bp != m_tabs.begin() && !*bp) {}
         // set tabs from here (resize cleared newly added tabs)
-        auto idx = bp - m_tabs.begin();
-        for ( idx += tab_spaces; idx < m_tabs.size(); idx += tab_spaces)
+        auto idx = static_cast<decltype(m_tabs)::size_type>(
+                std::distance(m_tabs.begin(), bp));
+        for (idx += tab_spaces; idx < m_tabs.size(); idx += tab_spaces)
             m_tabs[idx] = true;
     }
 
@@ -535,7 +537,7 @@ void TermImpl::putc(char32_t u)
 {
     char c[utf_size];
     int width;
-    size_t len;
+    std::size_t len;
 
     bool control = iscontrol(u);
 
@@ -1341,8 +1343,11 @@ void TermImpl::strparse()
 
 void TermImpl::strhandle()
 {
-    char *p = nullptr;
-    int j, narg, par;
+    // todo: color
+    // char *p = nullptr;
+    // int j;
+
+    int narg, par;
 
     m_esc.reset(ESC_STR_END);
     m_esc.reset(ESC_STR);
@@ -1393,13 +1398,14 @@ void TermImpl::strhandle()
         case 4: // color set
             if (narg < 3)
                 break;
-            p = m_stresc.args[2];
+            // todo: color
+            // p = m_stresc.args[2];
             // FALLTHROUGH
         case 104: // color reset, here p = NULL
-            j = (narg > 1) ? atoi(m_stresc.args[1]) : -1;
             // todo: remove dump
             LOGGER()->debug("OSC 4/104: {}", strdump());
             /*
+            j = (narg > 1) ? atoi(m_stresc.args[1]) : -1;
             todo: color
             if (xsetcolorname(j, p)) {
                 if (p == 104 && narg <= 1)
@@ -1765,7 +1771,7 @@ std::string TermImpl::csidump()
     fmt::MemoryWriter msg;
     msg << "ESC[";
 
-    for (int i = 0; i < m_csiesc.len; i++)
+    for (std::size_t i = 0; i < m_csiesc.len; i++)
     {
         unsigned int c = m_csiesc.buf[i] & 0xff;
         if (isprint(c))

@@ -224,7 +224,8 @@ TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus) :
         LOGGER()->fatal("fork failed");
         break;
     case 0: // child
-        close(m_iofd);
+        if (m_iofd != -1)
+            close(m_iofd);
         setsid(); // create a new process group
         dup2(child, STDIN_FILENO);
         dup2(child, STDOUT_FILENO);
@@ -251,7 +252,7 @@ TtyImpl::~TtyImpl()
 {
     m_bus->unreg<event::Resize>(m_resizeReg);
 
-    if (m_iofd)
+    if (m_iofd != -1)
         close(m_iofd);
 }
 

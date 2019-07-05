@@ -10,7 +10,7 @@
 namespace logging
 {
 
-using level_enum = enum
+enum level_enum
 {
     trace = 0,
     debug = 1,
@@ -24,7 +24,9 @@ using level_enum = enum
 class Logger
 {
     public:
-        Logger(std::string name) : m_name(std::move(name)), m_level(logging::trace) { }
+        Logger(std::string name) :
+            m_name(std::move(name)), m_level(logging::trace)
+        { }
 
         virtual ~Logger();
         Logger(const Logger&) = delete;
@@ -32,8 +34,8 @@ class Logger
 
         const std::string& name() const { return m_name; }
 
-        level_enum level() { return m_level; }
-        void level(level_enum val) { m_level = val; }
+        logging::level_enum level() { return m_level; }
+        void level(logging::level_enum val) { m_level = val; }
 
         template <typename... Args> void log(level_enum lvl, const char* fmt, const Args&... args);
         template <typename... Args> void log(level_enum lvl, const char* msg);
@@ -53,7 +55,7 @@ class Logger
         template <typename T> void fatal(const T&);
     private:
         const std::string m_name;
-        level_enum m_level;
+        logging::level_enum m_level;
 };
 
 // get/create a logger
@@ -74,7 +76,7 @@ struct Message
     Message(Message&& other) = delete;
 
     const std::string *logname = nullptr;
-    level_enum level = trace;
+    logging::level_enum level = logging::trace;
     std::chrono::system_clock::time_point ts;
 
     fmt::MemoryWriter msg;
