@@ -44,6 +44,7 @@ MARKDOWN_SUPPORT       = YES
 # todo: maybe?
 BUILTIN_STL_SUPPORT    = NO
 
+GENERATE_LATEX         = NO
 
 # Build config
 
