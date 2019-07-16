@@ -39,7 +39,8 @@ void logging::details::log_message(const logging::details::Message& msg)
     localtime_r(&ts, &ltm);
 
     char timestr[sizeof "YYYY-MM-DDTHH:MM:SS.NNN"];
-    sprintf(timestr, "%04d-%02d-%02dT%02d:%02d:%02d.%03ld",
+    snprintf(timestr, sizeof timestr,
+        "%04u-%02u-%02uT%02u:%02u:%02u.%03lu",
         ltm.tm_year+1900, ltm.tm_mon+1, ltm.tm_mday,
         ltm.tm_hour, ltm.tm_min, ltm.tm_sec,
         ms % 1000);
