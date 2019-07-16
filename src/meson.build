@@ -26,7 +26,7 @@ common_sources = files(
 )
 
 executable(
-    'mesonrwte', [
+    'rwte', [
         'rwte-main.cpp',
         common_sources
     ],
@@ -35,7 +35,7 @@ executable(
 )
 
 testexe = executable(
-    'mesonrwte-test', [
+    'rwte-test', [
         'rwte-test.cpp',
         'screen-test.cpp',
         common_sources
