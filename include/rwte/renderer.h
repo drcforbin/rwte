@@ -3,7 +3,10 @@
 
 #include <memory>
 
-// forwards
+namespace term {
+class Term;
+}
+
 struct _cairo_surface;
 typedef _cairo_surface cairo_surface_t;
 struct Cell;
@@ -15,7 +18,7 @@ class RendererImpl;
 class Renderer
 {
 public:
-    Renderer();
+    Renderer(term::Term *term);
     ~Renderer();
 
     void load_font(cairo_surface_t *root_surface);

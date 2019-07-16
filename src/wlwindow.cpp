@@ -376,7 +376,7 @@ private:
 class WlWindow : public Window
 {
 public:
-    WlWindow(std::shared_ptr<event::Bus> bus);
+    WlWindow(std::shared_ptr<event::Bus> bus, term::Term *term);
     ~WlWindow();
 
     bool create(int cols, int rows);
@@ -430,6 +430,7 @@ public:
     bool visible = false;
 
     std::shared_ptr<event::Bus> m_bus;
+    term::Term *m_term;
 
 private:
     void onresize(const event::Resize& evt);
@@ -458,8 +459,9 @@ private:
     bool kbdfocus;
 };
 
-WlWindow::WlWindow(std::shared_ptr<event::Bus> bus) :
+WlWindow::WlWindow(std::shared_ptr<event::Bus> bus, term::Term *term) :
     m_bus(std::move(bus)),
+    m_term(term),
     m_resizeReg(m_bus->reg<event::Resize, WlWindow, &WlWindow::onresize>(this))
 {
     m_prepare.set<WlWindow,&WlWindow::preparecb>(this);
@@ -482,7 +484,7 @@ bool WlWindow::create(int cols, int rows)
     }
     LOGGER()->debug("connected to display");
 
-    m_renderer = std::make_unique<renderer::Renderer>();
+    m_renderer = std::make_unique<renderer::Renderer>(m_term);
 
     {
         // arbitrary width and height
@@ -566,7 +568,7 @@ bool WlWindow::create(int cols, int rows)
     // todo: refactor...needs to be done when window mapped
     // surface enter / first visible?
     if (!g_tty)
-        g_tty = std::make_unique<Tty>(m_bus);
+        g_tty = std::make_unique<Tty>(m_bus, m_term);
 
     return true;
 }
@@ -649,7 +651,7 @@ void WlWindow::setpointer(const PointerFrame& frame)
         (currPointer.mousex != frame.mousex ||
         currPointer.mousey != frame.mousey)) {
         auto cell = m_renderer->pxtocell(frame.mousex, frame.mousey);
-        term::g_term->mousereport(cell, term::MOUSE_MOTION, 0, seat->keymod);
+        m_term->mousereport(cell, term::MOUSE_MOTION, 0, seat->keymod);
     }
 
     currPointer = frame;
@@ -662,7 +664,7 @@ void WlWindow::setkbdfocus(bool focus)
         LOGGER()->trace("focused {} (keyboard)", focus);
 
         kbdfocus = focus;
-        term::g_term->setfocused(focus);
+        m_term->setfocused(focus);
     }
 }
 
@@ -815,7 +817,7 @@ void WlWindow::paint_pixels(Image *image)
     m_renderer->set_surface(surface, width, height);
     // todo: this ok? used to be done in onresize?
     m_renderer->resize(width, height);
-    m_renderer->drawregion({0, 0}, {term::g_term->rows(), term::g_term->cols()});
+    m_renderer->drawregion({0, 0}, {m_term->rows(), m_term->cols()});
     m_renderer->set_surface(nullptr, width, height);
 }
 
@@ -897,7 +899,7 @@ void XdgToplevel::handle_configure(int32_t width, int32_t height,
         window->publishresize(width, height);
     }
 
-    // todo: look at all the other g_term and g_tty uses in XcbWindow
+    // todo: look at all the other m_term and g_tty uses in XcbWindow
 }
 
 void Pointer::handle_enter(uint32_t serial, struct wl_surface *surface,
@@ -930,7 +932,7 @@ void Pointer::handle_frame()
     // todo: handle mouse button
     // auto cell = m_renderer->pxtocell(event->event_x, event->event_y);
     // mouse_event_enum mouse_evt = press? MOUSE_PRESS : MOUSE_RELEASE;
-    // g_term->mousereport(cell, mouse_evt, button, seat->keymod);
+    // m_term->mousereport(cell, mouse_evt, button, seat->keymod);
 }
 
 void Keyboard::handle_keymap(uint32_t format, int fd, uint32_t size)
@@ -991,7 +993,8 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
     // todo: a bunch of this code is shared with xcbwindow...move
     // it somewhere common
 
-    auto& mode = term::g_term->mode();
+    auto window = seat->window();
+    auto& mode = window->m_term->mode();
     if (mode[term::MODE_KBDLOCK])
     {
         LOGGER()->info("key press while locked {}", key);
@@ -1066,7 +1069,7 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
             }
 
             buffer[3] = 0;
-            term::g_term->send(buffer);
+            window->m_term->send(buffer);
             return;
     }
 
@@ -1133,7 +1136,7 @@ void Keyboard::handle_repeat_info(int32_t rate, int32_t delay)
 void Surface::handle_enter(struct wl_output *output)
 {
     window->visible = true;
-    term::g_term->setdirty();
+    window->m_term->setdirty();
 }
 
 void Surface::handle_leave(struct wl_output *output)
@@ -1193,7 +1196,8 @@ void Registry::handle_global(uint32_t name, const char *interface, uint32_t vers
 /// \return Window object
 /// \addtogroup Window
 /// @{
-std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus) {
-    return std::make_unique<wlwin::WlWindow>(bus);
+std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus,
+        term::Term *term) {
+    return std::make_unique<wlwin::WlWindow>(bus, term);
 }
 /// @}

@@ -372,11 +372,11 @@ int main(int argc, char *argv[])
     term::g_term = std::make_unique<term::Term>(bus, cols, rows);
 
     if (!got_wayland)
-        window = createXcbWindow(bus);
+        window = createXcbWindow(bus, term::g_term.get());
     else
     {
         options.throttledraw = false;
-        window = createWlWindow(bus);
+        window = createWlWindow(bus, term::g_term.get());
     }
 
     // todo: replace create/destroy with ctor/dtor

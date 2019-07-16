@@ -5,6 +5,10 @@
 
 #include <memory>
 
+namespace term {
+class Term;
+}
+
 /// \addtogroup Window
 /// @{
 class Window
@@ -31,8 +35,10 @@ public:
     virtual void clippaste() = 0;
 };
 
-std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus);
-std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus);
+std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus,
+        term::Term *term);
+std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus,
+        term::Term *term);
 
 extern std::unique_ptr<Window> window;
 /// @}

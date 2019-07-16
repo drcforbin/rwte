@@ -6,12 +6,16 @@
 #include <memory>
 #include <string>
 
+namespace term {
+class Term;
+}
+
 class TtyImpl;
 
 class Tty
 {
 public:
-    Tty(std::shared_ptr<event::Bus> bus);
+    Tty(std::shared_ptr<event::Bus> bus, term::Term *term);
     ~Tty();
 
     void write(const std::string& data);

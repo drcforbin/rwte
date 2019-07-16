@@ -67,7 +67,7 @@ static int get_border_px()
 class XcbWindow : public Window
 {
 public:
-    XcbWindow(std::shared_ptr<event::Bus> bus);
+    XcbWindow(std::shared_ptr<event::Bus> bus, term::Term *term);
     ~XcbWindow();
 
     bool create(int cols, int rows);
@@ -160,6 +160,8 @@ private:
     bool load_compose_table(const char *locale);
 
     std::shared_ptr<event::Bus> m_bus;
+    term::Term *m_term;
+
     int m_resizeReg;
 
     uint16_t m_width, m_height;
@@ -187,8 +189,9 @@ private:
     uint32_t m_eventmask;
 };
 
-XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus) :
+XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus, term::Term *term) :
     m_bus(std::move(bus)),
+    m_term(term),
     m_resizeReg(m_bus->reg<event::Resize, XcbWindow, &XcbWindow::onresize>(this)),
     m_eventmask(0)
 {
@@ -221,7 +224,7 @@ bool XcbWindow::create(int cols, int rows)
         return false;
     }
 
-    m_renderer = std::make_unique<renderer::Renderer>();
+    m_renderer = std::make_unique<renderer::Renderer>(m_term);
 
     // arbitrary width and height
     auto root_surface = cairo_xcb_surface_create(connection,
@@ -313,7 +316,7 @@ void XcbWindow::draw()
     if (!visible)
         return;
 
-    m_renderer->drawregion({0, 0}, {term::g_term->rows(), term::g_term->cols()});
+    m_renderer->drawregion({0, 0}, {m_term->rows(), m_term->cols()});
 }
 
 static std::string get_term_name()
@@ -350,7 +353,7 @@ void XcbWindow::setsel()
     if (reply)
     {
         if (reply->owner != win)
-            term::g_term->selclear();
+            m_term->selclear();
 
         std::free(reply);
     }
@@ -373,7 +376,7 @@ void XcbWindow::setclip()
     if (reply)
     {
         if (reply->owner != win)
-            term::g_term->selclear();
+            m_term->selclear();
 
         std::free(reply);
     }
@@ -635,7 +638,7 @@ void XcbWindow::onresize(const event::Resize& evt)
 
 void XcbWindow::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
 {
-    auto& mode = term::g_term->mode();
+    auto& mode = m_term->mode();
     if (mode[term::MODE_KBDLOCK])
     {
         LOGGER()->info("key press while locked {}", event->detail);
@@ -703,7 +706,7 @@ void XcbWindow::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
             }
 
             buffer[3] = 0;
-            term::g_term->send(buffer);
+            m_term->send(buffer);
             return;
     }
 
@@ -770,7 +773,7 @@ void XcbWindow::handle_client_message(ev::loop_ref& loop, xcb_client_message_eve
 void XcbWindow::handle_motion_notify(ev::loop_ref&, xcb_motion_notify_event_t *event)
 {
     auto cell = m_renderer->pxtocell(event->event_x, event->event_y);
-    term::g_term->mousereport(cell, term::MOUSE_MOTION, 0, m_keymod);
+    m_term->mousereport(cell, term::MOUSE_MOTION, 0, m_keymod);
 }
 
 void XcbWindow::handle_visibility_notify(ev::loop_ref&, xcb_visibility_notify_event_t *event)
@@ -786,12 +789,12 @@ void XcbWindow::handle_unmap_notify(ev::loop_ref&, xcb_unmap_notify_event_t *eve
 void XcbWindow::handle_focus_in(ev::loop_ref&, xcb_focus_in_event_t *event)
 {
     seturgent(false);
-    term::g_term->setfocused(true);
+    m_term->setfocused(true);
 }
 
 void XcbWindow::handle_focus_out(ev::loop_ref&, xcb_focus_out_event_t *event)
 {
-    term::g_term->setfocused(false);
+    m_term->setfocused(false);
 }
 
 void XcbWindow::handle_button(ev::loop_ref&, xcb_button_press_event_t *event)
@@ -802,12 +805,12 @@ void XcbWindow::handle_button(ev::loop_ref&, xcb_button_press_event_t *event)
     auto cell = m_renderer->pxtocell(event->event_x, event->event_y);
     term::mouse_event_enum mouse_evt =
         press? term::MOUSE_PRESS : term::MOUSE_RELEASE;
-    term::g_term->mousereport(cell, mouse_evt, button, m_keymod);
+    m_term->mousereport(cell, mouse_evt, button, m_keymod);
 }
 
 void XcbWindow::handle_selection_clear(ev::loop_ref&, xcb_selection_clear_event_t *event)
 {
-    term::g_term->selclear();
+    m_term->selclear();
 }
 
 void XcbWindow::handle_selection_notify(ev::loop_ref&, xcb_selection_notify_event_t *event)
@@ -887,9 +890,9 @@ void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_ev
         // requestor. not our problem, use utf8
         std::shared_ptr<char> seltext;
         if (event->selection == XCB_ATOM_PRIMARY)
-            seltext = term::g_term->sel().primary;
+            seltext = m_term->sel().primary;
         else if (event->selection == m_clipboard)
-            seltext = term::g_term->sel().clipboard;
+            seltext = m_term->sel().clipboard;
         else
         {
             LOGGER()->error("unhandled selection {:#x}", event->selection);
@@ -962,7 +965,7 @@ void XcbWindow::handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t *event)
 
         // todo: refactor
         if (!g_tty)
-            g_tty = std::make_unique<Tty>(m_bus);
+            g_tty = std::make_unique<Tty>(m_bus, m_term);
 
         publishresize(width, height);
     }
@@ -975,7 +978,7 @@ void XcbWindow::handle_expose(ev::loop_ref&, xcb_expose_event_t *event)
     // redraw only on the last expose event in the sequence
     if (event->count == 0 && mapped && visible)
     {
-        term::g_term->setdirty();
+        m_term->setdirty();
         draw();
     }
 }
@@ -1141,7 +1144,7 @@ void XcbWindow::selnotify(xcb_atom_t property, bool propnotify)
                 *repl++ = '\r';
 
             // todo: move to a Term::paste function
-            bool brcktpaste = term::g_term->mode()[term::MODE_BRCKTPASTE];
+            bool brcktpaste = m_term->mode()[term::MODE_BRCKTPASTE];
             if (brcktpaste)
                 g_tty->write("\033[200~", 6);
             g_tty->write(data, len);
@@ -1200,7 +1203,8 @@ void XcbWindow::checkcb(ev::check &w, int)
 /// \return Window object
 /// \addtogroup Window
 /// @{
-std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus) {
-    return std::make_unique<xcbwin::XcbWindow>(bus);
+std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus,
+        term::Term *term) {
+    return std::make_unique<xcbwin::XcbWindow>(bus, term);
 }
 /// @}

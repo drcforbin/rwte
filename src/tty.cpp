@@ -152,7 +152,7 @@ static void stty()
 class TtyImpl: public AsyncIO<TtyImpl, max_write>
 {
 public:
-    TtyImpl(std::shared_ptr<event::Bus> bus);
+    TtyImpl(std::shared_ptr<event::Bus> bus, term::Term *term);
     ~TtyImpl();
 
     void print(const char *data, std::size_t len);
@@ -167,14 +167,16 @@ private:
     std::size_t onread(const char *ptr, std::size_t len);
 
     std::shared_ptr<event::Bus> m_bus;
+    term::Term *m_term;
     int m_resizeReg;
     pid_t m_pid;
     int m_iofd;
 };
 
 
-TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus) :
+TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus, term::Term *term) :
     m_bus(std::move(bus)),
+    m_term(term),
     m_resizeReg(m_bus->reg<event::Resize, TtyImpl, &TtyImpl::onresize>(this)),
     m_pid(0),
     m_iofd(-1)
@@ -183,7 +185,7 @@ TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus) :
     {
         LOGGER()->debug("logging to {}", options.io);
 
-        term::g_term->setprint();
+        m_term->setprint();
         m_iofd = (options.io == "-") ?
                 STDOUT_FILENO : open(options.io.c_str(), O_WRONLY | O_CREAT, 0666);
         if (m_iofd < 0)
@@ -211,8 +213,8 @@ TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus) :
     // open pseudoterminal
     int parent, child;
     struct winsize w = {
-        (uint16_t) term::g_term->rows(),
-        (uint16_t) term::g_term->cols(),
+        (uint16_t) m_term->rows(),
+        (uint16_t) m_term->cols(),
         0, 0
     };
     if (openpty(&parent, &child, nullptr, nullptr, &w) < 0)
@@ -325,8 +327,8 @@ std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
     for (;;)
     {
         // UTF8 but not SIXEL
-        if (term::g_term->mode()[term::MODE_UTF8] &&
-                !term::g_term->mode()[term::MODE_SIXEL])
+        if (m_term->mode()[term::MODE_UTF8] &&
+                !m_term->mode()[term::MODE_SIXEL])
         {
             // process a complete utf8 char
             char32_t unicodep;
@@ -334,7 +336,7 @@ std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
             if (charsize == 0)
                 break; // incomplete char
 
-            term::g_term->putc(unicodep);
+            m_term->putc(unicodep);
             ptr += charsize;
             len -= charsize;
         }
@@ -343,7 +345,7 @@ std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
             if (len <= 0)
                 break;
 
-            term::g_term->putc(*ptr++ & 0xFF);
+            m_term->putc(*ptr++ & 0xFF);
             len--;
         }
     }
@@ -351,8 +353,8 @@ std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
     return len;
 }
 
-Tty::Tty(std::shared_ptr<event::Bus> bus) :
-    impl(std::make_unique<TtyImpl>(std::move(bus)))
+Tty::Tty(std::shared_ptr<event::Bus> bus, term::Term *term) :
+    impl(std::make_unique<TtyImpl>(std::move(bus), term))
 { }
 
 Tty::~Tty()

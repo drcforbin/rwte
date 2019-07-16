@@ -336,7 +336,7 @@ private:
 class RendererImpl
 {
 public:
-    RendererImpl();
+    RendererImpl(term::Term *term);
 
     void load_font(cairo_surface_t *root_surface);
     void set_surface(cairo_surface_t *surface, int width, int height);
@@ -361,6 +361,8 @@ private:
     void load_font(Context& cr);
     cairo_font_options_t *get_font_options();
 
+    term::Term *m_term;
+
     shared_font_options m_fo;
     std::unique_ptr<Surface> m_surface;
 
@@ -372,7 +374,8 @@ private:
     int m_border_px;
 };
 
-RendererImpl::RendererImpl() :
+RendererImpl::RendererImpl(term::Term *term) :
+    m_term(term),
     m_fo(create_font_options()),
     m_fontdesc(create_font_desc()),
     // initial border_px value; we'll keep it semi-fresh as
@@ -408,7 +411,7 @@ void RendererImpl::resize(int width, int height)
     {
         // paint from old width to new width, top to old height
         auto cr = m_surface->cr();
-        cr.setSourceColor(term::g_term->defbg());
+        cr.setSourceColor(m_term->defbg());
         cr.rectangle(m_width, 0, width, m_height);
         cr.fill();
     }
@@ -417,7 +420,7 @@ void RendererImpl::resize(int width, int height)
     {
         // paint from old height to new height, all the way across
         auto cr = m_surface->cr();
-        cr.setSourceColor(term::g_term->defbg());
+        cr.setSourceColor(m_term->defbg());
         cr.rectangle(0, m_height, width, height);
         cr.fill();
     }
@@ -439,7 +442,7 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
     /*
     // test painting
     cr.setOperator(CAIRO_OPERATOR_SOURCE);
-    if (g_term->focused())
+    if (m_term->focused())
         cr.setSourceRgb(1, 0, 0);
     else
         cr.setSourceRgb(0, 0, 1);
@@ -448,18 +451,18 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
     return;
     */
 
-    auto& sel = term::g_term->sel();
+    auto& sel = m_term->sel();
     bool ena_sel = !sel.empty() &&
-        sel.alt == term::g_term->mode()[term::MODE_ALTSCREEN];
+        sel.alt == m_term->mode()[term::MODE_ALTSCREEN];
 
     std::vector<char32_t> runes;
     Cell cell;
     for (cell.row = begin.row; cell.row < end.row; cell.row++)
     {
-        if (!term::g_term->isdirty(cell.row))
+        if (!m_term->isdirty(cell.row))
             continue;
 
-        term::g_term->cleardirty(cell.row);
+        m_term->cleardirty(cell.row);
 
         cell.col = begin.col;
         while (cell.col < end.col)
@@ -468,7 +471,7 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
 
             // making a copy, because we want to reverse it if it's
             // selected, without modifying the original
-            screen::Glyph g = term::g_term->glyph(cell);
+            screen::Glyph g = m_term->glyph(cell);
             if (!g.attr[screen::ATTR_WDUMMY])
             {
                 if (ena_sel && sel.selected(cell))
@@ -479,7 +482,7 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
 
             for (int lookahead = cell.col + 1; lookahead < end.col; lookahead++)
             {
-                const screen::Glyph& g2 = term::g_term->glyph(
+                const screen::Glyph& g2 = m_term->glyph(
                         {cell.row, lookahead});
                 screen::glyph_attribute attr2 = g2.attr;
                 if (!attr2[screen::ATTR_WDUMMY])
@@ -518,10 +521,10 @@ Cell RendererImpl::pxtocell(int x, int y) const
 void RendererImpl::clear(Context& cr, int x1, int y1, int x2, int y2)
 {
     uint32_t color;
-    if (!term::g_term->mode()[term::MODE_REVERSE])
-        color = term::g_term->defbg();
+    if (!m_term->mode()[term::MODE_REVERSE])
+        color = m_term->defbg();
     else
-        color = term::g_term->deffg();
+        color = m_term->deffg();
 
     cr.setSourceColor(color);
     cr.setOperator(CAIRO_OPERATOR_SOURCE);
@@ -549,14 +552,14 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
     if (attr[screen::ATTR_BOLD] && fg <= 7)
         fg = lookup_color(fg + 8);
 
-    if (term::g_term->mode()[term::MODE_REVERSE])
+    if (m_term->mode()[term::MODE_REVERSE])
     {
         // if the fg or bg color is a default, use the other one,
         // otherwise invert them bitwise
 
         fg = lookup_color(fg);
-        if (fg == lookup_color(term::g_term->deffg()))
-            fg = term::g_term->defbg();
+        if (fg == lookup_color(m_term->deffg()))
+            fg = m_term->defbg();
         else
             fg = color::truecol(
                     ~color::redByte(fg),
@@ -564,8 +567,8 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
                     ~color::blueByte(fg));
 
         bg = lookup_color(bg);
-        if (bg == lookup_color(term::g_term->defbg()))
-            bg = term::g_term->deffg();
+        if (bg == lookup_color(m_term->defbg()))
+            bg = m_term->deffg();
         else
             bg = color::truecol(
                     ~color::redByte(bg),
@@ -586,7 +589,7 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
     if (attr[screen::ATTR_REVERSE])
         std::swap(fg, bg);
 
-    if (attr[screen::ATTR_BLINK] && term::g_term->mode()[term::MODE_BLINK])
+    if (attr[screen::ATTR_BLINK] && m_term->mode()[term::MODE_BLINK])
         fg = bg;
 
     if (attr[screen::ATTR_INVISIBLE])
@@ -596,16 +599,16 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
     if (cell.col == 0)
     {
         clear(cr, 0, (cell.row == 0)? 0 : winy, m_border_px,
-            winy + m_ch + ((cell.row >= term::g_term->rows()-1)? m_height : 0));
+            winy + m_ch + ((cell.row >= m_term->rows()-1)? m_height : 0));
     }
-    if (cell.col + charlen >= term::g_term->cols())
+    if (cell.col + charlen >= m_term->cols())
     {
         clear(cr, winx + width, (cell.row == 0)? 0 : winy, m_width,
-            ((cell.row >= term::g_term->rows()-1)? m_height : (winy + m_ch)));
+            ((cell.row >= m_term->rows()-1)? m_height : (winy + m_ch)));
     }
     if (cell.row == 0)
         clear(cr, winx, 0, winx + width, m_border_px);
-    if (cell.row == term::g_term->rows()-1)
+    if (cell.row == m_term->rows()-1)
         clear(cr, winx, winy + m_ch, winx + width, m_height);
 
     // clean up the region we want to draw to.
@@ -681,35 +684,35 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
 {
     screen::Glyph g;
     g.u = ' ';
-    g.fg = term::g_term->defbg();
-    g.bg = term::g_term->defcs();
+    g.fg = m_term->defbg();
+    g.bg = m_term->defcs();
 
-    auto& cursor = term::g_term->cursor();
+    auto& cursor = m_term->cursor();
 
-    m_lastcur.col = limit(m_lastcur.col, 0, term::g_term->cols()-1);
-    m_lastcur.row = limit(m_lastcur.row, 0, term::g_term->rows()-1);
+    m_lastcur.col = limit(m_lastcur.col, 0, m_term->cols()-1);
+    m_lastcur.row = limit(m_lastcur.row, 0, m_term->rows()-1);
 
     int curcol = cursor.col;
 
     // adjust position if in dummy
-    if (term::g_term->glyph(m_lastcur).attr[screen::ATTR_WDUMMY])
+    if (m_term->glyph(m_lastcur).attr[screen::ATTR_WDUMMY])
         m_lastcur.col--;
-    if (term::g_term->glyph({cursor.row, curcol}).attr[screen::ATTR_WDUMMY])
+    if (m_term->glyph({cursor.row, curcol}).attr[screen::ATTR_WDUMMY])
         curcol--;
 
-    auto& sel = term::g_term->sel();
+    auto& sel = m_term->sel();
     bool ena_sel = !sel.empty() &&
-        sel.alt == term::g_term->mode()[term::MODE_ALTSCREEN];
+        sel.alt == m_term->mode()[term::MODE_ALTSCREEN];
 
     // remove the old cursor
     // making a copy, because we want to reverse it if it's
     // selected, without modifying the original
-    screen::Glyph og = term::g_term->glyph(m_lastcur);
+    screen::Glyph og = m_term->glyph(m_lastcur);
     if (ena_sel && sel.selected(m_lastcur))
         og.attr.flip(screen::ATTR_REVERSE);
     drawglyph(cr, layout, og, m_lastcur);
 
-    auto& oldg = term::g_term->glyph(cursor);
+    auto& oldg = m_term->glyph(cursor);
     g.u = oldg.u;
     g.attr[screen::ATTR_BOLD] = oldg.attr[screen::ATTR_BOLD];
     g.attr[screen::ATTR_ITALIC] = oldg.attr[screen::ATTR_ITALIC];
@@ -718,54 +721,54 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
 
     // select the right color for the right mode.
     uint32_t drawcol;
-    if (term::g_term->mode()[term::MODE_REVERSE])
+    if (m_term->mode()[term::MODE_REVERSE])
     {
         g.attr.set(screen::ATTR_REVERSE);
-        g.bg = term::g_term->deffg();
+        g.bg = m_term->deffg();
         if (ena_sel && sel.selected(cursor))
         {
-            drawcol = term::g_term->defcs();
-            g.fg = term::g_term->defrcs();
+            drawcol = m_term->defcs();
+            g.fg = m_term->defrcs();
         }
         else
         {
-            drawcol = term::g_term->defrcs();
-            g.fg = term::g_term->defcs();
+            drawcol = m_term->defrcs();
+            g.fg = m_term->defcs();
         }
     }
     else
     {
         if (ena_sel && sel.selected(cursor))
         {
-            drawcol = term::g_term->defrcs();
-            g.fg = term::g_term->deffg();
-            g.bg = term::g_term->defrcs();
+            drawcol = m_term->defrcs();
+            g.fg = m_term->deffg();
+            g.bg = m_term->defrcs();
         }
         else
         {
-            drawcol = term::g_term->defcs();
+            drawcol = m_term->defcs();
         }
     }
 
-    if (term::g_term->mode()[term::MODE_HIDE])
+    if (m_term->mode()[term::MODE_HIDE])
         return;
 
     // draw the new one
-    if (term::g_term->focused())
+    if (m_term->focused())
     {
-        switch (term::g_term->cursortype())
+        switch (m_term->cursortype())
         {
         case screen::cursor_type::CURSOR_BLINK_BLOCK:
-            if (term::g_term->mode()[term::MODE_BLINK])
+            if (m_term->mode()[term::MODE_BLINK])
                 break;
             // fall through
         case screen::cursor_type::CURSOR_STEADY_BLOCK:
-            g.attr[screen::ATTR_WIDE] = term::g_term->glyph({cursor.row, curcol})
+            g.attr[screen::ATTR_WIDE] = m_term->glyph({cursor.row, curcol})
                 .attr[screen::ATTR_WIDE];
             drawglyph(cr, layout, g, cursor);
             break;
         case screen::cursor_type::CURSOR_BLINK_UNDER:
-            if (term::g_term->mode()[term::MODE_BLINK])
+            if (m_term->mode()[term::MODE_BLINK])
                 break;
             // fall through
         case screen::cursor_type::CURSOR_STEADY_UNDER:
@@ -782,7 +785,7 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
             }
             break;
         case screen::cursor_type::CURSOR_BLINK_BAR:
-            if (term::g_term->mode()[term::MODE_BLINK])
+            if (m_term->mode()[term::MODE_BLINK])
                 break;
             // fall through
         case screen::cursor_type::CURSOR_STEADY_BAR:
@@ -861,8 +864,8 @@ void RendererImpl::load_font(Context& cr)
     g_object_unref(context);
 }
 
-Renderer::Renderer() :
-    impl(std::make_unique<RendererImpl>())
+Renderer::Renderer(term::Term *term) :
+    impl(std::make_unique<RendererImpl>(term))
 { }
 
 Renderer::~Renderer() = default;
