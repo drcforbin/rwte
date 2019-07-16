@@ -184,24 +184,26 @@ public:
 
     void newline(bool first_col)
     {
-        int y = m_cursor.row;
+        int row = m_cursor.row;
 
-        if (y == m_bot)
+        if (row == m_bot)
             scrollup(m_top, 1);
         else
-            y++;
+            row++;
 
-        moveto({y, first_col ? 0 : m_cursor.col});
+        moveto({row, first_col? 0 : m_cursor.col});
     }
 
     void deleteline(int n)
     {
+        // todo: work out what to do for delete 0 (currently broken?)
         if (m_top <= m_cursor.row && m_cursor.row <= m_bot)
             scrollup(m_cursor.row, n);
     }
 
     void insertblankline(int n)
     {
+        // todo: work out what to do for delete 0 (currently broken?)
         if (m_top <= m_cursor.row && m_cursor.row <= m_bot)
             scrolldown(m_cursor.row, n);
     }
