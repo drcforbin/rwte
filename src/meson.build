@@ -37,6 +37,7 @@ executable(
 testexe = executable(
     'mesonrwte-test', [
         'rwte-test.cpp',
+        'screen-test.cpp',
         common_sources
     ],
     dependencies: rwte_deps,
