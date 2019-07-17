@@ -4,20 +4,34 @@
 #include "rwte/event.h"
 
 #include <memory>
+#include <stdexcept>
+#include <string>
 
 namespace term {
 class Term;
 }
 
+// todo: namespaceify
+
 /// \addtogroup Window
 /// @{
+class WindowError : public std::runtime_error {
+public:
+    explicit WindowError(const std::string& arg);
+    explicit WindowError(const char* arg);
+
+    WindowError(const WindowError&) = default;
+    WindowError& operator=(const WindowError&) = default;
+    WindowError(WindowError&&) = default;
+    WindowError& operator=(WindowError&&) = default;
+
+    virtual ~WindowError();
+};
+
 class Window
 {
 public:
     virtual ~Window() { }
-
-    virtual bool create(int cols, int rows) = 0;
-    virtual void destroy() = 0;
 
     // todo: x specific?
     virtual uint32_t windowid() const = 0;

@@ -9,13 +9,15 @@
 namespace term {
 class Term;
 }
+class Window;
 
 class TtyImpl;
 
 class Tty
 {
 public:
-    Tty(std::shared_ptr<event::Bus> bus, term::Term *term);
+    Tty(std::shared_ptr<event::Bus> bus, term::Term *term,
+            Window *window);
     ~Tty();
 
     void write(const std::string& data);

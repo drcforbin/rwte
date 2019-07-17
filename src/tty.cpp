@@ -30,15 +30,17 @@
 // most we write in a chunk
 const std::size_t max_write = 255;
 
-static void setenv_windowid()
+static void setenv_windowid(Window *window)
 {
+    // todo: don't set this for wayland
+
     char buf[sizeof(long) * 8 + 1];
 
     snprintf(buf, sizeof(buf), "%u", window->windowid());
     setenv("WINDOWID", buf, 1);
 }
 
-static void execsh()
+static void execsh(Window *window)
 {
     errno = 0;
 
@@ -97,7 +99,7 @@ static void execsh()
     setenv("SHELL", args[0], 1);
     setenv("HOME", pw->pw_dir, 1);
     setenv("TERM", term_name, 1);
-    setenv_windowid();
+    setenv_windowid(window);
 
     signal(SIGCHLD, SIG_DFL);
     signal(SIGHUP, SIG_DFL);
@@ -152,7 +154,8 @@ static void stty()
 class TtyImpl: public AsyncIO<TtyImpl, max_write>
 {
 public:
-    TtyImpl(std::shared_ptr<event::Bus> bus, term::Term *term);
+    TtyImpl(std::shared_ptr<event::Bus> bus, term::Term *term,
+        Window *window);
     ~TtyImpl();
 
     void print(const char *data, std::size_t len);
@@ -174,7 +177,8 @@ private:
 };
 
 
-TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus, term::Term *term) :
+TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus, term::Term *term,
+        Window *window) :
     m_bus(std::move(bus)),
     m_term(term),
     m_resizeReg(m_bus->reg<event::Resize, TtyImpl, &TtyImpl::onresize>(this)),
@@ -236,7 +240,7 @@ TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus, term::Term *term) :
             LOGGER()->fatal("ioctl TIOCSCTTY failed: {}", strerror(errno));
         close(child);
         close(parent);
-        execsh();
+        execsh(window);
         break;
     default: // parent
         close(child);
@@ -353,8 +357,9 @@ std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
     return len;
 }
 
-Tty::Tty(std::shared_ptr<event::Bus> bus, term::Term *term) :
-    impl(std::make_unique<TtyImpl>(std::move(bus), term))
+Tty::Tty(std::shared_ptr<event::Bus> bus, term::Term *term,
+        Window *window) :
+    impl(std::make_unique<TtyImpl>(std::move(bus), term, window))
 { }
 
 Tty::~Tty()

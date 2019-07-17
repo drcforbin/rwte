@@ -19,6 +19,7 @@ common_sources = files(
     'tty.cpp',
     'utf8.cpp',
     'version.cpp',
+    'window.cpp',
     'wlwindow.cpp',
     'xcbwindow.cpp',
 

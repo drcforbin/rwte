@@ -7,6 +7,7 @@
 #include "rwte/logging.h"
 #include "rwte/rwte.h"
 #include "rwte/sigwatcher.h"
+#include "rwte/tty.h"
 #include "rwte/version.h"
 #include "rwte/window.h"
 
@@ -366,29 +367,43 @@ int main(int argc, char *argv[])
     cols = MAX(cols, 1);
     rows = MAX(rows, 1);
 
-    // get ready, loop!
-    ev::default_loop main_loop;
-
-    term::g_term = std::make_unique<term::Term>(bus, cols, rows);
-
-    if (!got_wayland)
-        window = createXcbWindow(bus, term::g_term.get());
-    else
+    try
     {
-        options.throttledraw = false;
-        window = createWlWindow(bus, term::g_term.get());
+        // get ready, loop!
+        ev::default_loop main_loop;
+
+        // todo: examine order of operations, the circular ref
+        // between window and term seems avoidable
+        term::g_term = std::make_unique<term::Term>(bus, cols, rows);
+
+        if (!got_wayland)
+            window = createXcbWindow(bus, term::g_term.get());
+        else
+        {
+            options.throttledraw = false;
+            window = createWlWindow(bus, term::g_term.get());
+        }
+
+        term::g_term->setWindow(window.get());
+
+        // todo: it seems sloppy to pass window, when the only
+        // thing needed from it by the tty is the windowid. maybe
+        // move it to options or something
+        g_tty = std::make_unique<Tty>(bus, term::g_term.get(),
+                window.get());
+
+        {
+            SigWatcher sigwatcher;
+            main_loop.run();
+        }
+
+        // ugh. being global is a pain
+        window.reset();
     }
-
-    // todo: replace create/destroy with ctor/dtor
-    if (!window->create(cols, rows))
-        return 1;
-
+    catch (const WindowError& e)
     {
-        SigWatcher sigwatcher;
-        main_loop.run();
+        LOGGER()->error(fmt::format("window error: {}", e.what()));
     }
-
-    window->destroy();
 
     LOGGER()->debug("exiting");
     return 0;

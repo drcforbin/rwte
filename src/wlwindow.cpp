@@ -379,9 +379,6 @@ public:
     WlWindow(std::shared_ptr<event::Bus> bus, term::Term *term);
     ~WlWindow();
 
-    bool create(int cols, int rows);
-    void destroy();
-
     // todo: does this make sense?
     uint32_t windowid() const { return 0; }
 
@@ -466,22 +463,15 @@ WlWindow::WlWindow(std::shared_ptr<event::Bus> bus, term::Term *term) :
 {
     m_prepare.set<WlWindow,&WlWindow::preparecb>(this);
     m_io.set<WlWindow,&WlWindow::iocb>(this);
-}
 
-WlWindow::~WlWindow()
-{
-    m_bus->unreg<event::Resize>(m_resizeReg);
-}
+    int cols = term->cols();
+    int rows = term->rows();
 
-bool WlWindow::create(int cols, int rows)
-{
     // todo: listen to display for errors
     // todo: better error handling here...
     display = wl_display_connect(nullptr);
-    if (display == nullptr) {
-        LOGGER()->fatal("can't connect to display");
-        return false; // won't get here
-    }
+    if (display == nullptr)
+        throw WindowError("can't connect to display");
     LOGGER()->debug("connected to display");
 
     m_renderer = std::make_unique<renderer::Renderer>(m_term);
@@ -504,10 +494,8 @@ bool WlWindow::create(int cols, int rows)
     }
 
     ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-    if (!ctx) {
-        LOGGER()->fatal("couldn't create xkb context");
-        return false; // won't get here
-    }
+    if (!ctx)
+        throw WindowError("couldn't create xkb context");
 
     // todo: combine registry with display?
     Registry r(this, wl_display_get_registry(display));
@@ -515,12 +503,9 @@ bool WlWindow::create(int cols, int rows)
     wl_display_roundtrip(display);
 
     // todo: more checking
-    if (compositor == nullptr || !wmbase) {
-        LOGGER()->fatal("can't find compositor or wm_base");
-        return false; // won't get here
-    } else {
-        LOGGER()->debug("found compositor");
-    }
+    if (compositor == nullptr || !wmbase)
+        throw WindowError("can't find compositor or wm_base");
+    LOGGER()->debug("found compositor");
 
     surface = std::make_unique<Surface>(this,
             wl_compositor_create_surface(compositor));
@@ -541,10 +526,8 @@ bool WlWindow::create(int cols, int rows)
     // todo: move this somewhere
     cursor_surface = wl_compositor_create_surface(compositor);
 
-    if (!shm->create_buffers(m_width, m_height)) {
-        // todo: better error handling?
-        return EXIT_FAILURE;
-    }
+    if (!shm->create_buffers(m_width, m_height))
+        throw WindowError("unable to create shared buffers");
     LOGGER()->debug("created buffers");
 
     // initial draw to get the window mapped
@@ -563,17 +546,9 @@ bool WlWindow::create(int cols, int rows)
     m_prepare.start();
     m_io.start(wl_display_get_fd(display), ev::READ);
     LOGGER()->debug("listening for display events");
-
-    // hack!
-    // todo: refactor...needs to be done when window mapped
-    // surface enter / first visible?
-    if (!g_tty)
-        g_tty = std::make_unique<Tty>(m_bus, m_term);
-
-    return true;
 }
 
-void WlWindow::destroy()
+WlWindow::~WlWindow()
 {
     LOGGER()->debug("destroying window");
 
@@ -599,6 +574,8 @@ void WlWindow::destroy()
 
     wl_display_disconnect(display);
     LOGGER()->debug("disconnected from display");
+
+    m_bus->unreg<event::Resize>(m_resizeReg);
 }
 
 void WlWindow::drawCore()
@@ -653,6 +630,11 @@ void WlWindow::setpointer(const PointerFrame& frame)
         auto cell = m_renderer->pxtocell(frame.mousex, frame.mousey);
         m_term->mousereport(cell, term::MOUSE_MOTION, 0, seat->keymod);
     }
+
+    // todo: handle mouse button
+    // auto cell = m_renderer->pxtocell(event->event_x, event->event_y);
+    // mouse_event_enum mouse_evt = press? MOUSE_PRESS : MOUSE_RELEASE;
+    // m_term->mousereport(cell, mouse_evt, button, seat->keymod);
 
     currPointer = frame;
 }
@@ -817,7 +799,7 @@ void WlWindow::paint_pixels(Image *image)
     m_renderer->set_surface(surface, width, height);
     // todo: this ok? used to be done in onresize?
     m_renderer->resize(width, height);
-    m_renderer->drawregion({0, 0}, {m_term->rows(), m_term->cols()});
+    m_renderer->drawregion({0, 0}, {m_rows, m_cols});
     m_renderer->set_surface(nullptr, width, height);
 }
 
@@ -928,11 +910,6 @@ void Pointer::handle_frame()
 {
     auto window = seat->window();
     window->setpointer(frame);
-
-    // todo: handle mouse button
-    // auto cell = m_renderer->pxtocell(event->event_x, event->event_y);
-    // mouse_event_enum mouse_evt = press? MOUSE_PRESS : MOUSE_RELEASE;
-    // m_term->mousereport(cell, mouse_evt, button, seat->keymod);
 }
 
 void Keyboard::handle_keymap(uint32_t format, int fd, uint32_t size)

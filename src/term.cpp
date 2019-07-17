@@ -186,6 +186,8 @@ public:
     TermImpl(std::shared_ptr<event::Bus> bus, int cols, int rows);
     ~TermImpl();
 
+    void setWindow(Window *window) { m_window = window; }
+
     const screen::Glyph& glyph(const Cell& cell) const
     {
         return m_screen.glyph(cell);
@@ -270,6 +272,7 @@ private:
     int m_resizeReg;
 
     screen::Screen m_screen;
+    Window *m_window = nullptr;
 
     term_mode m_mode; // terminal mode
     escape_state m_esc; // escape mode
@@ -933,7 +936,12 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
         else if (evt == MOUSE_RELEASE)
         {
             if (button == 2)
-                window->selpaste();
+            {
+                if (m_window)
+                    m_window->selpaste();
+                else
+                    LOGGER()->warn("mouse release (2) before window set");
+            }
             else if (button == 1)
             {
                 auto& sel = m_screen.sel();
@@ -943,7 +951,10 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
 
                     // set primary sel and tell window about it
                     sel.primary = getsel();
-                    window->setsel();
+                    if (m_window)
+                        m_window->setsel();
+                    else
+                        LOGGER()->warn("mouse release (1) before window set");
                 }
                 else
                     m_screen.selclear();
@@ -996,7 +1007,10 @@ void TermImpl::clipcopy()
 {
     // set clipboard sel and tell window about it
     m_screen.sel().clipboard = getsel();
-    window->setclip();
+    if (m_window)
+        m_window->setclip();
+    else
+        LOGGER()->warn("clip copy before window set");
 }
 
 void TermImpl::send(const char *data, std::size_t len)
@@ -1116,14 +1130,24 @@ void TermImpl::controlcode(unsigned char ascii)
         else
         {
             if (!m_focused)
-                window->seturgent(true);
+            {
+                if (m_window)
+                    m_window->seturgent(true);
+                else
+                    LOGGER()->warn("set urgent before window set");
+            }
 
             // default bell_volume to 0 if invalid
             int bell_volume = lua::config::get_int( "bell_volume", 0);
             bell_volume = limit(bell_volume, -100, 100);
 
             if (bell_volume)
-                window->bell(bell_volume);
+            {
+                if (m_window)
+                    m_window->bell(bell_volume);
+                else
+                    LOGGER()->warn("bell before window set");
+            }
         }
         break;
     case '\033': // ESC
@@ -1290,7 +1314,10 @@ bool TermImpl::eschandle(unsigned char ascii)
 
 void TermImpl::resettitle()
 {
-    window->settitle(options.title);
+    if (m_window)
+        m_window->settitle(options.title);
+    else
+        LOGGER()->warn("reset title before window set");
 }
 
 void TermImpl::puttab(int n)
@@ -1364,7 +1391,12 @@ void TermImpl::strhandle()
         case 1:
         case 2:
             if (narg > 1)
-                window->settitle(m_stresc.args[1]);
+            {
+                if (m_window)
+                    m_window->settitle(m_stresc.args[1]);
+                else
+                    LOGGER()->warn("set title (OSC 0,1,2) before window set");
+            }
             return;
         case 11:
             if (narg > 1)
@@ -1423,7 +1455,10 @@ void TermImpl::strhandle()
         }
         break;
     case 'k': // old title set compatibility
-        window->settitle(m_stresc.args[0]);
+        if (m_window)
+            m_window->settitle(m_stresc.args[0]);
+        else
+            LOGGER()->warn("set title (k) before window set");
         return;
     case 'P': // DCS -- Device Control String
         m_esc.set(ESC_DCS);
@@ -2147,6 +2182,9 @@ Term::Term(std::shared_ptr<event::Bus> bus, int cols, int rows) :
 { }
 
 Term::~Term() = default;
+
+void Term::setWindow(Window *window)
+{ impl->setWindow(window); }
 
 const screen::Glyph& Term::glyph(const Cell& cell) const
 { return impl->glyph(cell); }

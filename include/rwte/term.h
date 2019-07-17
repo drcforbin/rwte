@@ -13,6 +13,7 @@ namespace screen {
     enum class cursor_type;
     struct Glyph;
 } // namespace screen
+class Window;
 
 namespace term {
 
@@ -75,6 +76,8 @@ class Term
 public:
     Term(std::shared_ptr<event::Bus> bus, int cols, int rows);
     ~Term();
+
+    void setWindow(Window *window);
 
     const screen::Glyph& glyph(const Cell& cell) const;
     screen::Glyph& glyph(const Cell& cell);

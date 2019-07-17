@@ -70,9 +70,6 @@ public:
     XcbWindow(std::shared_ptr<event::Bus> bus, term::Term *term);
     ~XcbWindow();
 
-    bool create(int cols, int rows);
-    void destroy();
-
     uint32_t windowid() const { return win; }
     uint16_t width() const { return m_width; }
     uint16_t height() const { return m_height; }
@@ -135,7 +132,7 @@ private:
     void checkcb(ev::check &, int);
 
     xcb_connection_t *connection = nullptr;
-    xcb_drawable_t win;
+    xcb_drawable_t win = 0;
 
     bool visible = false;
     bool mapped = false;
@@ -200,29 +197,22 @@ XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus, term::Term *term) :
     m_io.set<XcbWindow,&XcbWindow::readcb>(this);
     m_prepare.set<XcbWindow,&XcbWindow::preparecb>(this);
     m_check.set<XcbWindow,&XcbWindow::checkcb>(this);
-}
 
-XcbWindow::~XcbWindow()
-{
-    m_bus->unreg<event::Resize>(m_resizeReg);
-}
+    int cols = term->cols();
+    int rows = term->rows();
 
-bool XcbWindow::create(int cols, int rows)
-{
     connection = xcb_connect(nullptr, &m_scrno);
     if (xcb_connection_has_error(connection))
-        LOGGER()->fatal("Could not connect to X11 server");
+        throw WindowError("could not connect to X11 server");
 
     m_screen = xcb_aux_get_screen(connection, m_scrno);
     if (!m_screen)
-        LOGGER()->fatal("Could not get default screen");
+        throw WindowError("could not get default screen");
 
     m_visual_type = xcb_aux_get_visualtype(connection,
             m_scrno, m_screen->root_visual);
-    if (!m_visual_type) {
-        LOGGER()->error("could not get default screen visual type");
-        return false;
-    }
+    if (!m_visual_type)
+        throw WindowError("could not get default screen visual type");
 
     m_renderer = std::make_unique<renderer::Renderer>(m_term);
 
@@ -267,10 +257,9 @@ bool XcbWindow::create(int cols, int rows)
             values );   // mask
 
     xcb_generic_error_t *err;
-    if ((err = xcb_request_check(connection, cookie)) != nullptr)
-    {
-        LOGGER()->error("could not create window, code: {}", err->error_code);
-        return false;
+    if ((err = xcb_request_check(connection, cookie)) != nullptr) {
+        throw WindowError(fmt::format(
+                "could not create window, code: {}", err->error_code));
     }
 
     register_atoms();
@@ -301,14 +290,14 @@ bool XcbWindow::create(int cols, int rows)
     m_prepare.start();
     m_check.start();
     m_io.start(xcb_get_file_descriptor(connection), ev::READ);
-
-    return true;
 }
 
-void XcbWindow::destroy()
+XcbWindow::~XcbWindow()
 {
     m_renderer.reset();
     xcb_disconnect(connection);
+
+    m_bus->unreg<event::Resize>(m_resizeReg);
 }
 
 void XcbWindow::draw()
@@ -962,10 +951,6 @@ void XcbWindow::handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t *event)
         auto surface = cairo_xcb_surface_create(connection,
                 win, m_visual_type, width, height);
         m_renderer->set_surface(surface, width, height);
-
-        // todo: refactor
-        if (!g_tty)
-            g_tty = std::make_unique<Tty>(m_bus, m_term);
 
         publishresize(width, height);
     }
