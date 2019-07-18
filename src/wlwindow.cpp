@@ -557,12 +557,12 @@ WlWindow::~WlWindow()
 
     // ordered cleanup...destroy toplevel, xdg_surface,
     // surface, then buffers
-    toplevel.release();
-    xdg_surface.release();
-    surface.release();
+    toplevel.reset();
+    xdg_surface.reset();
+    surface.reset();
 
     // buffers and seat whenever
-    shm.release();
+    shm.reset();
     seat.reset();
 
     if (cursor_surface)
