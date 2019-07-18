@@ -4,6 +4,8 @@
 // ugh. hate to have to include this just for keymod_state!
 #include "rwte/term.h"
 
+#include <memory>
+
 // lua window integration
 
 struct Cell;
@@ -17,6 +19,8 @@ void register_luawindow(State *L);
 
 namespace window
 {
+
+void setWindow(State *L, std::shared_ptr<Window> window);
 
 bool call_mouse_press(State *L, const Cell& cell, int button,
         const term::keymod_state& mods);

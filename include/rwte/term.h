@@ -13,6 +13,7 @@ namespace screen {
     enum class cursor_type;
     struct Glyph;
 } // namespace screen
+class Tty;
 class Window;
 
 namespace term {
@@ -77,7 +78,8 @@ public:
     Term(std::shared_ptr<event::Bus> bus, int cols, int rows);
     ~Term();
 
-    void setWindow(Window *window);
+    void setWindow(std::shared_ptr<Window> window);
+    void setTty(std::shared_ptr<Tty> tty);
 
     const screen::Glyph& glyph(const Cell& cell) const;
     screen::Glyph& glyph(const Cell& cell);
@@ -122,8 +124,6 @@ public:
 private:
     std::unique_ptr<TermImpl> impl;
 };
-
-extern std::unique_ptr<Term> g_term;
 
 } // namespace term
 

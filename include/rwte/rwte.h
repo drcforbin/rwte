@@ -8,10 +8,13 @@
 #include <string>
 #include <vector>
 
-namespace lua
-{
+namespace lua {
 class State;
 } // namespace lua
+namespace term {
+class Term;
+} // namespace term
+class Window;
 
 struct Options
 {
@@ -34,6 +37,9 @@ class Rwte
 public:
     Rwte(std::shared_ptr<event::Bus> bus);
     ~Rwte();
+
+    void setWindow(std::shared_ptr<Window> window) { m_window = window; }
+    void setTerm(std::shared_ptr<term::Term> term) { m_term = term; }
 
     void watch_child(pid_t pid);
 
@@ -59,6 +65,8 @@ private:
     ev::timer m_blink;
 
     std::shared_ptr<lua::State> m_lua;
+    std::weak_ptr<Window> m_window;
+    std::weak_ptr<term::Term> m_term;
 };
 
 // todo: refactor

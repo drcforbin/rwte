@@ -67,7 +67,8 @@ static int get_border_px()
 class XcbWindow : public Window
 {
 public:
-    XcbWindow(std::shared_ptr<event::Bus> bus, term::Term *term);
+    XcbWindow(std::shared_ptr<event::Bus> bus, std::shared_ptr<term::Term> term,
+            std::shared_ptr<Tty> tty);
     ~XcbWindow();
 
     uint32_t windowid() const { return win; }
@@ -157,7 +158,8 @@ private:
     bool load_compose_table(const char *locale);
 
     std::shared_ptr<event::Bus> m_bus;
-    term::Term *m_term;
+    std::shared_ptr<term::Term> m_term;
+    std::shared_ptr<Tty> m_tty;
 
     int m_resizeReg;
 
@@ -186,9 +188,11 @@ private:
     uint32_t m_eventmask;
 };
 
-XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus, term::Term *term) :
+XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus,
+        std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty) :
     m_bus(std::move(bus)),
-    m_term(term),
+    m_term(std::move(term)),
+    m_tty(std::move(tty)),
     m_resizeReg(m_bus->reg<event::Resize, XcbWindow, &XcbWindow::onresize>(this)),
     m_eventmask(0)
 {
@@ -198,8 +202,8 @@ XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus, term::Term *term) :
     m_prepare.set<XcbWindow,&XcbWindow::preparecb>(this);
     m_check.set<XcbWindow,&XcbWindow::checkcb>(this);
 
-    int cols = term->cols();
-    int rows = term->rows();
+    int cols = m_term->cols();
+    int rows = m_term->rows();
 
     connection = xcb_connect(nullptr, &m_scrno);
     if (xcb_connection_has_error(connection))
@@ -214,7 +218,7 @@ XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus, term::Term *term) :
     if (!m_visual_type)
         throw WindowError("could not get default screen visual type");
 
-    m_renderer = std::make_unique<renderer::Renderer>(m_term);
+    m_renderer = std::make_unique<renderer::Renderer>(m_term.get());
 
     // arbitrary width and height
     auto root_surface = cairo_xcb_surface_create(connection,
@@ -720,7 +724,7 @@ void XcbWindow::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
         }
     }
 
-    g_tty->write(buffer, len);
+    m_tty->write(buffer, len);
 }
 
 void XcbWindow::handle_client_message(ev::loop_ref& loop, xcb_client_message_event_t *event)
@@ -754,7 +758,7 @@ void XcbWindow::handle_client_message(ev::loop_ref& loop, xcb_client_message_eve
         LOGGER()->debug("wm_delete_window");
 
         // hang up on the shell and get out of here
-        g_tty->hup();
+        m_tty->hup();
         loop.break_loop(ev::ALL);
     }
 }
@@ -1131,10 +1135,10 @@ void XcbWindow::selnotify(xcb_atom_t property, bool propnotify)
             // todo: move to a Term::paste function
             bool brcktpaste = m_term->mode()[term::MODE_BRCKTPASTE];
             if (brcktpaste)
-                g_tty->write("\033[200~", 6);
-            g_tty->write(data, len);
+                m_tty->write("\033[200~", 6);
+            m_tty->write(data, len);
             if (brcktpaste)
-                g_tty->write("\033[201~", 6);
+                m_tty->write("\033[201~", 6);
         }
 
         free(reply);
@@ -1189,7 +1193,8 @@ void XcbWindow::checkcb(ev::check &w, int)
 /// \addtogroup Window
 /// @{
 std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus,
-        term::Term *term) {
-    return std::make_unique<xcbwin::XcbWindow>(bus, term);
+        std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty) {
+    return std::make_unique<xcbwin::XcbWindow>(std::move(bus),
+            std::move(term), std::move(tty));
 }
 /// @}

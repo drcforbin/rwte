@@ -10,6 +10,7 @@
 namespace term {
 class Term;
 }
+class Tty;
 
 // todo: namespaceify
 
@@ -50,11 +51,10 @@ public:
 };
 
 std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus,
-        term::Term *term);
+        std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty);
 std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus,
-        term::Term *term);
+        std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty);
 
-extern std::unique_ptr<Window> window;
 /// @}
 
 #endif // RWTE_WINDOW_H

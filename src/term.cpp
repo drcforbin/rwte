@@ -186,7 +186,8 @@ public:
     TermImpl(std::shared_ptr<event::Bus> bus, int cols, int rows);
     ~TermImpl();
 
-    void setWindow(Window *window) { m_window = window; }
+    void setWindow(std::shared_ptr<Window> window) { m_window = window; }
+    void setTty(std::shared_ptr<Tty> tty) { m_tty = tty; }
 
     const screen::Glyph& glyph(const Cell& cell) const
     {
@@ -272,7 +273,8 @@ private:
     int m_resizeReg;
 
     screen::Screen m_screen;
-    Window *m_window = nullptr;
+    std::weak_ptr<Window> m_window;
+    std::weak_ptr<Tty> m_tty;
 
     term_mode m_mode; // terminal mode
     escape_state m_esc; // escape mode
@@ -560,8 +562,12 @@ void TermImpl::putc(char32_t u)
         }
     }
 
-    if (m_mode[MODE_PRINT])
-        g_tty->print(c, len);
+    if (m_mode[MODE_PRINT]) {
+        if (auto tty = m_tty.lock())
+            tty->print(c, len);
+        else
+            LOGGER()->debug("print without tty");
+    }
 
     // STR sequence must be checked before anything else
     // because it uses all following characters until it
@@ -864,15 +870,27 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
 
         if (m_mode[MODE_MOUSESGR])
         {
-            std::string seq = fmt::format("\033[<{};{};{}{:c}",
-                    cb, cell.col+1, cell.row+1, (evt == MOUSE_RELEASE)? 'm' : 'M');
-            g_tty->write(seq);
+            if (auto tty = m_tty.lock())
+            {
+                std::string seq = fmt::format("\033[<{};{};{}{:c}",
+                        cb, cell.col+1, cell.row+1,
+                        (evt == MOUSE_RELEASE)? 'm' : 'M');
+                tty->write(seq);
+            }
+            else
+                LOGGER()->debug("tried to send SGR mouse without tty");
         }
         else if (cell.col < 223 && cell.row < 223)
         {
-            std::string seq = fmt::format("\033[M{:c}{:c}{:c}",
-                    (char) (32+cb), (char) (32+cell.col+1), (char) (32+cell.row+1));
-            g_tty->write(seq);
+            if (auto tty = m_tty.lock())
+            {
+                std::string seq = fmt::format("\033[M{:c}{:c}{:c}",
+                        (char) (32+cb), (char) (32+cell.col+1),
+                        (char) (32+cell.row+1));
+                tty->write(seq);
+            }
+            else
+                LOGGER()->debug("tried to send extended mouse without tty");
         }
         else
         {
@@ -937,10 +955,10 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
         {
             if (button == 2)
             {
-                if (m_window)
-                    m_window->selpaste();
+                if (auto window = m_window.lock())
+                    window->selpaste();
                 else
-                    LOGGER()->warn("mouse release (2) before window set");
+                    LOGGER()->debug("mouse release (2) without window");
             }
             else if (button == 1)
             {
@@ -951,10 +969,10 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
 
                     // set primary sel and tell window about it
                     sel.primary = getsel();
-                    if (m_window)
-                        m_window->setsel();
+                    if (auto window = m_window.lock())
+                        window->setsel();
                     else
-                        LOGGER()->warn("mouse release (1) before window set");
+                        LOGGER()->debug("mouse release (1) without window");
                 }
                 else
                     m_screen.selclear();
@@ -994,10 +1012,15 @@ void TermImpl::setfocused(bool focused)
 
     if (m_mode[MODE_FOCUS])
     {
-        if (m_focused)
-            g_tty->write("\033[I", 3);
+        if (auto tty = m_tty.lock())
+        {
+            if (m_focused)
+                tty->write("\033[I", 3);
+            else
+                tty->write("\033[O", 3);
+        }
         else
-            g_tty->write("\033[O", 3);
+            LOGGER()->debug("tried to send focus without tty");
     }
 
     rwte->refresh();
@@ -1007,15 +1030,18 @@ void TermImpl::clipcopy()
 {
     // set clipboard sel and tell window about it
     m_screen.sel().clipboard = getsel();
-    if (m_window)
-        m_window->setclip();
+    if (auto window = m_window.lock())
+        window->setclip();
     else
-        LOGGER()->warn("clip copy before window set");
+        LOGGER()->debug("clip copy without window");
 }
 
 void TermImpl::send(const char *data, std::size_t len)
 {
-    g_tty->write(data, len);
+    if (auto tty = m_tty.lock())
+        tty->write(data, len);
+    else
+        LOGGER()->debug("tried to send without tty");
 }
 
 void TermImpl::setchar(char32_t u, const screen::Glyph& attr, const Cell& cell)
@@ -1131,10 +1157,10 @@ void TermImpl::controlcode(unsigned char ascii)
         {
             if (!m_focused)
             {
-                if (m_window)
-                    m_window->seturgent(true);
+                if (auto window = m_window.lock())
+                    window->seturgent(true);
                 else
-                    LOGGER()->warn("set urgent before window set");
+                    LOGGER()->debug("set urgent without window");
             }
 
             // default bell_volume to 0 if invalid
@@ -1143,10 +1169,10 @@ void TermImpl::controlcode(unsigned char ascii)
 
             if (bell_volume)
             {
-                if (m_window)
-                    m_window->bell(bell_volume);
+                if (auto window = m_window.lock())
+                    window->bell(bell_volume);
                 else
-                    LOGGER()->warn("bell before window set");
+                    LOGGER()->debug("bell without window");
             }
         }
         break;
@@ -1206,8 +1232,14 @@ void TermImpl::controlcode(unsigned char ascii)
         break;
     case 0x9a:   // DECID -- Identify Terminal
         {
-            auto term_id = lua::config::get_string("term_id");
-            g_tty->write(term_id);
+            // todo: refactor to function
+            if (auto tty = m_tty.lock())
+            {
+                auto term_id = lua::config::get_string("term_id");
+                tty->write(term_id);
+            }
+            else
+                LOGGER()->debug("tried to send termid (9a) without tty");
         }
         break;
     case 0x9b:   // TODO: CSI
@@ -1278,8 +1310,14 @@ bool TermImpl::eschandle(unsigned char ascii)
         break;
     case 'Z': // DECID -- Identify Terminal
         {
-            auto term_id = lua::config::get_string("term_id");
-            g_tty->write(term_id);
+            // todo: refactor to function
+            if (auto tty = m_tty.lock())
+            {
+                auto term_id = lua::config::get_string("term_id");
+                tty->write(term_id);
+            }
+            else
+                LOGGER()->debug("tried to send termid (Z) without tty");
         }
         break;
     case 'c': // RIS -- Reset to inital state
@@ -1314,10 +1352,10 @@ bool TermImpl::eschandle(unsigned char ascii)
 
 void TermImpl::resettitle()
 {
-    if (m_window)
-        m_window->settitle(options.title);
+    if (auto window = m_window.lock())
+        window->settitle(options.title);
     else
-        LOGGER()->warn("reset title before window set");
+        LOGGER()->debug("reset title without window");
 }
 
 void TermImpl::puttab(int n)
@@ -1392,10 +1430,10 @@ void TermImpl::strhandle()
         case 2:
             if (narg > 1)
             {
-                if (m_window)
-                    m_window->settitle(m_stresc.args[1]);
+                if (auto window = m_window.lock())
+                    window->settitle(m_stresc.args[1]);
                 else
-                    LOGGER()->warn("set title (OSC 0,1,2) before window set");
+                    LOGGER()->debug("set title (OSC 0,1,2) without window");
             }
             return;
         case 11:
@@ -1455,10 +1493,10 @@ void TermImpl::strhandle()
         }
         break;
     case 'k': // old title set compatibility
-        if (m_window)
-            m_window->settitle(m_stresc.args[0]);
+        if (auto window = m_window.lock())
+            window->settitle(m_stresc.args[0]);
         else
-            LOGGER()->warn("set title (k) before window set");
+            LOGGER()->debug("set title (k) without window");
         return;
     case 'P': // DCS -- Device Control String
         m_esc.set(ESC_DCS);
@@ -1601,8 +1639,14 @@ void TermImpl::csihandle()
     case 'c': // DA -- Device Attributes
         if (m_csiesc.arg[0] == 0)
         {
-            auto term_id = lua::config::get_string("term_id");
-            g_tty->write(term_id);
+            // todo: refactor to function
+            if (auto tty = m_tty.lock())
+            {
+                auto term_id = lua::config::get_string("term_id");
+                tty->write(term_id);
+            }
+            else
+                LOGGER()->debug("tried to send termid (c) without tty");
         }
         break;
     case 'C': // CUF -- Cursor <n> Forward
@@ -1733,10 +1777,15 @@ void TermImpl::csihandle()
     case 'n': // DSR – Device Status Report (cursor position)
         if (m_csiesc.arg[0] == 6)
         {
-            std::string seq = fmt::format(
-                    "\033[{};{}R",
-                    cursor.row+1, cursor.col+1);
-            g_tty->write(seq);
+            if (auto tty = m_tty.lock())
+            {
+                std::string seq = fmt::format(
+                        "\033[{};{}R",
+                        cursor.row+1, cursor.col+1);
+                tty->write(seq);
+            }
+            else
+                LOGGER()->debug("report cursor status without tty");
         }
         break;
     case 'r': // DECSTBM -- Set Scrolling Region
@@ -2183,8 +2232,11 @@ Term::Term(std::shared_ptr<event::Bus> bus, int cols, int rows) :
 
 Term::~Term() = default;
 
-void Term::setWindow(Window *window)
-{ impl->setWindow(window); }
+void Term::setWindow(std::shared_ptr<Window> window)
+{ impl->setWindow(std::move(window)); }
+
+void Term::setTty(std::shared_ptr<Tty> tty)
+{ impl->setTty(std::move(tty)); }
 
 const screen::Glyph& Term::glyph(const Cell& cell) const
 { return impl->glyph(cell); }

@@ -9,13 +9,8 @@
 #include <memory>
 
 // globals
-std::unique_ptr<Window> window;
 Options options;
 std::unique_ptr<Rwte> rwte;
-namespace term {
-    std::unique_ptr<Term> g_term;
-} // namespace term
-std::unique_ptr<Tty> g_tty;
 lua_State * g_L = nullptr;
 
 #define LOGGER() (logging::get("rwte"))
@@ -55,7 +50,7 @@ void Rwte::refresh()
             m_flush.start(1.0/60.0);
     } else {
         // for wayland, we let the window throttle
-        if (window)
+        if (auto window = m_window.lock())
             window->draw();
     }
 }
@@ -100,10 +95,12 @@ void Rwte::childcb(ev::child &w, int)
 
 void Rwte::flushcb(ev::timer &, int)
 {
-    window->draw();
+    if (auto window = m_window.lock())
+        window->draw();
 }
 
 void Rwte::blinkcb(ev::timer &, int)
 {
-    term::g_term->blink();
+    if (auto term = m_term.lock())
+        term->blink();
 }

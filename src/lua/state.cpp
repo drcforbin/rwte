@@ -89,11 +89,17 @@ void State::newtable()
 void State::setmetatable(int index)
 { lua_setmetatable(m_L, index); }
 
+bool State::getmetatable(int index)
+{ return lua_getmetatable(m_L, index) != 0; }
+
 bool State::newmetatable(const char *tname)
 { return luaL_newmetatable(m_L, tname) != 0; }
 
 void State::setmetatable(const char *tname)
 { luaL_setmetatable(m_L, tname); }
+
+void State::getmetatable(const char *tname)
+{ luaL_getmetatable(m_L, tname); }
 
 int State::getglobal(const char *name)
 { return lua_getglobal(m_L, name); }
@@ -204,11 +210,8 @@ void State::setobjfuncs(const char *tname, const luaL_Reg *funcs)
     pop(); // pop new metatable
 }
 
-int State::setfuncref(int arg, int oldref /* = LUA_NOREF */)
+int State::setref(int arg, int oldref /* = LUA_NOREF */)
 {
-    luaL_argcheck(m_L, lua_isnil(m_L, arg) || lua_isfunction(m_L, arg),
-            arg, "should be nil or a function");
-
     if (oldref != LUA_NOREF)
         luaL_unref(m_L, LUA_REGISTRYINDEX, oldref);
 
@@ -216,7 +219,7 @@ int State::setfuncref(int arg, int oldref /* = LUA_NOREF */)
     return luaL_ref(m_L, LUA_REGISTRYINDEX);
 }
 
-bool State::pushfuncref(int ref)
+bool State::pushref(int ref)
 {
     if (ref != LUA_NOREF && ref != LUA_REFNIL)
     {
@@ -227,6 +230,13 @@ bool State::pushfuncref(int ref)
     }
 
     return false;
+}
+
+int State::setfuncref(int arg, int oldref /* = LUA_NOREF */)
+{
+    luaL_argcheck(m_L, lua_isnil(m_L, arg) || lua_isfunction(m_L, arg),
+            arg, "should be nil or a function");
+    return setref(arg, oldref);
 }
 
 } // namespace lua

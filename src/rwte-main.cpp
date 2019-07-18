@@ -372,33 +372,31 @@ int main(int argc, char *argv[])
         // get ready, loop!
         ev::default_loop main_loop;
 
-        // todo: examine order of operations, the circular ref
-        // between window and term seems avoidable
-        term::g_term = std::make_unique<term::Term>(bus, cols, rows);
+        auto term = std::make_shared<term::Term>(bus, cols, rows);
+        auto tty = std::make_shared<Tty>(bus, term);
+        term->setTty(tty);
 
+        std::shared_ptr<Window> window;
         if (!got_wayland)
-            window = createXcbWindow(bus, term::g_term.get());
+            window = createXcbWindow(bus, term, tty);
         else
         {
             options.throttledraw = false;
-            window = createWlWindow(bus, term::g_term.get());
+            window = createWlWindow(bus, term, tty);
         }
 
-        term::g_term->setWindow(window.get());
+        rwte->setWindow(window);
+        rwte->setTerm(term);
+        term->setWindow(window);
+        lua::setTerm(L.get(), term);
+        lua::window::setWindow(L.get(), window);
 
-        // todo: it seems sloppy to pass window, when the only
-        // thing needed from it by the tty is the windowid. maybe
-        // move it to options or something
-        g_tty = std::make_unique<Tty>(bus, term::g_term.get(),
-                window.get());
+        tty->open(window.get());
 
         {
             SigWatcher sigwatcher;
             main_loop.run();
         }
-
-        // ugh. being global is a pain
-        window.reset();
     }
     catch (const WindowError& e)
     {

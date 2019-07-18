@@ -376,7 +376,8 @@ private:
 class WlWindow : public Window
 {
 public:
-    WlWindow(std::shared_ptr<event::Bus> bus, term::Term *term);
+    WlWindow(std::shared_ptr<event::Bus> bus,
+            std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty);
     ~WlWindow();
 
     // todo: does this make sense?
@@ -427,7 +428,8 @@ public:
     bool visible = false;
 
     std::shared_ptr<event::Bus> m_bus;
-    term::Term *m_term;
+    std::shared_ptr<term::Term> m_term;
+    std::shared_ptr<Tty> m_tty;
 
 private:
     void onresize(const event::Resize& evt);
@@ -456,16 +458,18 @@ private:
     bool kbdfocus;
 };
 
-WlWindow::WlWindow(std::shared_ptr<event::Bus> bus, term::Term *term) :
+WlWindow::WlWindow(std::shared_ptr<event::Bus> bus,
+        std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty) :
     m_bus(std::move(bus)),
-    m_term(term),
+    m_term(std::move(term)),
+    m_tty(std::move(tty)),
     m_resizeReg(m_bus->reg<event::Resize, WlWindow, &WlWindow::onresize>(this))
 {
     m_prepare.set<WlWindow,&WlWindow::preparecb>(this);
     m_io.set<WlWindow,&WlWindow::iocb>(this);
 
-    int cols = term->cols();
-    int rows = term->rows();
+    int cols = m_term->cols();
+    int rows = m_term->rows();
 
     // todo: listen to display for errors
     // todo: better error handling here...
@@ -474,7 +478,7 @@ WlWindow::WlWindow(std::shared_ptr<event::Bus> bus, term::Term *term) :
         throw WindowError("can't connect to display");
     LOGGER()->debug("connected to display");
 
-    m_renderer = std::make_unique<renderer::Renderer>(m_term);
+    m_renderer = std::make_unique<renderer::Renderer>(m_term.get());
 
     {
         // arbitrary width and height
@@ -881,7 +885,7 @@ void XdgToplevel::handle_configure(int32_t width, int32_t height,
         window->publishresize(width, height);
     }
 
-    // todo: look at all the other m_term and g_tty uses in XcbWindow
+    // todo: look at all the other m_term and m_tty uses in XcbWindow
 }
 
 void Pointer::handle_enter(uint32_t serial, struct wl_surface *surface,
@@ -1071,7 +1075,8 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
         }
     }
 
-    g_tty->write(buffer, len);
+    // this feels dirty
+    window->m_tty->write(buffer, len);
 }
 
 void Keyboard::handle_modifiers(uint32_t serial, uint32_t mods_depressed,
@@ -1174,7 +1179,8 @@ void Registry::handle_global(uint32_t name, const char *interface, uint32_t vers
 /// \addtogroup Window
 /// @{
 std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus,
-        term::Term *term) {
-    return std::make_unique<wlwin::WlWindow>(bus, term);
+        std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty) {
+    return std::make_unique<wlwin::WlWindow>(std::move(bus),
+            std::move(term), std::move(tty));
 }
 /// @}

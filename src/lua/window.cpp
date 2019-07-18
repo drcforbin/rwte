@@ -13,6 +13,41 @@
 
 static int window_mouse_press_ref = LUA_NOREF;
 static int window_key_press_ref = LUA_NOREF;
+static int window_ref = LUA_NOREF;
+
+#define LUAWND "LUAWND*"
+
+struct LuaWndStruct
+{
+    std::weak_ptr<Window> window;
+};
+
+// todo: share impl with lua term's getterm
+static inline std::shared_ptr<Window> getwindow(lua::State& L)
+{
+    if (L.pushref(window_ref))
+    {
+        auto p = L.checkobj<LuaWndStruct>(-1, LUAWND);
+        L.pop();
+
+        if (p)
+            return p->window.lock();
+    }
+
+    return {};
+}
+
+static int window_gc(lua_State *l)
+{
+    lua::State(l).delobj<LuaWndStruct>(1, LUAWND);
+    return 0;
+}
+
+// methods for window object
+static const luaL_Reg window_obj_funcs[] = {
+    {"__gc", window_gc},
+    {nullptr, nullptr},
+};
 
 /// Sets the function to be called when a mouse button is pressed
 // (except when the mouse button is handled internally, such as for selection).
@@ -81,7 +116,10 @@ static int luawindow_key_press(lua_State *l)
 // @usage window.clippaste()
 static int luawindow_clippaste(lua_State *l)
 {
-    window->clippaste();
+    lua::State L(l);
+    if (auto window = getwindow(L))
+        window->clippaste();
+
     return 0;
 }
 
@@ -91,7 +129,10 @@ static int luawindow_clippaste(lua_State *l)
 // @usage window.selpaste()
 static int luawindow_selpaste(lua_State *l)
 {
-    window->selpaste();
+    lua::State L(l);
+    if (auto window = getwindow(L))
+        window->selpaste();
+
     return 0;
 }
 
@@ -107,7 +148,13 @@ static int luawindow_index(lua_State *l)
     const char * key = L.checkstring(2);
 
     if (std::strcmp(key, "id") == 0)
-        L.pushinteger(window->windowid());
+    {
+        auto window = getwindow(L);
+        if (window)
+            L.pushinteger(window->windowid());
+        else
+            L.pushnil();
+    }
     else
         L.pushnil();
 
@@ -115,7 +162,7 @@ static int luawindow_index(lua_State *l)
 }
 
 // functions for window library
-static const luaL_Reg window_funcs[] = {
+static const luaL_Reg window_lib_funcs[] = {
     {"mouse_press", luawindow_mouse_press},
     {"key_press", luawindow_key_press},
     {"clippaste", luawindow_clippaste},
@@ -128,7 +175,8 @@ static int window_openf(lua_State *l)
     lua::State L(l);
 
     // make the lib (4 funcs, 1 value)
-    L.newlib(window_funcs, 5);
+    // todo: verify that 5 is right
+    L.newlib(window_lib_funcs, 5);
 
     // add keys table. Note that this table is quite
     // incomplete; there's no reason for this other than
@@ -301,6 +349,9 @@ static int window_openf(lua_State *l)
     L.setfield(-2, "__index");
     L.setmetatable(-2);
 
+    // add LUAWND object
+    L.setobjfuncs(LUAWND, window_obj_funcs);
+
     return 1;
 }
 
@@ -310,11 +361,22 @@ void lua::register_luawindow(lua::State *L)
     L->pop();
 }
 
+void lua::window::setWindow(lua::State *L, std::shared_ptr<Window> window)
+{
+    // alloc and init
+    auto p = L->newobj<LuaWndStruct>(LUAWND);
+    p->window = window;
+
+    // store a ref
+    window_ref = L->setref(1, window_ref);
+    L->pop();
+}
+
 bool lua::window::call_mouse_press(lua::State *L, const Cell& cell, int button,
         const term::keymod_state& mods)
 {
     // first, try to push the mouse_press ref
-    if (!L->pushfuncref(window_mouse_press_ref))
+    if (!L->pushref(window_mouse_press_ref))
         return false;
 
     L->pushinteger(cell.col);
@@ -349,7 +411,7 @@ bool lua::window::call_key_press(lua::State *L, int keysym,
         const term::keymod_state& mods)
 {
     // first, try to push the key_press ref
-    if (!L->pushfuncref(window_key_press_ref))
+    if (!L->pushref(window_key_press_ref))
         return false;
 
     L->pushinteger(keysym);

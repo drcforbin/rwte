@@ -38,9 +38,11 @@ public:
 
     void newtable();
     void setmetatable(int index);
+    bool getmetatable(int index);
 
     bool newmetatable(const char *tname);
     void setmetatable(const char *tname);
+    void getmetatable(const char *tname);
 
     int getglobal(const char *name);
     void setglobal(const char *name);
@@ -101,17 +103,24 @@ public:
         checkobj<T>(arg, tname)->~T();
     }
 
+    // stores a reference to the value at arg on
+    // of the stack in the global registry and returns
+    // the index value. if oldref is not LUA_NOREF, it
+    // will be released before the new value is stored.
+    // the value at arg must be a func or nil.
+    int setref(int arg, int oldref = LUA_NOREF);
+
+    // retrieves a referenced value. returns true
+    // if the value was retrieved, false if not or
+    // if it was nil (leaving the stack unchanged)
+    bool pushref(int ref);
+
     // stores a reference to the function at arg on
     // of the stack in the global registry and returns
     // the index value. if oldref is not LUA_NOREF, it
     // will be released before the new value is stored.
     // the value at arg must be a func or nil.
     int setfuncref(int arg, int oldref = LUA_NOREF);
-
-    // retrieves a referenced function. returns true
-    // if the function was retrieved, false if not or
-    // if it was nil (leaving the stack unchanged)
-    bool pushfuncref(int ref);
 
 private:
     lua_State *m_L = nullptr;

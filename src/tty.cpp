@@ -154,9 +154,10 @@ static void stty()
 class TtyImpl: public AsyncIO<TtyImpl, max_write>
 {
 public:
-    TtyImpl(std::shared_ptr<event::Bus> bus, term::Term *term,
-        Window *window);
+    TtyImpl(std::shared_ptr<event::Bus> bus, std::shared_ptr<term::Term> term);
     ~TtyImpl();
+
+    void open(Window *window);
 
     void print(const char *data, std::size_t len);
 
@@ -170,17 +171,17 @@ private:
     std::size_t onread(const char *ptr, std::size_t len);
 
     std::shared_ptr<event::Bus> m_bus;
-    term::Term *m_term;
+    std::shared_ptr<term::Term> m_term;
     int m_resizeReg;
     pid_t m_pid;
     int m_iofd;
 };
 
 
-TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus, term::Term *term,
-        Window *window) :
+TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus,
+        std::shared_ptr<term::Term> term) :
     m_bus(std::move(bus)),
-    m_term(term),
+    m_term(std::move(term)),
     m_resizeReg(m_bus->reg<event::Resize, TtyImpl, &TtyImpl::onresize>(this)),
     m_pid(0),
     m_iofd(-1)
@@ -191,7 +192,7 @@ TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus, term::Term *term,
 
         m_term->setprint();
         m_iofd = (options.io == "-") ?
-                STDOUT_FILENO : open(options.io.c_str(), O_WRONLY | O_CREAT, 0666);
+                STDOUT_FILENO : ::open(options.io.c_str(), O_WRONLY | O_CREAT, 0666);
         if (m_iofd < 0)
         {
             LOGGER()->error("error opening {}: {}",
@@ -199,13 +200,24 @@ TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus, term::Term *term,
             m_iofd = -1;
         }
     }
+}
 
+TtyImpl::~TtyImpl()
+{
+    m_bus->unreg<event::Resize>(m_resizeReg);
+
+    if (m_iofd != -1)
+        close(m_iofd);
+}
+
+void TtyImpl::open(Window *window)
+{
     if (!options.line.empty())
     {
         LOGGER()->debug("using line {}", options.line);
 
         int fd;
-        if ((fd = open(options.line.c_str(), O_RDWR)) < 0)
+        if ((fd = ::open(options.line.c_str(), O_RDWR)) < 0)
             LOGGER()->fatal("open line failed: {}", strerror(errno));
         dup2(fd, STDIN_FILENO);
         setFd(fd);
@@ -252,14 +264,6 @@ TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus, term::Term *term,
         startRead();
         break;
     }
-}
-
-TtyImpl::~TtyImpl()
-{
-    m_bus->unreg<event::Resize>(m_resizeReg);
-
-    if (m_iofd != -1)
-        close(m_iofd);
 }
 
 void TtyImpl::print(const char *data, size_t len)
@@ -357,13 +361,15 @@ std::size_t TtyImpl::onread(const char *ptr, std::size_t len)
     return len;
 }
 
-Tty::Tty(std::shared_ptr<event::Bus> bus, term::Term *term,
-        Window *window) :
-    impl(std::make_unique<TtyImpl>(std::move(bus), term, window))
+Tty::Tty(std::shared_ptr<event::Bus> bus, std::shared_ptr<term::Term> term) :
+    impl(std::make_unique<TtyImpl>(std::move(bus), std::move(term)))
 { }
 
 Tty::~Tty()
 { }
+
+void Tty::open(Window *window)
+{ impl->open(window); }
 
 void Tty::write(const std::string& data)
 { impl->write(data.c_str(), data.size()); }
