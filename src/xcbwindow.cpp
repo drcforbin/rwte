@@ -155,7 +155,7 @@ private:
 
     void register_atoms();
     void setup_xkb();
-    bool load_compose_table(const char *locale);
+    void load_compose_table(const char *locale);
 
     std::shared_ptr<event::Bus> m_bus;
     std::shared_ptr<term::Term> m_term;
@@ -575,10 +575,11 @@ bool XcbWindow::load_keymap()
 }
 
 // loads the XKB compose table from the given locale.
-bool XcbWindow::load_compose_table(const char *locale)
+void XcbWindow::load_compose_table(const char *locale)
 {
     xkb_compose_table_unref(xkb_compose_table);
 
+    // todo: cleanup xkb_compose_table
     if ((xkb_compose_table = xkb_compose_table_new_from_locale(xkb_context,
             locale, (xkb_compose_compile_flags) 0)) == nullptr)
     {
@@ -589,15 +590,12 @@ bool XcbWindow::load_compose_table(const char *locale)
     struct xkb_compose_state *new_compose_state = xkb_compose_state_new(
             xkb_compose_table, (xkb_compose_state_flags) 0);
     if (new_compose_state == nullptr)
-    {
         LOGGER()->error("xkb_compose_state_new failed");
-        return false;
+    else
+    {
+        xkb_compose_state_unref(xkb_compose_state);
+        xkb_compose_state = new_compose_state;
     }
-
-    xkb_compose_state_unref(xkb_compose_state);
-    xkb_compose_state = new_compose_state;
-
-    return true;
 }
 
 void XcbWindow::publishresize(uint16_t width, uint16_t height)
