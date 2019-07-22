@@ -9,8 +9,8 @@
 #include "rwte/selection.h"
 #include "rwte/term.h"
 #include "rwte/tty.h"
-#include "rwte/utf8.h"
 #include "rwte/window.h"
+#include "rwte/window-internal.h"
 
 #include <cairo/cairo-xcb.h>
 #include <cstdint>
@@ -629,100 +629,8 @@ void XcbWindow::onresize(const event::Resize& evt)
 
 void XcbWindow::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
 {
-    auto& mode = m_term->mode();
-    if (mode[term::MODE_KBDLOCK])
-    {
-        LOGGER()->info("key press while locked {}", event->detail);
-        return;
-    }
-
-    xkb_keysym_t ksym = xkb_state_key_get_one_sym(xkb_state, event->detail);
-
-    // The buffer will be null-terminated, so n >= 2 for 1 actual character.
-    char buffer[128];
-    memset(buffer, 0, sizeof(buffer));
-
-    int len = 0;
-    bool composed = false;
-    if (xkb_compose_state && xkb_compose_state_feed(xkb_compose_state, ksym) == XKB_COMPOSE_FEED_ACCEPTED)
-    {
-        switch (xkb_compose_state_get_status(xkb_compose_state))
-        {
-            case XKB_COMPOSE_NOTHING:
-                break;
-            case XKB_COMPOSE_COMPOSING:
-                return;
-            case XKB_COMPOSE_COMPOSED:
-                len = xkb_compose_state_get_utf8(xkb_compose_state, buffer, sizeof(buffer));
-                ksym = xkb_compose_state_get_one_sym(xkb_compose_state);
-                composed = true;
-                break;
-            case XKB_COMPOSE_CANCELLED:
-                xkb_compose_state_reset(xkb_compose_state);
-                return;
-        }
-    }
-
-    if (!composed)
-        len = xkb_state_key_get_utf8(xkb_state, event->detail, buffer, sizeof(buffer));
-
-    //LOGGER()->debug("ksym {:x}, composed {}, '{}' ({})", ksym, composed, buffer, len);
-
-    // todo: move arrow keys
-    switch (ksym)
-    {
-        case XKB_KEY_Left:
-        case XKB_KEY_Up:
-        case XKB_KEY_Right:
-        case XKB_KEY_Down:
-            buffer[0] = '\033';
-
-            if (m_keymod[term::MOD_SHIFT] || m_keymod[term::MOD_CTRL])
-            {
-                if (!m_keymod[term::MOD_CTRL])
-                    buffer[1] = '[';
-                else
-                    buffer[1] = 'O';
-
-                buffer[2] = "dacb"[ksym-XKB_KEY_Left];
-            }
-            else
-            {
-                if (!mode[term::MODE_APPCURSOR])
-                    buffer[1] = '[';
-                else
-                    buffer[1] = 'O';
-
-                buffer[2] = "DACB"[ksym-XKB_KEY_Left];
-            }
-
-            buffer[3] = 0;
-            m_term->send(buffer);
-            return;
-    }
-
-    auto L = rwte->lua();
-    if (lua::window::call_key_press(L.get(), ksym, m_keymod))
-        return;
-
-    if (len == 1 && m_keymod[term::MOD_ALT])
-    {
-        if (mode[term::MODE_8BIT])
-        {
-            if (*buffer < 0177) {
-                char32_t c = *buffer | 0x80;
-                len = utf8encode(c, buffer);
-            }
-        }
-        else
-        {
-            buffer[1] = buffer[0];
-            buffer[0] = '\033';
-            len = 2;
-        }
-    }
-
-    m_tty->write(buffer, len);
+    process_key(event->detail, m_term.get(), m_tty.get(), xkb_state,
+        xkb_compose_state, m_keymod);
 }
 
 void XcbWindow::handle_client_message(ev::loop_ref& loop, xcb_client_message_event_t *event)

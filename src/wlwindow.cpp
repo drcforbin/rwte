@@ -10,9 +10,9 @@
 #include "rwte/selection.h"
 #include "rwte/term.h"
 #include "rwte/tty.h"
-#include "rwte/utf8.h"
 #include "rwte/wayland.h"
 #include "rwte/window.h"
+#include "rwte/window-internal.h"
 #include "xdg-shell/xdg-shell-client-protocol.h"
 
 #include <cairo/cairo.h>
@@ -808,118 +808,16 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
     if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
         return;
 
-    LOGGER()->debug("handle_key {}, {}, {}, {}",
-        serial, time, key, state);
-
     // add 8, because that's how it works...it's in the docs somewhere
     key += 8;
+
 
     // todo: a bunch of this code is shared with xcbwindow...move
     // it somewhere common
 
     auto window = seat->window();
-    auto& mode = window->m_term->mode();
-    if (mode[term::MODE_KBDLOCK])
-    {
-        LOGGER()->info("key press while locked {}", key);
-        return;
-    }
-
-    xkb_keysym_t ksym = xkb_state_key_get_one_sym(this->state, key);
-
-    // The buffer will be null-terminated, so n >= 2 for 1 actual character.
-    char buffer[128];
-    memset(buffer, 0, sizeof(buffer));
-
-    int len = 0;
-    bool composed = false;
-    if (compose_state &&
-            xkb_compose_state_feed(compose_state, ksym) == XKB_COMPOSE_FEED_ACCEPTED)
-    {
-        switch (xkb_compose_state_get_status(compose_state))
-        {
-            case XKB_COMPOSE_NOTHING:
-                break;
-            case XKB_COMPOSE_COMPOSING:
-                return;
-            case XKB_COMPOSE_COMPOSED:
-                len = xkb_compose_state_get_utf8(compose_state,
-                        buffer, sizeof(buffer));
-                ksym = xkb_compose_state_get_one_sym(compose_state);
-                composed = true;
-                break;
-            case XKB_COMPOSE_CANCELLED:
-                xkb_compose_state_reset(compose_state);
-                return;
-        }
-    }
-
-    if (!composed)
-        len = xkb_state_key_get_utf8(this->state, key, buffer, sizeof(buffer));
-
-    // no key? nothing to do.
-    if (len == 0)
-        return;
-
-    LOGGER()->debug("ksym {:x}, composed {}, '{}' ({})",
-        ksym, composed, buffer, len);
-
-    // todo: move arrow keys
-    switch (ksym)
-    {
-        case XKB_KEY_Left:
-        case XKB_KEY_Up:
-        case XKB_KEY_Right:
-        case XKB_KEY_Down:
-            buffer[0] = '\033';
-
-            if (seat->keymod[term::MOD_SHIFT] || seat->keymod[term::MOD_CTRL])
-            {
-                if (!seat->keymod[term::MOD_CTRL])
-                    buffer[1] = '[';
-                else
-                    buffer[1] = 'O';
-
-                buffer[2] = "dacb"[ksym-XKB_KEY_Left];
-            }
-            else
-            {
-                if (!mode[term::MODE_APPCURSOR])
-                    buffer[1] = '[';
-                else
-                    buffer[1] = 'O';
-
-                buffer[2] = "DACB"[ksym-XKB_KEY_Left];
-            }
-
-            buffer[3] = 0;
-            window->m_term->send(buffer);
-            return;
-    }
-
-    auto L = rwte->lua();
-    if (lua::window::call_key_press(L.get(), ksym, seat->keymod))
-        return;
-
-    if (len == 1 && seat->keymod[term::MOD_ALT])
-    {
-        if (mode[term::MODE_8BIT])
-        {
-            if (*buffer < 0177) {
-                char32_t c = *buffer | 0x80;
-                len = utf8encode(c, buffer);
-            }
-        }
-        else
-        {
-            buffer[1] = buffer[0];
-            buffer[0] = '\033';
-            len = 2;
-        }
-    }
-
-    // this feels dirty
-    window->m_tty->write(buffer, len);
+    process_key(key, window->m_term.get(), window->m_tty.get(),
+            this->state, compose_state, seat->keymod);
 }
 
 void Keyboard::handle_modifiers(uint32_t serial, uint32_t mods_depressed,
