@@ -164,7 +164,7 @@ protected:
     void handle_repeat_info(int32_t rate, int32_t delay);
 
 private:
-    bool load_compose_table(const char *locale);
+    void load_compose_table(const char *locale);
 
     Seat *seat;
 
@@ -786,7 +786,6 @@ void Keyboard::handle_keymap(uint32_t format, int fd, uint32_t size)
         locale = "C";
     }
 
-    // todo: check return value; skip compose if false
     load_compose_table(locale);
 }
 
@@ -959,7 +958,7 @@ void Keyboard::handle_repeat_info(int32_t rate, int32_t delay)
     // pressed, add timer events to repeat the pressed key
 }
 
-bool Keyboard::load_compose_table(const char *locale)
+void Keyboard::load_compose_table(const char *locale)
 {
     if (compose_table)
         xkb_compose_table_unref(compose_table);
@@ -970,7 +969,7 @@ bool Keyboard::load_compose_table(const char *locale)
     if (!compose_table)
     {
         LOGGER()->error("xkb_compose_table_new_from_locale failed");
-        return false;
+        return;
     }
 
     if (compose_state)
@@ -980,12 +979,7 @@ bool Keyboard::load_compose_table(const char *locale)
     compose_state = xkb_compose_state_new(
             compose_table, (xkb_compose_state_flags) 0);
     if (!compose_state)
-    {
         LOGGER()->error("xkb_compose_state_new failed");
-        return false;
-    }
-
-    return true;
 }
 
 void Surface::handle_enter(wl_output *output)

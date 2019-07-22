@@ -584,7 +584,7 @@ void XcbWindow::load_compose_table(const char *locale)
             locale, (xkb_compose_compile_flags) 0)) == nullptr)
     {
         LOGGER()->error("xkb_compose_table_new_from_locale failed");
-        return false;
+        return;
     }
 
     struct xkb_compose_state *new_compose_state = xkb_compose_state_new(
