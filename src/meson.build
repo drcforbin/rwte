@@ -8,6 +8,7 @@ common_sources = files(
     'lua/term.cpp',
     'lua/window.cpp',
 
+    'bufferpool.cpp',
     'logging.cpp',
     'profiling.cpp',
     'renderer.cpp',

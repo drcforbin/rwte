@@ -1,6 +1,7 @@
 #include "lua/config.h"
 #include "lua/state.h"
 #include "lua/window.h"
+#include "rwte/bufferpool.h"
 #include "rwte/config.h"
 #include "rwte/coords.h"
 #include "rwte/logging.h"
@@ -16,13 +17,13 @@
 
 #include <cairo/cairo.h>
 #include <ev++.h>
-#include <fcntl.h>
 #include <linux/input.h>
 #include <sys/mman.h>
 #include <wayland-client.h>
 #include <wayland-client-protocol.h>
 #include <wayland-cursor.h>
 #include <xkbcommon/xkbcommon.h>
+#include <xkbcommon/xkbcommon-compose.h>
 
 #define LOGGER() (logging::get("wlwindow"))
 
@@ -35,9 +36,6 @@ namespace wlwin {
 bool queued = false;
 bool prepared = false;
 
-// we should really only need one buffer, right?
-const int NumBuffers = 2;
-
 // todo: move this to a utils file
 static int get_border_px()
 {
@@ -45,7 +43,6 @@ static int get_border_px()
     return lua::config::get_int("border_px", 2);
 }
 
-class Shm;
 class WlWindow;
 class Seat;
 class XdgWmBase;
@@ -59,132 +56,6 @@ struct PointerFrame {
     int mousey = 0;
 };
 
-class Buffer : public wayland::Buffer<Buffer> {
-public:
-    Buffer(Shm *shm, wl_buffer *buffer) :
-        wayland::Buffer<Buffer>(buffer),
-        shm(shm)
-    { }
-
-protected:
-    friend class wayland::Buffer<Buffer>;
-
-    void handle_release();
-
-private:
-    Shm *shm;
-};
-
-struct Image {
-    Image(Shm *shm, wl_buffer *buffer, unsigned char *data,
-            int width, int height, int stride) :
-        buffer(std::make_unique<Buffer>(shm, buffer)),
-        data(data), width(width), height(height), stride(stride)
-    { }
-
-    std::unique_ptr<Buffer> buffer;
-    unsigned char *data = nullptr;
-    int width = 0;
-    int height = 0;
-    int stride = 0;
-    bool busy = false;
-};
-
-class Shm
-{
-public:
-    Shm(wl_shm *shm) :
-        shm(shm)
-    { }
-
-    bool create_buffers(int width, int height);
-    bool resize(int width, int height);
-
-    Image* get_buffer() {
-        for (int i = 0; i < NumBuffers; i++) {
-            // hack!
-            if (!buffers[i].busy) {
-                LOGGER()->trace("got buffer {}", i);
-                buffers[i].busy = true;
-                return &buffers[i];
-            }
-        }
-
-        LOGGER()->warn("all buffers busy!");
-        return nullptr;
-    }
-
-protected:
-    friend class Buffer;
-
-    void release_buffer(const Buffer& buffer) {
-        int idx = 0;
-        while (buffer != *buffers[idx].buffer)
-            idx++;
-
-        if (idx < NumBuffers) {
-            LOGGER()->trace("released buffer {}", idx);
-            buffers[idx].busy = false;
-        } else {
-            LOGGER()->warn("released unknown buffer!");
-        }
-    }
-
-private:
-    static void randname(char *buf) {
-        struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
-        long r = ts.tv_nsec;
-        for (int i = 0; i < 6; ++i) {
-            buf[i] = 'A'+(r&15)+(r&16)*2;
-            r >>= 5;
-        }
-    }
-
-    static int anonymous_shm_open(void) {
-        // todo: change name
-        char name[] = "/todo-XXXXXX";
-        int retries = 100;
-
-        do {
-            randname(name + strlen(name) - 6);
-
-            --retries;
-            // shm_open guarantees that O_CLOEXEC is set
-            int fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, 0600);
-            if (fd >= 0) {
-                shm_unlink(name);
-                return fd;
-            }
-        } while (retries > 0 && errno == EEXIST);
-
-        return -1;
-    }
-
-    int create_shm_file(off_t size) {
-        int fd = anonymous_shm_open();
-        if (fd < 0) {
-            return fd;
-        }
-
-        if (ftruncate(fd, size) < 0) {
-            close(fd);
-            return -1;
-        }
-
-        return fd;
-    }
-
-    struct wl_shm *shm;
-
-    std::vector<Image> buffers;
-};
-
-void Buffer::handle_release()
-{
-    shm->release_buffer(*this);
-}
-
 class XdgToplevel :
     public wayland::XdgToplevel<XdgToplevel> {
 public:
@@ -197,7 +68,7 @@ protected:
     friend class wayland::XdgToplevel<XdgToplevel>;
 
     void handle_configure(int32_t width, int32_t height,
-            struct wl_array *states);
+            wl_array *states);
 
     void handle_close()
     {
@@ -224,16 +95,7 @@ public:
     WlWindow* window() { return m_window; }
 
     // todo: getter/setter?
-    // todo: move to keyboard instead of seat?
     term::keymod_state keymod;
-
-protected:
-    friend Base;
-
-    void handle_name(const char *name)
-    {
-        LOGGER()->debug("seat name: {}", name);
-    }
 
 private:
     WlWindow *m_window;
@@ -249,10 +111,10 @@ public:
 protected:
     friend class wayland::Pointer<Pointer>;
 
-    void handle_enter(uint32_t serial, struct wl_surface *surface,
+    void handle_enter(uint32_t serial, wl_surface *surface,
                 wl_fixed_t sx, wl_fixed_t sy);
 
-    void handle_leave(uint32_t serial, struct wl_surface *surface)
+    void handle_leave(uint32_t serial, wl_surface *surface)
     {
         frame.entered = false;
     }
@@ -291,9 +153,9 @@ protected:
     friend class wayland::Keyboard<Keyboard>;
 
     void handle_keymap(uint32_t format, int fd, uint32_t size);
-    void handle_enter(uint32_t serial, struct wl_surface *surface,
-                  struct wl_array *keys);
-    void handle_leave(uint32_t serial, struct wl_surface *surface);
+    void handle_enter(uint32_t serial, wl_surface *surface,
+                  wl_array *keys);
+    void handle_leave(uint32_t serial, wl_surface *surface);
     void handle_key(uint32_t serial, uint32_t time, uint32_t key,
                 uint32_t state);
     void handle_modifiers(uint32_t serial, uint32_t mods_depressed,
@@ -302,11 +164,15 @@ protected:
     void handle_repeat_info(int32_t rate, int32_t delay);
 
 private:
+    bool load_compose_table(const char *locale);
+
     Seat *seat;
 
     // todo: move to seat?
-    xkb_keymap *keymap;
-    xkb_state *state;
+    xkb_keymap *keymap = nullptr;
+    xkb_state *state = nullptr;
+    xkb_compose_table *compose_table = nullptr;
+    xkb_compose_state *compose_state = nullptr;
 };
 
 class Touch : public wayland::Touch<Touch> {
@@ -328,8 +194,8 @@ public:
 protected:
     friend class wayland::Surface<Surface>;
 
-    void handle_enter(struct wl_output *output);
-    void handle_leave(struct wl_output *output);
+    void handle_enter(wl_output *output);
+    void handle_leave(wl_output *output);
 
 private:
     WlWindow *window;
@@ -413,15 +279,15 @@ public:
     // todo: rename?
     xkb_context *ctx;
     // todo: compositor wrapper?
-    struct wl_compositor *compositor = nullptr;
+    wl_compositor *compositor = nullptr;
     std::unique_ptr<XdgWmBase> wmbase;
     std::unique_ptr<XdgToplevel> toplevel;
     std::unique_ptr<Seat> seat;
-    std::unique_ptr<Shm> shm;
+    std::unique_ptr<BufferPool> buffers;
 
-    struct wl_cursor_theme *cursor_theme = nullptr;
-    struct wl_cursor *default_cursor = nullptr;
-    struct wl_surface *cursor_surface = nullptr;
+    wl_cursor_theme *cursor_theme = nullptr;
+    wl_cursor *default_cursor = nullptr;
+    wl_surface *cursor_surface = nullptr;
 
     bool fullscreen = false;
     bool activated = false;
@@ -437,7 +303,7 @@ private:
     void iocb(ev::io &, int);
     void preparecb(ev::prepare &, int);
 
-    void paint_pixels(Image *image);
+    void paint_pixels(Buffer *buffer);
 
     int m_resizeReg;
 
@@ -450,7 +316,7 @@ private:
     std::unique_ptr<renderer::Renderer> m_renderer;
 
     // todo: make unique ptr? private?
-    struct wl_display *display = nullptr;
+    wl_display *display = nullptr;
     std::unique_ptr<Surface> surface;
     std::unique_ptr<XdgSurface> xdg_surface;
 
@@ -530,16 +396,16 @@ WlWindow::WlWindow(std::shared_ptr<event::Bus> bus,
     // todo: move this somewhere
     cursor_surface = wl_compositor_create_surface(compositor);
 
-    if (!shm->create_buffers(m_width, m_height))
+    if (!buffers->create_buffers(m_width, m_height))
         throw WindowError("unable to create shared buffers");
     LOGGER()->debug("created buffers");
 
     // initial draw to get the window mapped
-    auto image = shm->get_buffer();
-    if (image) {
-        // todo: initial fill of image with bg color?
+    auto buffer = buffers->get_buffer();
+    if (buffer) {
+        // todo: initial fill of buffer with bg color?
 
-        surface->attach(image->buffer->get(), 0, 0);
+        surface->attach(buffer->get(), 0, 0);
         surface->damage_buffer(0, 0, m_width, m_height);
         surface->commit();
     } else {
@@ -566,7 +432,7 @@ WlWindow::~WlWindow()
     surface.reset();
 
     // buffers and seat whenever
-    shm.reset();
+    buffers.reset();
     seat.reset();
 
     if (cursor_surface)
@@ -586,11 +452,11 @@ void WlWindow::drawCore()
 {
     LOGGER()->trace("draw {}x{}", m_width, m_height);
 
-    auto image = shm->get_buffer();
-    if (image) {
-        paint_pixels(image);
+    auto buffer = buffers->get_buffer();
+    if (buffer) {
+        paint_pixels(buffer);
 
-        surface->attach(image->buffer->get(), 0, 0);
+        surface->attach(buffer->get(), 0, 0);
         surface->damage_buffer(0, 0, m_width, m_height);
         surface->commit();
     } else {
@@ -598,9 +464,9 @@ void WlWindow::drawCore()
     }
 }
 
-static const struct wl_callback_listener frame_listener = {
+static const wl_callback_listener frame_listener = {
     // done event
-    [](void *data, struct wl_callback *cb, uint32_t time) {
+    [](void *data, wl_callback *cb, uint32_t time) {
         queued = false;
         LOGGER()->trace("frame received");
         static_cast<WlWindow *>(data)->drawCore();
@@ -694,7 +560,7 @@ void WlWindow::onresize(const event::Resize& evt)
     // (we paint with an unresized surface, then resize
     // and paint properly)
 
-    shm->resize(evt.width, evt.height);
+    buffers->resize(evt.width, evt.height);
 }
 
 void WlWindow::preparecb(ev::prepare &, int)
@@ -788,17 +654,17 @@ void WlWindow::iocb(ev::io &, int revents)
     }
 }
 
-void WlWindow::paint_pixels(Image *image)
+void WlWindow::paint_pixels(Buffer *buffer)
 {
-    int width = image->width;
-    int height = image->height;
-    int stride = image->stride;
+    int width = buffer->width();
+    int height = buffer->height();
+    int stride = buffer->stride();
 
     // hack! renderer should keep this surface as state, or
     // we need to do something smarter about damaging the
     // buffer for painting...when we paint to multiple buffers
     // they aren't all fully painted
-    auto surface = cairo_image_surface_create_for_data(image->data,
+    auto surface = cairo_image_surface_create_for_data(buffer->data(),
             CAIRO_FORMAT_ARGB32, width, height, stride);
     m_renderer->set_surface(surface, width, height);
     // todo: this ok? used to be done in onresize?
@@ -807,52 +673,8 @@ void WlWindow::paint_pixels(Image *image)
     m_renderer->set_surface(nullptr, width, height);
 }
 
-bool Shm::create_buffers(int width, int height) {
-    int stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, width);
-    int size = stride * height;
-
-    for (int i = 0; i < NumBuffers; i++ ) {
-        int fd = create_shm_file(size);
-        if (fd < 0) {
-            LOGGER()->fatal("creating a buffer file failed for {}: {}\n",
-                    size, strerror(errno));
-            return false; // won't return
-        }
-
-        auto data = (unsigned char *) mmap(nullptr, size,
-                PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        if (data == MAP_FAILED) {
-            LOGGER()->fatal("mmap failed for {}, {}", size, strerror(errno));
-            close(fd); // won't get here, given fatal
-            return false;
-        }
-
-        // todo: keep pool, for resizing smaller?
-        struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
-        auto buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
-                    stride, WL_SHM_FORMAT_ARGB8888);
-        wl_shm_pool_destroy(pool);
-
-        // todo: are we leaking fd? we're leaking something...
-
-        if (buffer) {
-            buffers.emplace_back(this, buffer,
-                    data, width, height, stride);
-        } else {
-            LOGGER()->fatal("unable to create buffer {}", i);
-            return false;
-        }
-    }
-    return true;
-}
-
-bool Shm::resize(int width, int height) {
-    buffers.clear();
-    return create_buffers(width, height);
-}
-
 void XdgToplevel::handle_configure(int32_t width, int32_t height,
-        struct wl_array *states)
+        wl_array *states)
 {
     bool activated = false;
     bool fullscreen = false;
@@ -888,7 +710,7 @@ void XdgToplevel::handle_configure(int32_t width, int32_t height,
     // todo: look at all the other m_term and m_tty uses in XcbWindow
 }
 
-void Pointer::handle_enter(uint32_t serial, struct wl_surface *surface,
+void Pointer::handle_enter(uint32_t serial, wl_surface *surface,
             wl_fixed_t sx, wl_fixed_t sy)
 {
     auto window = seat->window();
@@ -930,6 +752,9 @@ void Keyboard::handle_keymap(uint32_t format, int fd, uint32_t size)
         return;
     }
 
+    if (keymap)
+        xkb_keymap_unref(keymap);
+
     keymap = xkb_keymap_new_from_buffer(seat->window()->ctx,
             buf, size - 1, XKB_KEYMAP_FORMAT_TEXT_V1,
             XKB_KEYMAP_COMPILE_NO_FLAGS);
@@ -941,22 +766,38 @@ void Keyboard::handle_keymap(uint32_t format, int fd, uint32_t size)
         return;
     }
 
+    if (state)
+        xkb_state_unref(state);
+
     state = xkb_state_new(keymap);
     if (!state) {
         // todo: communicate error to wlwindow?
         LOGGER()->error("failed to create XKB state!");
         return;
     }
+
+    const char *locale = getenv("LC_ALL");
+    if (!locale)
+        locale = getenv("LC_CTYPE");
+    if (!locale)
+        locale = getenv("LANG");
+    if (!locale) {
+        LOGGER()->debug("unable to detect locale, fallback to C");
+        locale = "C";
+    }
+
+    // todo: check return value; skip compose if false
+    load_compose_table(locale);
 }
 
-void Keyboard::handle_enter(uint32_t serial, struct wl_surface *surface,
-              struct wl_array *keys)
+void Keyboard::handle_enter(uint32_t serial, wl_surface *surface,
+              wl_array *keys)
 {
     auto window = seat->window();
     window->setkbdfocus(true);
 }
 
-void Keyboard::handle_leave(uint32_t serial, struct wl_surface *surface)
+void Keyboard::handle_leave(uint32_t serial, wl_surface *surface)
 {
     auto window = seat->window();
     window->setkbdfocus(false);
@@ -967,6 +808,9 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
 {
     if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
         return;
+
+    LOGGER()->debug("handle_key {}, {}, {}, {}",
+        serial, time, key, state);
 
     // add 8, because that's how it works...it's in the docs somewhere
     key += 8;
@@ -990,26 +834,26 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
 
     int len = 0;
     bool composed = false;
-    /* todo: enable composition! (copy from xcbwindow)
-    if (xkb_compose_state && xkb_compose_state_feed(xkb_compose_state, ksym) == XKB_COMPOSE_FEED_ACCEPTED)
+    if (compose_state &&
+            xkb_compose_state_feed(compose_state, ksym) == XKB_COMPOSE_FEED_ACCEPTED)
     {
-        switch (xkb_compose_state_get_status(xkb_compose_state))
+        switch (xkb_compose_state_get_status(compose_state))
         {
             case XKB_COMPOSE_NOTHING:
                 break;
             case XKB_COMPOSE_COMPOSING:
                 return;
             case XKB_COMPOSE_COMPOSED:
-                len = xkb_compose_state_get_utf8(xkb_compose_state, buffer, sizeof(buffer));
-                ksym = xkb_compose_state_get_one_sym(xkb_compose_state);
+                len = xkb_compose_state_get_utf8(compose_state,
+                        buffer, sizeof(buffer));
+                ksym = xkb_compose_state_get_one_sym(compose_state);
                 composed = true;
                 break;
             case XKB_COMPOSE_CANCELLED:
-                xkb_compose_state_reset(xkb_compose_state);
+                xkb_compose_state_reset(compose_state);
                 return;
         }
     }
-    */
 
     if (!composed)
         len = xkb_state_key_get_utf8(this->state, key, buffer, sizeof(buffer));
@@ -1018,8 +862,8 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
     if (len == 0)
         return;
 
-    //LOGGER()->debug("ksym {:x}, composed {}, '{}' ({})",
-    //    ksym, composed, buffer, len);
+    LOGGER()->debug("ksym {:x}, composed {}, '{}' ({})",
+        ksym, composed, buffer, len);
 
     // todo: move arrow keys
     switch (ksym)
@@ -1115,13 +959,42 @@ void Keyboard::handle_repeat_info(int32_t rate, int32_t delay)
     // pressed, add timer events to repeat the pressed key
 }
 
-void Surface::handle_enter(struct wl_output *output)
+bool Keyboard::load_compose_table(const char *locale)
+{
+    if (compose_table)
+        xkb_compose_table_unref(compose_table);
+
+    // todo: cleanup compose_table
+    compose_table = xkb_compose_table_new_from_locale(seat->window()->ctx,
+            locale, (xkb_compose_compile_flags) 0);
+    if (!compose_table)
+    {
+        LOGGER()->error("xkb_compose_table_new_from_locale failed");
+        return false;
+    }
+
+    if (compose_state)
+        xkb_compose_state_unref(compose_state);
+
+    // todo: cleanup compose_state
+    compose_state = xkb_compose_state_new(
+            compose_table, (xkb_compose_state_flags) 0);
+    if (!compose_state)
+    {
+        LOGGER()->error("xkb_compose_state_new failed");
+        return false;
+    }
+
+    return true;
+}
+
+void Surface::handle_enter(wl_output *output)
 {
     window->visible = true;
     window->m_term->setdirty();
 }
 
-void Surface::handle_leave(struct wl_output *output)
+void Surface::handle_leave(wl_output *output)
 {
     window->visible = false;
 }
@@ -1167,7 +1040,7 @@ void Registry::handle_global(uint32_t name, const char *interface, uint32_t vers
                     window->cursor_theme, "left_ptr");
         }
 
-        window->shm = std::make_unique<Shm>(shm);
+        window->buffers = std::make_unique<BufferPool>(shm);
     }
 }
 
