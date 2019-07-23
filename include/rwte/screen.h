@@ -29,16 +29,16 @@ enum glyph_attribute_enum
     // ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
 };
 
-using glyph_attribute = std::bitset<ATTR_LAST+1>;
+using glyph_attribute = std::bitset<ATTR_LAST + 1>;
 
 const char32_t empty_char = ' ';
 
 struct Glyph
 {
-    char32_t u = empty_char;           // character code
+    char32_t u = empty_char; // character code
     glyph_attribute attr;    // attribute flags
-    uint32_t fg = 0;      // foreground
-    uint32_t bg = 0;      // background
+    uint32_t fg = 0;         // foreground
+    uint32_t bg = 0;         // background
 };
 
 // todo: drop cursor_ prefix
@@ -55,9 +55,9 @@ enum class cursor_type
 // todo: make enum class, drop cursor_ prefix
 enum cursor_state
 {
-    CURSOR_DEFAULT  = 0,
+    CURSOR_DEFAULT = 0,
     CURSOR_WRAPNEXT = 1,
-    CURSOR_ORIGIN   = 2
+    CURSOR_ORIGIN = 2
 };
 
 struct Cursor : public Cell
@@ -106,7 +106,7 @@ public:
     // for absolute user moves, when decom is set
     void moveato(const Cell& cell);
 
-    void selsnap(int *col, int *row, int direction);
+    void selsnap(int* col, int* row, int direction);
     void selclear();
     void selscroll(int orig, int n);
     void selnormalize();

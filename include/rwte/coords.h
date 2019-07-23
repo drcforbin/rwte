@@ -16,12 +16,12 @@ struct Cell
         return row != other.row || col != other.col;
     }
 
-    inline bool operator< (const Cell& other) const
+    inline bool operator<(const Cell& other) const
     {
         return row < other.row || col < other.col;
     }
 
-    inline bool operator> (const Cell& other) const
+    inline bool operator>(const Cell& other) const
     {
         return row > other.row || col > other.col;
     }
@@ -29,13 +29,13 @@ struct Cell
     inline bool operator<=(const Cell& other) const
     {
         return row < other.row || col < other.col ||
-            (row == other.row && col == other.col);
+               (row == other.row && col == other.col);
     }
 
     inline bool operator>=(const Cell& other) const
     {
         return row > other.row || col > other.col ||
-            (row == other.row && col == other.col);
+               (row == other.row && col == other.col);
     }
 };
 

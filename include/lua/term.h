@@ -9,14 +9,13 @@ class Term;
 
 // lua term integration
 
-namespace lua
-{
+namespace lua {
 
 class State;
 
-void setTerm(State *L, std::shared_ptr<term::Term> term);
+void setTerm(State* L, std::shared_ptr<term::Term> term);
 
-void register_luaterm(State *L);
+void register_luaterm(State* L);
 
 } // namespace lua
 

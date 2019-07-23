@@ -19,12 +19,12 @@ public:
     Tty(std::shared_ptr<event::Bus> bus, std::shared_ptr<term::Term> term);
     ~Tty();
 
-    void open(Window *window);
+    void open(Window* window);
 
     void write(const std::string& data);
-    void write(const char *data, std::size_t len);
+    void write(const char* data, std::size_t len);
 
-    void print(const char *data, std::size_t len);
+    void print(const char* data, std::size_t len);
 
     void hup();
 

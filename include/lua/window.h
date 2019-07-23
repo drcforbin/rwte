@@ -10,21 +10,19 @@
 
 struct Cell;
 
-namespace lua
-{
+namespace lua {
 
 class State;
 
-void register_luawindow(State *L);
+void register_luawindow(State* L);
 
-namespace window
-{
+namespace window {
 
-void setWindow(State *L, std::shared_ptr<Window> window);
+void setWindow(State* L, std::shared_ptr<Window> window);
 
-bool call_mouse_press(State *L, const Cell& cell, int button,
+bool call_mouse_press(State* L, const Cell& cell, int button,
         const term::keymod_state& mods);
-bool call_key_press(State *L, int keysym,
+bool call_key_press(State* L, int keysym,
         const term::keymod_state& mods);
 
 } // namespace window

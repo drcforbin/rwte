@@ -11,19 +11,19 @@
 #include "rwte/term.h"
 #include "rwte/tty.h"
 #include "rwte/wayland.h"
-#include "rwte/window.h"
 #include "rwte/window-internal.h"
+#include "rwte/window.h"
 #include "xdg-shell/xdg-shell-client-protocol.h"
 
 #include <cairo/cairo.h>
 #include <ev++.h>
 #include <linux/input.h>
 #include <sys/mman.h>
-#include <wayland-client.h>
 #include <wayland-client-protocol.h>
+#include <wayland-client.h>
 #include <wayland-cursor.h>
-#include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-compose.h>
+#include <xkbcommon/xkbcommon.h>
 
 #define LOGGER() (logging::get("wlwindow"))
 
@@ -50,25 +50,27 @@ class Surface;
 class XdgSurface;
 class XdgToplevel;
 
-struct PointerFrame {
+struct PointerFrame
+{
     bool entered = false;
     int mousex = 0;
     int mousey = 0;
 };
 
 class XdgToplevel :
-    public wayland::XdgToplevel<XdgToplevel> {
+    public wayland::XdgToplevel<XdgToplevel>
+{
 public:
-    XdgToplevel(WlWindow *window, xdg_toplevel *toplevel) :
+    XdgToplevel(WlWindow* window, xdg_toplevel* toplevel) :
         wayland::XdgToplevel<XdgToplevel>(toplevel),
         window(window)
-    { }
+    {}
 
 protected:
     friend class wayland::XdgToplevel<XdgToplevel>;
 
     void handle_configure(int32_t width, int32_t height,
-            wl_array *states);
+            wl_array* states);
 
     void handle_close()
     {
@@ -76,7 +78,7 @@ protected:
     }
 
 private:
-    WlWindow *window;
+    WlWindow* window;
 };
 
 class Pointer;
@@ -84,13 +86,15 @@ class Keyboard;
 class Touch;
 
 class Seat :
-    public wayland::Seat<Seat, Pointer, Keyboard, Touch> {
+    public wayland::Seat<Seat, Pointer, Keyboard, Touch>
+{
     using Base = wayland::Seat<Seat, Pointer, Keyboard, Touch>;
+
 public:
-    Seat(WlWindow *window, wl_seat *seat) :
+    Seat(WlWindow* window, wl_seat* seat) :
         Base(seat),
         m_window(window)
-    { }
+    {}
 
     WlWindow* window() { return m_window; }
 
@@ -98,23 +102,24 @@ public:
     term::keymod_state keymod;
 
 private:
-    WlWindow *m_window;
+    WlWindow* m_window;
 };
 
-class Pointer : public wayland::Pointer<Pointer> {
+class Pointer : public wayland::Pointer<Pointer>
+{
 public:
-    Pointer(Seat *seat, wl_pointer *pointer) :
+    Pointer(Seat* seat, wl_pointer* pointer) :
         wayland::Pointer<Pointer>(pointer),
         seat(seat)
-    { }
+    {}
 
 protected:
     friend class wayland::Pointer<Pointer>;
 
-    void handle_enter(uint32_t serial, wl_surface *surface,
-                wl_fixed_t sx, wl_fixed_t sy);
+    void handle_enter(uint32_t serial, wl_surface* surface,
+            wl_fixed_t sx, wl_fixed_t sy);
 
-    void handle_leave(uint32_t serial, wl_surface *surface)
+    void handle_leave(uint32_t serial, wl_surface* surface)
     {
         frame.entered = false;
     }
@@ -129,17 +134,19 @@ protected:
 
 private:
     PointerFrame frame;
-    Seat *seat;
+    Seat* seat;
 };
 
-class Keyboard : public wayland::Keyboard<Keyboard> {
+class Keyboard : public wayland::Keyboard<Keyboard>
+{
 public:
-    Keyboard(Seat *seat, wl_keyboard *keyboard) :
+    Keyboard(Seat* seat, wl_keyboard* keyboard) :
         wayland::Keyboard<Keyboard>(keyboard),
         seat(seat)
-    { }
+    {}
 
-    ~Keyboard() {
+    ~Keyboard()
+    {
         // todo: move state, keymap to seat?
         if (state) {
             xkb_state_unref(state);
@@ -153,89 +160,97 @@ protected:
     friend class wayland::Keyboard<Keyboard>;
 
     void handle_keymap(uint32_t format, int fd, uint32_t size);
-    void handle_enter(uint32_t serial, wl_surface *surface,
-                  wl_array *keys);
-    void handle_leave(uint32_t serial, wl_surface *surface);
+    void handle_enter(uint32_t serial, wl_surface* surface,
+            wl_array* keys);
+    void handle_leave(uint32_t serial, wl_surface* surface);
     void handle_key(uint32_t serial, uint32_t time, uint32_t key,
-                uint32_t state);
+            uint32_t state);
     void handle_modifiers(uint32_t serial, uint32_t mods_depressed,
-                  uint32_t mods_latched, uint32_t mods_locked,
-                  uint32_t group);
+            uint32_t mods_latched, uint32_t mods_locked,
+            uint32_t group);
     void handle_repeat_info(int32_t rate, int32_t delay);
 
 private:
-    void load_compose_table(const char *locale);
+    void load_compose_table(const char* locale);
 
-    Seat *seat;
+    Seat* seat;
 
     // todo: move to seat?
-    xkb_keymap *keymap = nullptr;
-    xkb_state *state = nullptr;
-    xkb_compose_table *compose_table = nullptr;
-    xkb_compose_state *compose_state = nullptr;
+    xkb_keymap* keymap = nullptr;
+    xkb_state* state = nullptr;
+    xkb_compose_table* compose_table = nullptr;
+    xkb_compose_state* compose_state = nullptr;
 };
 
-class Touch : public wayland::Touch<Touch> {
+class Touch : public wayland::Touch<Touch>
+{
 public:
-    Touch(Seat *seat, wl_touch *touch) :
+    Touch(Seat* seat, wl_touch* touch) :
         wayland::Touch<Touch>(touch)
-    { }
+    {}
 
     // no handlers...yet
 };
 
-class Surface : public wayland::Surface<Surface> {
+class Surface : public wayland::Surface<Surface>
+{
 public:
-    Surface(WlWindow *window, wl_surface *surface) :
+    Surface(WlWindow* window, wl_surface* surface) :
         wayland::Surface<Surface>(surface),
         window(window)
-    { }
+    {}
 
 protected:
     friend class wayland::Surface<Surface>;
 
-    void handle_enter(wl_output *output);
-    void handle_leave(wl_output *output);
+    void handle_enter(wl_output* output);
+    void handle_leave(wl_output* output);
 
 private:
-    WlWindow *window;
+    WlWindow* window;
 };
 
-class XdgSurface : public wayland::XdgSurface<XdgSurface, WlWindow, XdgToplevel> {
+class XdgSurface : public wayland::XdgSurface<XdgSurface, WlWindow, XdgToplevel>
+{
     using Base = wayland::XdgSurface<XdgSurface, WlWindow, XdgToplevel>;
+
 public:
-    XdgSurface(WlWindow *window, xdg_surface *surface) :
+    XdgSurface(WlWindow* window, xdg_surface* surface) :
         Base(window, surface)
-    { }
+    {}
 
     // no handlers
 };
 
-class XdgWmBase : public wayland::XdgWmBase<XdgWmBase, WlWindow, Surface, XdgSurface> {
+class XdgWmBase : public wayland::XdgWmBase<XdgWmBase, WlWindow, Surface, XdgSurface>
+{
     using Base = wayland::XdgWmBase<XdgWmBase, WlWindow, Surface, XdgSurface>;
+
 public:
-    XdgWmBase(WlWindow *window, xdg_wm_base *wmbase) :
+    XdgWmBase(WlWindow* window, xdg_wm_base* wmbase) :
         Base(window, wmbase)
-    { }
+    {}
 
     // no handlers
 };
 
-class Registry : public wayland::Registry<Registry> {
+class Registry : public wayland::Registry<Registry>
+{
     using Base = wayland::Registry<Registry>;
+
 public:
-    Registry(WlWindow *window, wl_registry *registry) :
+    Registry(WlWindow* window, wl_registry* registry) :
         Base(registry),
         window(window)
-    { }
+    {}
 
 protected:
     friend Base;
 
-    void handle_global(uint32_t name, const char *interface, uint32_t version);
+    void handle_global(uint32_t name, const char* interface, uint32_t version);
 
 private:
-    WlWindow *window;
+    WlWindow* window;
 };
 
 // main structure for window data
@@ -277,17 +292,17 @@ public:
     // todo: wrap these with accessor funcs?
 
     // todo: rename?
-    xkb_context *ctx;
+    xkb_context* ctx;
     // todo: compositor wrapper?
-    wl_compositor *compositor = nullptr;
+    wl_compositor* compositor = nullptr;
     std::unique_ptr<XdgWmBase> wmbase;
     std::unique_ptr<XdgToplevel> toplevel;
     std::unique_ptr<Seat> seat;
     std::unique_ptr<BufferPool> buffers;
 
-    wl_cursor_theme *cursor_theme = nullptr;
-    wl_cursor *default_cursor = nullptr;
-    wl_surface *cursor_surface = nullptr;
+    wl_cursor_theme* cursor_theme = nullptr;
+    wl_cursor* default_cursor = nullptr;
+    wl_surface* cursor_surface = nullptr;
 
     bool fullscreen = false;
     bool activated = false;
@@ -300,10 +315,10 @@ public:
 private:
     void onresize(const event::Resize& evt);
 
-    void iocb(ev::io &, int);
-    void preparecb(ev::prepare &, int);
+    void iocb(ev::io&, int);
+    void preparecb(ev::prepare&, int);
 
-    void paint_pixels(Buffer *buffer);
+    void paint_pixels(Buffer* buffer);
 
     int m_resizeReg;
 
@@ -316,7 +331,7 @@ private:
     std::unique_ptr<renderer::Renderer> m_renderer;
 
     // todo: make unique ptr? private?
-    wl_display *display = nullptr;
+    wl_display* display = nullptr;
     std::unique_ptr<Surface> surface;
     std::unique_ptr<XdgSurface> xdg_surface;
 
@@ -331,8 +346,8 @@ WlWindow::WlWindow(std::shared_ptr<event::Bus> bus,
     m_tty(std::move(tty)),
     m_resizeReg(m_bus->reg<event::Resize, WlWindow, &WlWindow::onresize>(this))
 {
-    m_prepare.set<WlWindow,&WlWindow::preparecb>(this);
-    m_io.set<WlWindow,&WlWindow::iocb>(this);
+    m_prepare.set<WlWindow, &WlWindow::preparecb>(this);
+    m_io.set<WlWindow, &WlWindow::iocb>(this);
 
     int cols = m_term->cols();
     int rows = m_term->rows();
@@ -465,13 +480,12 @@ void WlWindow::drawCore()
 }
 
 static const wl_callback_listener frame_listener = {
-    // done event
-    [](void *data, wl_callback *cb, uint32_t time) {
-        queued = false;
-        LOGGER()->trace("frame received");
-        static_cast<WlWindow *>(data)->drawCore();
-    }
-};
+        // done event
+        [](void* data, wl_callback* cb, uint32_t time) {
+            queued = false;
+            LOGGER()->trace("frame received");
+            static_cast<WlWindow*>(data)->drawCore();
+        }};
 
 void WlWindow::draw()
 {
@@ -495,8 +509,8 @@ void WlWindow::setpointer(const PointerFrame& frame)
     // todo: move to bus?
 
     if (frame.entered &&
-        (currPointer.mousex != frame.mousex ||
-        currPointer.mousey != frame.mousey)) {
+            (currPointer.mousex != frame.mousex ||
+                    currPointer.mousey != frame.mousey)) {
         auto cell = m_renderer->pxtocell(frame.mousex, frame.mousey);
         m_term->mousereport(cell, term::MOUSE_MOTION, 0, seat->keymod);
     }
@@ -539,11 +553,7 @@ void WlWindow::publishresize(uint16_t width, uint16_t height)
     LOGGER()->debug("publishing resize to {}x{} / {}x{}",
             m_width, m_height, m_cols, m_rows);
 
-    m_bus->publish(
-        event::Resize{
-            m_width, m_height,
-            m_cols, m_rows
-        });
+    m_bus->publish(event::Resize{m_width, m_height, m_cols, m_rows});
 }
 
 void WlWindow::onresize(const event::Resize& evt)
@@ -563,7 +573,7 @@ void WlWindow::onresize(const event::Resize& evt)
     buffers->resize(evt.width, evt.height);
 }
 
-void WlWindow::preparecb(ev::prepare &, int)
+void WlWindow::preparecb(ev::prepare&, int)
 {
     // todo: test different kinds of failures in here
 
@@ -602,7 +612,7 @@ void WlWindow::preparecb(ev::prepare &, int)
     }
 }
 
-void WlWindow::iocb(ev::io &, int revents)
+void WlWindow::iocb(ev::io&, int revents)
 {
     // todo: test different kinds of failures in here
 
@@ -654,7 +664,7 @@ void WlWindow::iocb(ev::io &, int revents)
     }
 }
 
-void WlWindow::paint_pixels(Buffer *buffer)
+void WlWindow::paint_pixels(Buffer* buffer)
 {
     int width = buffer->width();
     int height = buffer->height();
@@ -674,17 +684,16 @@ void WlWindow::paint_pixels(Buffer *buffer)
 }
 
 void XdgToplevel::handle_configure(int32_t width, int32_t height,
-        wl_array *states)
+        wl_array* states)
 {
     bool activated = false;
     bool fullscreen = false;
 
     // wl_array's data is a void*, and size is in bytes, but
     // it contains xdg_toplevel_state values
-    for (auto cur = static_cast<xdg_toplevel_state *>(states->data);
-         (const char *) cur < ((const char *) states->data + states->size);
-         cur++)
-    {
+    for (auto cur = static_cast<xdg_toplevel_state*>(states->data);
+            (const char*) cur < ((const char*) states->data + states->size);
+            cur++) {
         if (*cur == XDG_TOPLEVEL_STATE_FULLSCREEN) {
             fullscreen = true;
         } else if (*cur == XDG_TOPLEVEL_STATE_ACTIVATED) {
@@ -710,8 +719,8 @@ void XdgToplevel::handle_configure(int32_t width, int32_t height,
     // todo: look at all the other m_term and m_tty uses in XcbWindow
 }
 
-void Pointer::handle_enter(uint32_t serial, wl_surface *surface,
-            wl_fixed_t sx, wl_fixed_t sy)
+void Pointer::handle_enter(uint32_t serial, wl_surface* surface,
+        wl_fixed_t sx, wl_fixed_t sy)
 {
     auto window = seat->window();
 
@@ -723,12 +732,12 @@ void Pointer::handle_enter(uint32_t serial, wl_surface *surface,
     auto image = window->default_cursor->images[0];
     auto buffer = wl_cursor_image_get_buffer(image);
     wl_pointer_set_cursor(pointer, serial,
-                  window->cursor_surface,
-                  image->hotspot_x,
-                  image->hotspot_y);
+            window->cursor_surface,
+            image->hotspot_x,
+            image->hotspot_y);
     wl_surface_attach(window->cursor_surface, buffer, 0, 0);
     wl_surface_damage(window->cursor_surface, 0, 0,
-              image->width, image->height);
+            image->width, image->height);
     wl_surface_commit(window->cursor_surface);
 }
 
@@ -742,7 +751,7 @@ void Keyboard::handle_keymap(uint32_t format, int fd, uint32_t size)
 {
     // todo: verify format is correct!
 
-    auto buf = (char *) mmap(nullptr, size,
+    auto buf = (char*) mmap(nullptr, size,
             PROT_READ, MAP_SHARED, fd, 0);
     if (buf == MAP_FAILED) {
         // todo: communicate error to wlwindow?
@@ -776,7 +785,7 @@ void Keyboard::handle_keymap(uint32_t format, int fd, uint32_t size)
         return;
     }
 
-    const char *locale = getenv("LC_ALL");
+    const char* locale = getenv("LC_ALL");
     if (!locale)
         locale = getenv("LC_CTYPE");
     if (!locale)
@@ -789,28 +798,27 @@ void Keyboard::handle_keymap(uint32_t format, int fd, uint32_t size)
     load_compose_table(locale);
 }
 
-void Keyboard::handle_enter(uint32_t serial, wl_surface *surface,
-              wl_array *keys)
+void Keyboard::handle_enter(uint32_t serial, wl_surface* surface,
+        wl_array* keys)
 {
     auto window = seat->window();
     window->setkbdfocus(true);
 }
 
-void Keyboard::handle_leave(uint32_t serial, wl_surface *surface)
+void Keyboard::handle_leave(uint32_t serial, wl_surface* surface)
 {
     auto window = seat->window();
     window->setkbdfocus(false);
 }
 
 void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
-            uint32_t state)
+        uint32_t state)
 {
     if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
         return;
 
     // add 8, because that's how it works...it's in the docs somewhere
     key += 8;
-
 
     // todo: a bunch of this code is shared with xcbwindow...move
     // it somewhere common
@@ -821,8 +829,9 @@ void Keyboard::handle_key(uint32_t serial, uint32_t time, uint32_t key,
 }
 
 void Keyboard::handle_modifiers(uint32_t serial, uint32_t mods_depressed,
-              uint32_t mods_latched, uint32_t mods_locked,
-              uint32_t group) {
+        uint32_t mods_latched, uint32_t mods_locked,
+        uint32_t group)
+{
     xkb_state_update_mask(state, mods_depressed, mods_latched,
             mods_locked, 0, 0, group);
 
@@ -856,7 +865,7 @@ void Keyboard::handle_repeat_info(int32_t rate, int32_t delay)
     // pressed, add timer events to repeat the pressed key
 }
 
-void Keyboard::load_compose_table(const char *locale)
+void Keyboard::load_compose_table(const char* locale)
 {
     if (compose_table)
         xkb_compose_table_unref(compose_table);
@@ -864,8 +873,7 @@ void Keyboard::load_compose_table(const char *locale)
     // todo: cleanup compose_table
     compose_table = xkb_compose_table_new_from_locale(seat->window()->ctx,
             locale, (xkb_compose_compile_flags) 0);
-    if (!compose_table)
-    {
+    if (!compose_table) {
         LOGGER()->error("xkb_compose_table_new_from_locale failed");
         return;
     }
@@ -880,18 +888,18 @@ void Keyboard::load_compose_table(const char *locale)
         LOGGER()->error("xkb_compose_state_new failed");
 }
 
-void Surface::handle_enter(wl_output *output)
+void Surface::handle_enter(wl_output* output)
 {
     window->visible = true;
     window->m_term->setdirty();
 }
 
-void Surface::handle_leave(wl_output *output)
+void Surface::handle_leave(wl_output* output)
 {
     window->visible = false;
 }
 
-void Registry::handle_global(uint32_t name, const char *interface, uint32_t version)
+void Registry::handle_global(uint32_t name, const char* interface, uint32_t version)
 {
     // LOGGER()->trace("Got a registry event for {} name {}", interface, name);
 
@@ -944,7 +952,8 @@ void Registry::handle_global(uint32_t name, const char *interface, uint32_t vers
 /// \addtogroup Window
 /// @{
 std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus,
-        std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty) {
+        std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty)
+{
     return std::make_unique<wlwin::WlWindow>(std::move(bus),
             std::move(term), std::move(tty));
 }

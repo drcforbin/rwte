@@ -9,17 +9,19 @@
 
 namespace wlwin {
 
-static void randname(char *buf) {
+static void randname(char* buf)
+{
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     long r = ts.tv_nsec;
     for (int i = 0; i < 6; ++i) {
-        buf[i] = 'A'+(r&15)+(r&16)*2;
+        buf[i] = 'A' + (r & 15) + (r & 16) * 2;
         r >>= 5;
     }
 }
 
-static int create_shm_file(off_t size) {
+static int create_shm_file(off_t size)
+{
     char name[] = "/rwte-XXXXXX";
     int retries = 100;
 
@@ -46,14 +48,15 @@ static int create_shm_file(off_t size) {
 // we should really only need one buffer, right?
 const int NumBuffers = 2;
 
-Buffer::Buffer(BufferPool *pool, wl_buffer *buffer, unsigned char *data,
+Buffer::Buffer(BufferPool* pool, wl_buffer* buffer, unsigned char* data,
         int width, int height, int stride) :
     Base(buffer),
     m_pool(pool),
     m_data(data),
-    m_width(width), m_height(height),
+    m_width(width),
+    m_height(height),
     m_stride(stride)
-{ }
+{}
 
 Buffer::~Buffer()
 {
@@ -66,11 +69,12 @@ void Buffer::handle_release()
     m_pool->release_buffer(this);
 }
 
-bool BufferPool::create_buffers(int width, int height) {
+bool BufferPool::create_buffers(int width, int height)
+{
     int stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, width);
     int size = stride * height;
 
-    for (int i = 0; i < NumBuffers; i++ ) {
+    for (int i = 0; i < NumBuffers; i++) {
         int fd = create_shm_file(size);
         if (fd < 0) {
             LOGGER()->fatal("creating a buffer file failed for {}: {}\n",
@@ -78,7 +82,7 @@ bool BufferPool::create_buffers(int width, int height) {
             return false; // won't return
         }
 
-        auto data = (unsigned char *) mmap(nullptr, size,
+        auto data = (unsigned char*) mmap(nullptr, size,
                 PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (data == MAP_FAILED) {
             LOGGER()->fatal("mmap failed for {}, {}", size, strerror(errno));
@@ -87,9 +91,9 @@ bool BufferPool::create_buffers(int width, int height) {
         }
 
         // todo: keep pool, for resizing smaller?
-        wl_shm_pool *pool = wl_shm_create_pool(m_shm, fd, size);
+        wl_shm_pool* pool = wl_shm_create_pool(m_shm, fd, size);
         auto buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
-                    stride, WL_SHM_FORMAT_ARGB8888);
+                stride, WL_SHM_FORMAT_ARGB8888);
         wl_shm_pool_destroy(pool);
         close(fd);
 
@@ -104,12 +108,14 @@ bool BufferPool::create_buffers(int width, int height) {
     return true;
 }
 
-bool BufferPool::resize(int width, int height) {
+bool BufferPool::resize(int width, int height)
+{
     buffers.clear();
     return create_buffers(width, height);
 }
 
-Buffer* BufferPool::get_buffer() {
+Buffer* BufferPool::get_buffer()
+{
     for (auto& buffer : buffers) {
         if (!buffer->busy()) {
             buffer->setBusy(true);
@@ -121,7 +127,8 @@ Buffer* BufferPool::get_buffer() {
     return nullptr;
 }
 
-void BufferPool::release_buffer(Buffer *buffer) {
+void BufferPool::release_buffer(Buffer* buffer)
+{
     buffer->setBusy(false);
 }
 

@@ -8,7 +8,7 @@
 /// Logger class.
 // @type Logger
 
-const char * const LUALOG = "LUALOG*";
+const char* const LUALOG = "LUALOG*";
 
 struct LuaLogStruct
 {
@@ -25,7 +25,7 @@ static inline std::shared_ptr<logging::Logger> tologger(lua::State& L)
 // @function log
 // @int level Log level
 // @param ... Values to include in the entry (`tostring` will be called for each)
-static int logger_log(lua_State *l)
+static int logger_log(lua_State* l)
 {
     lua::State L(l);
     auto logger = tologger(L);
@@ -42,13 +42,12 @@ static int logger_log(lua_State *l)
     std::string msg;
 
     size_t len;
-    for (int i = 3; i <= nargs; i++)
-    {
+    for (int i = 3; i <= nargs; i++) {
         L.pushvalue(-1); // push tostring
-        L.pushvalue(i); // push next arg
+        L.pushvalue(i);  // push next arg
         L.call(1, 1);
 
-        const char *s = L.tolstring(-1, &len);
+        const char* s = L.tolstring(-1, &len);
         if (!s)
             return luaL_error(l, "tostring must return a string to print");
 
@@ -65,7 +64,7 @@ static int logger_log(lua_State *l)
     return 0;
 }
 
-static void call_log(lua_State *l, logging::level_enum level)
+static void call_log(lua_State* l, logging::level_enum level)
 {
     lua::State L(l);
     auto logger = tologger(L);
@@ -89,9 +88,12 @@ static void call_log(lua_State *l, logging::level_enum level)
     L.call(1 + nargs, 0);
 }
 
-#define LOGGER_FUNC(levelname) \
-    static int logger_##levelname(lua_State *L) \
-    { call_log(L, logging::levelname); return 0; }
+#define LOGGER_FUNC(levelname)                  \
+    static int logger_##levelname(lua_State* L) \
+    {                                           \
+        call_log(L, logging::levelname);        \
+        return 0;                               \
+    }
 
 /// Writes trace level log entry.
 // @function trace
@@ -125,12 +127,12 @@ LOGGER_FUNC(fatal)
 // @class field
 // @name level
 
-static int logger_index(lua_State *l)
+static int logger_index(lua_State* l)
 {
     lua::State L(l);
     auto logger = tologger(L);
 
-    const char * key = L.checkstring(2);
+    const char* key = L.checkstring(2);
 
     if (std::strcmp(key, "level") == 0)
         L.pushinteger(logger->level());
@@ -140,15 +142,14 @@ static int logger_index(lua_State *l)
     return 1;
 }
 
-static int logger_newindex(lua_State *l)
+static int logger_newindex(lua_State* l)
 {
     lua::State L(l);
     auto logger = tologger(L);
 
-    const char * key = L.checkstring(2);
+    const char* key = L.checkstring(2);
 
-    if (std::strcmp(key, "level") == 0)
-    {
+    if (std::strcmp(key, "level") == 0) {
         auto level = static_cast<logging::level_enum>(L.checkinteger(3));
         logger->level(level);
     }
@@ -156,7 +157,7 @@ static int logger_newindex(lua_State *l)
     return 0;
 }
 
-static int logger_gc(lua_State *l)
+static int logger_gc(lua_State* l)
 {
     lua::State(l).delobj<LuaLogStruct>(1, LUALOG);
     return 0;
@@ -164,17 +165,17 @@ static int logger_gc(lua_State *l)
 
 // methods for logger object
 static const luaL_Reg logger_funcs[] = {
-    {"log", logger_log},
-    {"trace", logger_trace},
-    {"debug", logger_debug},
-    {"info", logger_info},
-    {"warn", logger_warn},
-    {"err", logger_err},
-    {"fatal", logger_fatal},
-    {"__index", logger_index},
-    {"__newindex", logger_newindex},
-    {"__gc", logger_gc},
-    {nullptr, nullptr},
+        {"log", logger_log},
+        {"trace", logger_trace},
+        {"debug", logger_debug},
+        {"info", logger_info},
+        {"warn", logger_warn},
+        {"err", logger_err},
+        {"fatal", logger_fatal},
+        {"__index", logger_index},
+        {"__newindex", logger_newindex},
+        {"__gc", logger_gc},
+        {nullptr, nullptr},
 };
 
 /// Functions
@@ -185,11 +186,11 @@ static const luaL_Reg logger_funcs[] = {
 // @function logging.get
 // @string nm Name of the logger to create/retrieve.
 // @usage logger = logging.get("config")
-static int logging_get(lua_State *l)
+static int logging_get(lua_State* l)
 {
     // get the name before doing any allocation
     lua::State L(l);
-    const char *name = L.checkstring(1);
+    const char* name = L.checkstring(1);
 
     // alloc and init
     auto p = L.newobj<LuaLogStruct>(LUALOG);
@@ -199,11 +200,10 @@ static int logging_get(lua_State *l)
 
 // functions for logging library
 static const luaL_Reg logging_funcs[] = {
-    {"get", logging_get},
-    {nullptr, nullptr}
-};
+        {"get", logging_get},
+        {nullptr, nullptr}};
 
-static int logging_openf(lua_State *l)
+static int logging_openf(lua_State* l)
 {
     lua::State L(l);
 
@@ -255,9 +255,8 @@ static int logging_openf(lua_State *l)
     return 1;
 }
 
-void lua::register_lualogging(lua::State *L)
+void lua::register_lualogging(lua::State* L)
 {
     L->requiref("logging", logging_openf, true);
     L->pop();
 }
-

@@ -7,8 +7,7 @@
 #include <memory>
 #include <string>
 
-namespace logging
-{
+namespace logging {
 
 enum level_enum
 {
@@ -23,59 +22,76 @@ enum level_enum
 
 class Logger
 {
-    public:
-        Logger(std::string name) :
-            m_name(std::move(name)), m_level(logging::trace)
-        { }
+public:
+    Logger(std::string name) :
+        m_name(std::move(name)),
+        m_level(logging::trace)
+    {}
 
-        virtual ~Logger();
-        Logger(const Logger&) = delete;
-        Logger& operator=(const Logger&) = delete;
+    virtual ~Logger();
+    Logger(const Logger&) = delete;
+    Logger& operator=(const Logger&) = delete;
 
-        const std::string& name() const { return m_name; }
+    const std::string& name() const { return m_name; }
 
-        logging::level_enum level() { return m_level; }
-        void level(logging::level_enum val) { m_level = val; }
+    logging::level_enum level() { return m_level; }
+    void level(logging::level_enum val) { m_level = val; }
 
-        template <typename... Args> void log(level_enum lvl, const char* fmt, const Args&... args);
-        template <typename... Args> void log(level_enum lvl, const char* msg);
-        template <typename Arg1, typename... Args> void trace(const char* fmt, const Arg1&, const Args&... args);
-        template <typename Arg1, typename... Args> void debug(const char* fmt, const Arg1&, const Args&... args);
-        template <typename Arg1, typename... Args> void info(const char* fmt, const Arg1&, const Args&... args);
-        template <typename Arg1, typename... Args> void warn(const char* fmt, const Arg1&, const Args&... args);
-        template <typename Arg1, typename... Args> void error(const char* fmt, const Arg1&, const Args&... args);
-        template <typename Arg1, typename... Args> void fatal(const char* fmt, const Arg1&, const Args&... args);
+    template <typename... Args>
+    void log(level_enum lvl, const char* fmt, const Args&... args);
+    template <typename... Args>
+    void log(level_enum lvl, const char* msg);
+    template <typename Arg1, typename... Args>
+    void trace(const char* fmt, const Arg1&, const Args&... args);
+    template <typename Arg1, typename... Args>
+    void debug(const char* fmt, const Arg1&, const Args&... args);
+    template <typename Arg1, typename... Args>
+    void info(const char* fmt, const Arg1&, const Args&... args);
+    template <typename Arg1, typename... Args>
+    void warn(const char* fmt, const Arg1&, const Args&... args);
+    template <typename Arg1, typename... Args>
+    void error(const char* fmt, const Arg1&, const Args&... args);
+    template <typename Arg1, typename... Args>
+    void fatal(const char* fmt, const Arg1&, const Args&... args);
 
-        template <typename T> void log(level_enum lvl, const T&);
-        template <typename T> void trace(const T&);
-        template <typename T> void debug(const T&);
-        template <typename T> void info(const T&);
-        template <typename T> void warn(const T&);
-        template <typename T> void error(const T&);
-        template <typename T> void fatal(const T&);
-    private:
-        const std::string m_name;
-        logging::level_enum m_level;
+    template <typename T>
+    void log(level_enum lvl, const T&);
+    template <typename T>
+    void trace(const T&);
+    template <typename T>
+    void debug(const T&);
+    template <typename T>
+    void info(const T&);
+    template <typename T>
+    void warn(const T&);
+    template <typename T>
+    void error(const T&);
+    template <typename T>
+    void fatal(const T&);
+
+private:
+    const std::string m_name;
+    logging::level_enum m_level;
 };
 
 // get/create a logger
 std::shared_ptr<Logger> get(const std::string& name);
 
-namespace details
-{
+namespace details {
 struct Message
 {
     Message() = default;
-    Message(const std::string *logname, logging::level_enum lvl) :
-        logname(logname), level(lvl),
+    Message(const std::string* logname, logging::level_enum lvl) :
+        logname(logname),
+        level(lvl),
         ts(std::chrono::system_clock::now())
-    { }
+    {}
 
-    Message(const Message& other)  = delete;
+    Message(const Message& other) = delete;
     Message& operator=(Message&& other) = delete;
     Message(Message&& other) = delete;
 
-    const std::string *logname = nullptr;
+    const std::string* logname = nullptr;
     logging::level_enum level = logging::trace;
     std::chrono::system_clock::time_point ts;
 
@@ -119,7 +135,7 @@ inline void logging::Logger::log(logging::level_enum lvl, const char* msg)
         exit(1);
 }
 
-template<typename T>
+template <typename T>
 inline void logging::Logger::log(logging::level_enum lvl, const T& msg)
 {
     if (lvl < m_level)
@@ -133,76 +149,73 @@ inline void logging::Logger::log(logging::level_enum lvl, const T& msg)
         exit(1);
 }
 
-
 template <typename Arg1, typename... Args>
-inline void logging::Logger::trace(const char* fmt, const Arg1 &arg1, const Args&... args)
+inline void logging::Logger::trace(const char* fmt, const Arg1& arg1, const Args&... args)
 {
     log(logging::trace, fmt, arg1, args...);
 }
 
 template <typename Arg1, typename... Args>
-inline void logging::Logger::debug(const char* fmt, const Arg1 &arg1, const Args&... args)
+inline void logging::Logger::debug(const char* fmt, const Arg1& arg1, const Args&... args)
 {
     log(logging::debug, fmt, arg1, args...);
 }
 
 template <typename Arg1, typename... Args>
-inline void logging::Logger::info(const char* fmt, const Arg1 &arg1, const Args&... args)
+inline void logging::Logger::info(const char* fmt, const Arg1& arg1, const Args&... args)
 {
     log(logging::info, fmt, arg1, args...);
 }
 
 template <typename Arg1, typename... Args>
-inline void logging::Logger::warn(const char* fmt, const Arg1 &arg1, const Args&... args)
+inline void logging::Logger::warn(const char* fmt, const Arg1& arg1, const Args&... args)
 {
     log(logging::warn, fmt, arg1, args...);
 }
 
 template <typename Arg1, typename... Args>
-inline void logging::Logger::error(const char* fmt, const Arg1 &arg1, const Args&... args)
+inline void logging::Logger::error(const char* fmt, const Arg1& arg1, const Args&... args)
 {
     log(logging::err, fmt, arg1, args...);
 }
 
 template <typename Arg1, typename... Args>
-inline void logging::Logger::fatal(const char* fmt, const Arg1 &arg1, const Args&... args)
+inline void logging::Logger::fatal(const char* fmt, const Arg1& arg1, const Args&... args)
 {
     log(logging::fatal, fmt, arg1, args...);
 }
 
-template<typename T>
+template <typename T>
 inline void logging::Logger::trace(const T& msg)
 {
     log(logging::trace, msg);
 }
 
-template<typename T>
+template <typename T>
 inline void logging::Logger::debug(const T& msg)
 {
     log(logging::debug, msg);
 }
 
-
-template<typename T>
+template <typename T>
 inline void logging::Logger::info(const T& msg)
 {
     log(logging::info, msg);
 }
 
-
-template<typename T>
+template <typename T>
 inline void logging::Logger::warn(const T& msg)
 {
     log(logging::warn, msg);
 }
 
-template<typename T>
+template <typename T>
 inline void logging::Logger::error(const T& msg)
 {
     log(logging::err, msg);
 }
 
-template<typename T>
+template <typename T>
 inline void logging::Logger::fatal(const T& msg)
 {
     log(logging::fatal, msg);

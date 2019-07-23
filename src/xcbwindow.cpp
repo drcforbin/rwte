@@ -9,8 +9,8 @@
 #include "rwte/selection.h"
 #include "rwte/term.h"
 #include "rwte/tty.h"
-#include "rwte/window.h"
 #include "rwte/window-internal.h"
+#include "rwte/window.h"
 
 #include <cairo/cairo-xcb.h>
 #include <cstdint>
@@ -25,8 +25,8 @@
 // so we need to tell it to shut up, but GCC
 // don't care
 #if defined(__clang__)
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wkeyword-macro"
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wkeyword-macro"
 #endif
 
 #define explicit _explicit
@@ -34,7 +34,7 @@
 #undef explicit
 
 #if defined(__clang__)
-    #pragma clang diagnostic pop
+#    pragma clang diagnostic pop
 #endif
 
 #include <xkbcommon/xkbcommon-compose.h>
@@ -45,7 +45,7 @@
 
 // XEMBED messages
 // todo: static const / constexpr
-#define XEMBED_FOCUS_IN  4
+#define XEMBED_FOCUS_IN 4
 #define XEMBED_FOCUS_OUT 5
 
 /// @file
@@ -95,41 +95,42 @@ private:
     void publishresize(uint16_t width, uint16_t height);
     void onresize(const event::Resize& evt);
 
-    void handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event);
-    void handle_client_message(ev::loop_ref& loop, xcb_client_message_event_t *event);
-    void handle_motion_notify(ev::loop_ref&, xcb_motion_notify_event_t *event);
-    void handle_visibility_notify(ev::loop_ref&, xcb_visibility_notify_event_t *event);
-    void handle_unmap_notify(ev::loop_ref&, xcb_unmap_notify_event_t *event);
-    void handle_focus_in(ev::loop_ref&, xcb_focus_in_event_t *event);
-    void handle_focus_out(ev::loop_ref&, xcb_focus_out_event_t *event);
-    void handle_button(ev::loop_ref&, xcb_button_press_event_t *event);
-    void handle_selection_clear(ev::loop_ref&, xcb_selection_clear_event_t *event);
-    void handle_selection_notify(ev::loop_ref&, xcb_selection_notify_event_t *event);
-    void handle_property_notify(ev::loop_ref&, xcb_property_notify_event_t *event);
-    void handle_selection_request(ev::loop_ref&, xcb_selection_request_event_t *event);
-    void handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t *event);
-    void handle_expose(ev::loop_ref&, xcb_expose_event_t *event);
-    void handle_configure_notify(ev::loop_ref&, xcb_configure_notify_event_t *event);
-    void handle_xkb_event(xcb_generic_event_t *gevent);
+    void handle_key_press(ev::loop_ref&, xcb_key_press_event_t* event);
+    void handle_client_message(ev::loop_ref& loop, xcb_client_message_event_t* event);
+    void handle_motion_notify(ev::loop_ref&, xcb_motion_notify_event_t* event);
+    void handle_visibility_notify(ev::loop_ref&, xcb_visibility_notify_event_t* event);
+    void handle_unmap_notify(ev::loop_ref&, xcb_unmap_notify_event_t* event);
+    void handle_focus_in(ev::loop_ref&, xcb_focus_in_event_t* event);
+    void handle_focus_out(ev::loop_ref&, xcb_focus_out_event_t* event);
+    void handle_button(ev::loop_ref&, xcb_button_press_event_t* event);
+    void handle_selection_clear(ev::loop_ref&, xcb_selection_clear_event_t* event);
+    void handle_selection_notify(ev::loop_ref&, xcb_selection_notify_event_t* event);
+    void handle_property_notify(ev::loop_ref&, xcb_property_notify_event_t* event);
+    void handle_selection_request(ev::loop_ref&, xcb_selection_request_event_t* event);
+    void handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t* event);
+    void handle_expose(ev::loop_ref&, xcb_expose_event_t* event);
+    void handle_configure_notify(ev::loop_ref&, xcb_configure_notify_event_t* event);
+    void handle_xkb_event(xcb_generic_event_t* gevent);
 
     void selnotify(xcb_atom_t property, bool propnotify);
 
     // helper to call the handlers with their expected args
-    template<typename evt_type> void call_handler(
-            void (XcbWindow::*handler)(ev::loop_ref&, evt_type *),
+    template <typename evt_type>
+    void call_handler(
+            void (XcbWindow::*handler)(ev::loop_ref&, evt_type*),
             ev::loop_ref& loop,
-            xcb_generic_event_t *event)
+            xcb_generic_event_t* event)
     {
         (this->*handler)(loop, reinterpret_cast<evt_type*>(event));
     }
 
-    void handle_xcb_event(ev::loop_ref& loop, int type, xcb_generic_event_t *event);
+    void handle_xcb_event(ev::loop_ref& loop, int type, xcb_generic_event_t* event);
 
-    void readcb(ev::io &, int);
-    void preparecb(ev::prepare &, int);
-    void checkcb(ev::check &, int);
+    void readcb(ev::io&, int);
+    void preparecb(ev::prepare&, int);
+    void checkcb(ev::check&, int);
 
-    xcb_connection_t *connection = nullptr;
+    xcb_connection_t* connection = nullptr;
     xcb_drawable_t win = 0;
 
     bool visible = false;
@@ -144,15 +145,15 @@ private:
 
     uint8_t xkb_base_event;
 
-    struct xkb_state *xkb_state = nullptr;
-    struct xkb_context *xkb_context = nullptr;
-    struct xkb_keymap *xkb_keymap = nullptr;
-    struct xkb_compose_table *xkb_compose_table = nullptr;
-    struct xkb_compose_state *xkb_compose_state = nullptr;
+    struct xkb_state* xkb_state = nullptr;
+    struct xkb_context* xkb_context = nullptr;
+    struct xkb_keymap* xkb_keymap = nullptr;
+    struct xkb_compose_table* xkb_compose_table = nullptr;
+    struct xkb_compose_state* xkb_compose_state = nullptr;
 
     void register_atoms();
     void setup_xkb();
-    void load_compose_table(const char *locale);
+    void load_compose_table(const char* locale);
 
     std::shared_ptr<event::Bus> m_bus;
     std::shared_ptr<term::Term> m_term;
@@ -164,8 +165,8 @@ private:
     uint16_t m_rows, m_cols;
 
     int m_scrno;
-    xcb_screen_t *m_screen;
-    xcb_visualtype_t *m_visual_type;
+    xcb_screen_t* m_screen;
+    xcb_visualtype_t* m_visual_type;
 
     xcb_atom_t m_netwmname;
     xcb_atom_t m_netwmpid;
@@ -195,9 +196,9 @@ XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus,
 {
     // this io watcher is just to to kick the loop around
     // when there is data available to be read
-    m_io.set<XcbWindow,&XcbWindow::readcb>(this);
-    m_prepare.set<XcbWindow,&XcbWindow::preparecb>(this);
-    m_check.set<XcbWindow,&XcbWindow::checkcb>(this);
+    m_io.set<XcbWindow, &XcbWindow::readcb>(this);
+    m_prepare.set<XcbWindow, &XcbWindow::preparecb>(this);
+    m_check.set<XcbWindow, &XcbWindow::checkcb>(this);
 
     int cols = m_term->cols();
     int rows = m_term->rows();
@@ -233,31 +234,31 @@ XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus,
     win = xcb_generate_id(connection);
 
     m_eventmask =
-        XCB_EVENT_MASK_EXPOSURE |
-        XCB_EVENT_MASK_STRUCTURE_NOTIFY |
-        XCB_EVENT_MASK_KEY_PRESS |
-        XCB_EVENT_MASK_POINTER_MOTION |
-        XCB_EVENT_MASK_BUTTON_PRESS |
-        XCB_EVENT_MASK_BUTTON_RELEASE |
-        XCB_EVENT_MASK_VISIBILITY_CHANGE |
-        XCB_EVENT_MASK_FOCUS_CHANGE;
+            XCB_EVENT_MASK_EXPOSURE |
+            XCB_EVENT_MASK_STRUCTURE_NOTIFY |
+            XCB_EVENT_MASK_KEY_PRESS |
+            XCB_EVENT_MASK_POINTER_MOTION |
+            XCB_EVENT_MASK_BUTTON_PRESS |
+            XCB_EVENT_MASK_BUTTON_RELEASE |
+            XCB_EVENT_MASK_VISIBILITY_CHANGE |
+            XCB_EVENT_MASK_FOCUS_CHANGE;
 
     const uint32_t mask = XCB_CW_EVENT_MASK;
-    uint32_t values[1] = { m_eventmask };
+    uint32_t values[1] = {m_eventmask};
 
-    auto cookie = xcb_create_window_checked(connection,  // Connection
-            XCB_COPY_FROM_PARENT,          // depth (same as root)
-            win,                    // window Id
-            m_screen->root,           // parent window
-            0, 0,                          // x, y
-            width, height,   // width, height
-            0,                             // border_width
-            XCB_WINDOW_CLASS_INPUT_OUTPUT, // class
-            m_screen->root_visual,    // visual
-            mask, // mask
-            values );   // mask
+    auto cookie = xcb_create_window_checked(connection, // Connection
+            XCB_COPY_FROM_PARENT,                       // depth (same as root)
+            win,                                        // window Id
+            m_screen->root,                             // parent window
+            0, 0,                                       // x, y
+            width, height,                              // width, height
+            0,                                          // border_width
+            XCB_WINDOW_CLASS_INPUT_OUTPUT,              // class
+            m_screen->root_visual,                      // visual
+            mask,                                       // mask
+            values);                                    // mask
 
-    xcb_generic_error_t *err;
+    xcb_generic_error_t* err;
     if ((err = xcb_request_check(connection, cookie)) != nullptr) {
         throw WindowError(fmt::format(
                 "could not create window, code: {}", err->error_code));
@@ -338,16 +339,14 @@ void XcbWindow::bell(int volume)
 void XcbWindow::setsel()
 {
     xcb_set_selection_owner(connection, win, XCB_ATOM_PRIMARY, XCB_CURRENT_TIME);
-    xcb_get_selection_owner_reply_t *reply = xcb_get_selection_owner_reply(connection,
-                xcb_get_selection_owner(connection, XCB_ATOM_PRIMARY), nullptr);
-    if (reply)
-    {
+    xcb_get_selection_owner_reply_t* reply = xcb_get_selection_owner_reply(connection,
+            xcb_get_selection_owner(connection, XCB_ATOM_PRIMARY), nullptr);
+    if (reply) {
         if (reply->owner != win)
             m_term->selclear();
 
         std::free(reply);
-    }
-    else
+    } else
         LOGGER()->error("unable to become clipboard owner!");
 }
 
@@ -361,16 +360,14 @@ void XcbWindow::selpaste()
 void XcbWindow::setclip()
 {
     xcb_set_selection_owner(connection, win, m_clipboard, XCB_CURRENT_TIME);
-    xcb_get_selection_owner_reply_t *reply = xcb_get_selection_owner_reply(connection,
-                xcb_get_selection_owner(connection, m_clipboard), nullptr);
-    if (reply)
-    {
+    xcb_get_selection_owner_reply_t* reply = xcb_get_selection_owner_reply(connection,
+            xcb_get_selection_owner(connection, m_clipboard), nullptr);
+    if (reply) {
         if (reply->owner != win)
             m_term->selclear();
 
         std::free(reply);
-    }
-    else
+    } else
         LOGGER()->error("unable to become clipboard owner!");
 }
 
@@ -388,8 +385,7 @@ void XcbWindow::set_wm_class()
 
     if (!options.winname.empty())
         c = options.winname;
-    else
-    {
+    else {
         // use termname if unspecified
         term_name = get_term_name();
         c = term_name;
@@ -400,8 +396,7 @@ void XcbWindow::set_wm_class()
 
     if (!options.winclass.empty())
         c += options.winclass;
-    else
-    {
+    else {
         // use termname if unspecified
         if (term_name.empty())
             term_name = get_term_name();
@@ -410,14 +405,13 @@ void XcbWindow::set_wm_class()
 
     // set WM_CLASS (including the last null!)
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
-            XCB_ATOM_WM_CLASS, XCB_ATOM_STRING, 8, c.size()+1, c.c_str());
+            XCB_ATOM_WM_CLASS, XCB_ATOM_STRING, 8, c.size() + 1, c.c_str());
 }
 
 void XcbWindow::set_wmmachine_name()
 {
     char hostname[HOST_NAME_MAX + 1];
-    if (gethostname(hostname, HOST_NAME_MAX + 1) == 0)
-    {
+    if (gethostname(hostname, HOST_NAME_MAX + 1) == 0) {
         hostname[HOST_NAME_MAX] = '\0'; // safety first!
         xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
                 XCB_ATOM_WM_CLIENT_MACHINE, XCB_ATOM_STRING,
@@ -427,36 +421,32 @@ void XcbWindow::set_wmmachine_name()
 
 void XcbWindow::register_atoms()
 {
-    const char * const atom_names[] = {
-        "WM_PROTOCOLS",
-        "WM_DELETE_WINDOW",
-        "_XEMBED",
-        "_NET_WM_NAME",
-        "_NET_WM_PID",
-        "UTF8_STRING",
-        "CLIPBOARD",
-        "INCR",
-        "XSEL_DATA",
-        "TARGETS"
-    };
+    const char* const atom_names[] = {
+            "WM_PROTOCOLS",
+            "WM_DELETE_WINDOW",
+            "_XEMBED",
+            "_NET_WM_NAME",
+            "_NET_WM_PID",
+            "UTF8_STRING",
+            "CLIPBOARD",
+            "INCR",
+            "XSEL_DATA",
+            "TARGETS"};
     const int num_atoms = std::extent<decltype(atom_names)>::value;
 
     xcb_intern_atom_cookie_t cookies[num_atoms];
-    for ( int i = 0; i < num_atoms; i++ )
+    for (int i = 0; i < num_atoms; i++)
         cookies[i] = xcb_intern_atom(connection,
                 0, strlen(atom_names[i]), atom_names[i]);
 
     xcb_atom_t atoms[num_atoms];
-    for ( int i = 0; i < num_atoms; i++ )
-    {
+    for (int i = 0; i < num_atoms; i++) {
         auto reply = xcb_intern_atom_reply(
                 connection, cookies[i], nullptr);
-        if (reply)
-        {
+        if (reply) {
             atoms[i] = reply->atom;
             free(reply);
-        }
-        else
+        } else
             LOGGER()->error("unable to intern {}", atom_names[i]);
     }
 
@@ -476,44 +466,44 @@ void XcbWindow::register_atoms()
 void XcbWindow::setup_xkb()
 {
     if (xkb_x11_setup_xkb_extension(connection,
-            XKB_X11_MIN_MAJOR_XKB_VERSION,
-            XKB_X11_MIN_MINOR_XKB_VERSION,
-            XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS,
-            nullptr,
-            nullptr,
-            &xkb_base_event,
-            nullptr) != 1)
+                XKB_X11_MIN_MAJOR_XKB_VERSION,
+                XKB_X11_MIN_MINOR_XKB_VERSION,
+                XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS,
+                nullptr,
+                nullptr,
+                &xkb_base_event,
+                nullptr) != 1)
         LOGGER()->fatal("could not setup XKB extension.");
 
     const uint16_t required_map_parts =
-        (XCB_XKB_MAP_PART_KEY_TYPES |
-         XCB_XKB_MAP_PART_KEY_SYMS |
-         XCB_XKB_MAP_PART_MODIFIER_MAP |
-         XCB_XKB_MAP_PART_EXPLICIT_COMPONENTS |
-         XCB_XKB_MAP_PART_KEY_ACTIONS |
-         XCB_XKB_MAP_PART_VIRTUAL_MODS |
-         XCB_XKB_MAP_PART_VIRTUAL_MOD_MAP);
+            (XCB_XKB_MAP_PART_KEY_TYPES |
+                    XCB_XKB_MAP_PART_KEY_SYMS |
+                    XCB_XKB_MAP_PART_MODIFIER_MAP |
+                    XCB_XKB_MAP_PART_EXPLICIT_COMPONENTS |
+                    XCB_XKB_MAP_PART_KEY_ACTIONS |
+                    XCB_XKB_MAP_PART_VIRTUAL_MODS |
+                    XCB_XKB_MAP_PART_VIRTUAL_MOD_MAP);
 
     const uint16_t required_events =
-        (XCB_XKB_EVENT_TYPE_NEW_KEYBOARD_NOTIFY |
-         XCB_XKB_EVENT_TYPE_MAP_NOTIFY |
-         XCB_XKB_EVENT_TYPE_STATE_NOTIFY);
+            (XCB_XKB_EVENT_TYPE_NEW_KEYBOARD_NOTIFY |
+                    XCB_XKB_EVENT_TYPE_MAP_NOTIFY |
+                    XCB_XKB_EVENT_TYPE_STATE_NOTIFY);
 
     xcb_xkb_select_events(
-        connection,
-        xkb_x11_get_core_keyboard_device_id(connection),
-        required_events,
-        0,
-        required_events,
-        required_map_parts,
-        required_map_parts,
-        nullptr);
+            connection,
+            xkb_x11_get_core_keyboard_device_id(connection),
+            required_events,
+            0,
+            required_events,
+            required_map_parts,
+            required_map_parts,
+            nullptr);
 
     /// load initial keymap or exit
     if (!load_keymap())
         LOGGER()->fatal("could not load keymap");
 
-    const char *locale = getenv("LC_ALL");
+    const char* locale = getenv("LC_ALL");
     if (!locale)
         locale = getenv("LC_CTYPE");
     if (!locale)
@@ -531,10 +521,8 @@ void XcbWindow::setup_xkb()
 // translate keypresses to utf-8.
 bool XcbWindow::load_keymap()
 {
-    if (xkb_context == nullptr)
-    {
-        if ((xkb_context = xkb_context_new((xkb_context_flags) 0)) == nullptr)
-        {
+    if (xkb_context == nullptr) {
+        if ((xkb_context = xkb_context_new((xkb_context_flags) 0)) == nullptr) {
             LOGGER()->error("could not create xkbcommon context");
             return false;
         }
@@ -546,16 +534,14 @@ bool XcbWindow::load_keymap()
     int32_t device_id = xkb_x11_get_core_keyboard_device_id(connection);
     LOGGER()->debug("device = {}", device_id);
     if ((xkb_keymap = xkb_x11_keymap_new_from_device(xkb_context, connection,
-            device_id, (xkb_keymap_compile_flags) 0)) == nullptr)
-    {
+                 device_id, (xkb_keymap_compile_flags) 0)) == nullptr) {
         LOGGER()->error("xkb_x11_keymap_new_from_device failed");
         return false;
     }
 
-    struct xkb_state *new_state =
-        xkb_x11_state_new_from_device(xkb_keymap, connection, device_id);
-    if (new_state == nullptr)
-    {
+    struct xkb_state* new_state =
+            xkb_x11_state_new_from_device(xkb_keymap, connection, device_id);
+    if (new_state == nullptr) {
         LOGGER()->error("xkb_x11_state_new_from_device failed");
         return false;
     }
@@ -572,24 +558,22 @@ bool XcbWindow::load_keymap()
 }
 
 // loads the XKB compose table from the given locale.
-void XcbWindow::load_compose_table(const char *locale)
+void XcbWindow::load_compose_table(const char* locale)
 {
     xkb_compose_table_unref(xkb_compose_table);
 
     // todo: cleanup xkb_compose_table
     if ((xkb_compose_table = xkb_compose_table_new_from_locale(xkb_context,
-            locale, (xkb_compose_compile_flags) 0)) == nullptr)
-    {
+                 locale, (xkb_compose_compile_flags) 0)) == nullptr) {
         LOGGER()->error("xkb_compose_table_new_from_locale failed");
         return;
     }
 
-    struct xkb_compose_state *new_compose_state = xkb_compose_state_new(
+    struct xkb_compose_state* new_compose_state = xkb_compose_state_new(
             xkb_compose_table, (xkb_compose_state_flags) 0);
     if (new_compose_state == nullptr)
         LOGGER()->error("xkb_compose_state_new failed");
-    else
-    {
+    else {
         xkb_compose_state_unref(xkb_compose_state);
         xkb_compose_state = new_compose_state;
     }
@@ -611,11 +595,7 @@ void XcbWindow::publishresize(uint16_t width, uint16_t height)
     m_cols = (width - 2 * border_px) / cw;
     m_rows = (height - 2 * border_px) / ch;
 
-    m_bus->publish(
-        event::Resize{
-            m_width, m_height,
-            m_cols, m_rows
-        });
+    m_bus->publish(event::Resize{m_width, m_height, m_cols, m_rows});
 }
 
 void XcbWindow::onresize(const event::Resize& evt)
@@ -624,13 +604,13 @@ void XcbWindow::onresize(const event::Resize& evt)
     LOGGER()->info("resize to {}x{}", evt.width, evt.height);
 }
 
-void XcbWindow::handle_key_press(ev::loop_ref&, xcb_key_press_event_t *event)
+void XcbWindow::handle_key_press(ev::loop_ref&, xcb_key_press_event_t* event)
 {
     process_key(event->detail, m_term.get(), m_tty.get(), xkb_state,
-        xkb_compose_state, m_keymod);
+            xkb_compose_state, m_keymod);
 }
 
-void XcbWindow::handle_client_message(ev::loop_ref& loop, xcb_client_message_event_t *event)
+void XcbWindow::handle_client_message(ev::loop_ref& loop, xcb_client_message_event_t* event)
 {
     LOGGER()->debug("handle_client_message type={} data={}",
             event->type, event->data.data32[0]);
@@ -656,8 +636,7 @@ void XcbWindow::handle_client_message(ev::loop_ref& loop, xcb_client_message_eve
     }
     else*/
     if (event->type == m_wmprotocols &&
-            event->data.data32[0] == m_wmdeletewin)
-    {
+            event->data.data32[0] == m_wmdeletewin) {
         LOGGER()->debug("wm_delete_window");
 
         // hang up on the shell and get out of here
@@ -666,50 +645,50 @@ void XcbWindow::handle_client_message(ev::loop_ref& loop, xcb_client_message_eve
     }
 }
 
-void XcbWindow::handle_motion_notify(ev::loop_ref&, xcb_motion_notify_event_t *event)
+void XcbWindow::handle_motion_notify(ev::loop_ref&, xcb_motion_notify_event_t* event)
 {
     auto cell = m_renderer->pxtocell(event->event_x, event->event_y);
     m_term->mousereport(cell, term::MOUSE_MOTION, 0, m_keymod);
 }
 
-void XcbWindow::handle_visibility_notify(ev::loop_ref&, xcb_visibility_notify_event_t *event)
+void XcbWindow::handle_visibility_notify(ev::loop_ref&, xcb_visibility_notify_event_t* event)
 {
     visible = event->state != XCB_VISIBILITY_FULLY_OBSCURED;
 }
 
-void XcbWindow::handle_unmap_notify(ev::loop_ref&, xcb_unmap_notify_event_t *event)
+void XcbWindow::handle_unmap_notify(ev::loop_ref&, xcb_unmap_notify_event_t* event)
 {
     mapped = false;
 }
 
-void XcbWindow::handle_focus_in(ev::loop_ref&, xcb_focus_in_event_t *event)
+void XcbWindow::handle_focus_in(ev::loop_ref&, xcb_focus_in_event_t* event)
 {
     seturgent(false);
     m_term->setfocused(true);
 }
 
-void XcbWindow::handle_focus_out(ev::loop_ref&, xcb_focus_out_event_t *event)
+void XcbWindow::handle_focus_out(ev::loop_ref&, xcb_focus_out_event_t* event)
 {
     m_term->setfocused(false);
 }
 
-void XcbWindow::handle_button(ev::loop_ref&, xcb_button_press_event_t *event)
+void XcbWindow::handle_button(ev::loop_ref&, xcb_button_press_event_t* event)
 {
     int button = event->detail;
     bool press = (event->response_type & 0x7F) == XCB_BUTTON_PRESS;
 
     auto cell = m_renderer->pxtocell(event->event_x, event->event_y);
     term::mouse_event_enum mouse_evt =
-        press? term::MOUSE_PRESS : term::MOUSE_RELEASE;
+            press ? term::MOUSE_PRESS : term::MOUSE_RELEASE;
     m_term->mousereport(cell, mouse_evt, button, m_keymod);
 }
 
-void XcbWindow::handle_selection_clear(ev::loop_ref&, xcb_selection_clear_event_t *event)
+void XcbWindow::handle_selection_clear(ev::loop_ref&, xcb_selection_clear_event_t* event)
 {
     m_term->selclear();
 }
 
-void XcbWindow::handle_selection_notify(ev::loop_ref&, xcb_selection_notify_event_t *event)
+void XcbWindow::handle_selection_notify(ev::loop_ref&, xcb_selection_notify_event_t* event)
 {
     LOGGER()->info("handle_selection_notify: requestor={} selection={} target={} property={}",
             event->requestor, event->selection, event->target, event->property);
@@ -717,11 +696,10 @@ void XcbWindow::handle_selection_notify(ev::loop_ref&, xcb_selection_notify_even
     selnotify(event->property, false);
 }
 
-void XcbWindow::handle_property_notify(ev::loop_ref&, xcb_property_notify_event_t *event)
+void XcbWindow::handle_property_notify(ev::loop_ref&, xcb_property_notify_event_t* event)
 {
-    if (LOGGER()->level() <= logging::debug)
-    {
-        const char *atom_name;
+    if (LOGGER()->level() <= logging::debug) {
+        const char* atom_name;
         if (event->atom == XCB_ATOM_PRIMARY)
             atom_name = "PRIMARY";
         else if (event->atom == m_clipboard)
@@ -736,14 +714,13 @@ void XcbWindow::handle_property_notify(ev::loop_ref&, xcb_property_notify_event_
     }
 
     if (event->state == XCB_PROPERTY_NEW_VALUE &&
-            (event->atom == XCB_ATOM_PRIMARY || event->atom == m_clipboard))
-    {
+            (event->atom == XCB_ATOM_PRIMARY || event->atom == m_clipboard)) {
         LOGGER()->debug("got clipboard new value");
         selnotify(event->atom, true);
     }
 }
 
-void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_event_t *event)
+void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_event_t* event)
 {
     xcb_atom_t property = XCB_NONE; // default to reject
 
@@ -751,26 +728,22 @@ void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_ev
     if (event->property == XCB_NONE)
         event->property = event->target;
 
-    if (event->target == m_targets)
-    {
+    if (event->target == m_targets) {
         LOGGER()->debug("requested targets");
 
         // respond with the supported type
         xcb_change_property(connection, XCB_PROP_MODE_REPLACE, event->requestor,
                 event->property, XCB_ATOM_ATOM, 32, 1, &m_xtarget);
         property = event->property;
-    }
-    else if (event->target == m_xtarget || event->target == XCB_ATOM_STRING)
-    {
-        if (LOGGER()->level() <= logging::debug)
-        {
-            const char *target_type;
+    } else if (event->target == m_xtarget || event->target == XCB_ATOM_STRING) {
+        if (LOGGER()->level() <= logging::debug) {
+            const char* target_type;
             if (event->target == m_xtarget)
                 target_type = "utf8";
             else
                 target_type = "other";
 
-            const char *selection_name;
+            const char* selection_name;
             if (event->selection == XCB_ATOM_PRIMARY)
                 selection_name = "PRIMARY";
             else if (event->selection == m_clipboard)
@@ -789,24 +762,20 @@ void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_ev
             seltext = m_term->sel().primary;
         else if (event->selection == m_clipboard)
             seltext = m_term->sel().clipboard;
-        else
-        {
+        else {
             LOGGER()->error("unhandled selection {:#x}", event->selection);
             return;
         }
 
-        if (seltext)
-        {
-            if (win == event->requestor)
-            {
+        if (seltext) {
+            if (win == event->requestor) {
                 if (event->property == m_xseldata)
                     LOGGER()->debug("setting self xseldata",
                             event->property);
                 else
                     LOGGER()->debug("setting self property={}",
                             event->property);
-            }
-            else
+            } else
                 LOGGER()->debug("setting {} property={}",
                         event->requestor, event->property);
 
@@ -821,7 +790,7 @@ void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_ev
     uint8_t buffer[32];
     memset(buffer, 0, 32);
 
-    auto ev = reinterpret_cast<xcb_selection_notify_event_t *>(buffer);
+    auto ev = reinterpret_cast<xcb_selection_notify_event_t*>(buffer);
     ev->response_type = XCB_SELECTION_NOTIFY;
     ev->time = event->time;
     ev->requestor = event->requestor;
@@ -837,19 +806,18 @@ void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_ev
                 ev->requestor, ev->selection, ev->target, ev->property);
 
     xcb_send_event(connection, false, event->requestor,
-                XCB_EVENT_MASK_NO_EVENT, (const char*) buffer);
+            XCB_EVENT_MASK_NO_EVENT, (const char*) buffer);
 }
 
-void XcbWindow::handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t *event)
+void XcbWindow::handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t* event)
 {
     LOGGER()->info("handle_map_notify");
     mapped = true;
 
     // get the initial mapped size
-    xcb_get_geometry_reply_t *geo = xcb_get_geometry_reply(connection,
-                xcb_get_geometry(connection, win), nullptr);
-    if (geo)
-    {
+    xcb_get_geometry_reply_t* geo = xcb_get_geometry_reply(connection,
+            xcb_get_geometry(connection, win), nullptr);
+    if (geo) {
         int width = geo->width;
         int height = geo->height;
         std::free(geo);
@@ -860,32 +828,31 @@ void XcbWindow::handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t *event)
         m_renderer->set_surface(surface, width, height);
 
         publishresize(width, height);
-    }
-    else
+    } else
         LOGGER()->error("unable to determine geometry!");
 }
 
-void XcbWindow::handle_expose(ev::loop_ref&, xcb_expose_event_t *event)
+void XcbWindow::handle_expose(ev::loop_ref&, xcb_expose_event_t* event)
 {
     // redraw only on the last expose event in the sequence
-    if (event->count == 0 && mapped && visible)
-    {
+    if (event->count == 0 && mapped && visible) {
         m_term->setdirty();
         draw();
     }
 }
 
-void XcbWindow::handle_configure_notify(ev::loop_ref&, xcb_configure_notify_event_t *event)
+void XcbWindow::handle_configure_notify(ev::loop_ref&, xcb_configure_notify_event_t* event)
 {
     if (mapped)
         publishresize(event->width, event->height);
 }
 
 // xkb event handler
-void XcbWindow::handle_xkb_event(xcb_generic_event_t *gevent)
+void XcbWindow::handle_xkb_event(xcb_generic_event_t* gevent)
 {
     union xkb_event {
-        struct {
+        struct
+        {
             uint8_t response_type;
             uint8_t xkbType;
             uint16_t sequence;
@@ -895,7 +862,7 @@ void XcbWindow::handle_xkb_event(xcb_generic_event_t *gevent)
         xcb_xkb_new_keyboard_notify_event_t new_keyboard_notify;
         xcb_xkb_map_notify_event_t map_notify;
         xcb_xkb_state_notify_event_t state_notify;
-    } *event = (union xkb_event *)gevent;
+    }* event = (union xkb_event*) gevent;
 
     uint8_t core_device = xkb_x11_get_core_keyboard_device_id(connection);
     if (event->any.deviceID != core_device)
@@ -903,8 +870,7 @@ void XcbWindow::handle_xkb_event(xcb_generic_event_t *gevent)
 
     // new keyboard notify + map notify capture all kinds of keymap
     // updates. state notify captures modifiers
-    switch (event->any.xkbType)
-    {
+    switch (event->any.xkbType) {
         case XCB_XKB_NEW_KEYBOARD_NOTIFY:
             if (event->new_keyboard_notify.changed & XCB_XKB_NKN_DETAIL_KEYCODES)
                 load_keymap();
@@ -914,12 +880,12 @@ void XcbWindow::handle_xkb_event(xcb_generic_event_t *gevent)
             break;
         case XCB_XKB_STATE_NOTIFY:
             xkb_state_update_mask(xkb_state,
-                                  event->state_notify.baseMods,
-                                  event->state_notify.latchedMods,
-                                  event->state_notify.lockedMods,
-                                  event->state_notify.baseGroup,
-                                  event->state_notify.latchedGroup,
-                                  event->state_notify.lockedGroup);
+                    event->state_notify.baseMods,
+                    event->state_notify.latchedMods,
+                    event->state_notify.lockedMods,
+                    event->state_notify.baseGroup,
+                    event->state_notify.latchedGroup,
+                    event->state_notify.lockedGroup);
 
             m_keymod.reset();
             if (xkb_state_mod_index_is_active(xkb_state, m_shift_modidx,
@@ -942,12 +908,13 @@ void XcbWindow::handle_xkb_event(xcb_generic_event_t *gevent)
     }
 }
 
-void XcbWindow::handle_xcb_event(ev::loop_ref& loop, int type, xcb_generic_event_t *event)
+void XcbWindow::handle_xcb_event(ev::loop_ref& loop, int type, xcb_generic_event_t* event)
 {
-    switch (type)
-    {
-        #define MESSAGE(msg, handler) \
-            case msg: call_handler(&XcbWindow::handler, loop, event); break
+    switch (type) {
+#define MESSAGE(msg, handler)                           \
+    case msg:                                           \
+        call_handler(&XcbWindow::handler, loop, event); \
+        break
 
         MESSAGE(XCB_KEY_PRESS, handle_key_press);
         MESSAGE(XCB_BUTTON_PRESS, handle_button);
@@ -966,16 +933,16 @@ void XcbWindow::handle_xcb_event(ev::loop_ref& loop, int type, xcb_generic_event
         MESSAGE(XCB_SELECTION_REQUEST, handle_selection_request);
         MESSAGE(XCB_MAP_NOTIFY, handle_map_notify);
 
-        #undef MESSAGE
+#undef MESSAGE
 
         // known, ignored
-        case XCB_REPARENT_NOTIFY: // 21
-        case XCB_KEY_RELEASE: // 3
-        case XCB_MAP_REQUEST: // 20
-        case XCB_DESTROY_NOTIFY: // 17
-        case XCB_ENTER_NOTIFY: // 7
+        case XCB_REPARENT_NOTIFY:   // 21
+        case XCB_KEY_RELEASE:       // 3
+        case XCB_MAP_REQUEST:       // 20
+        case XCB_DESTROY_NOTIFY:    // 17
+        case XCB_ENTER_NOTIFY:      // 7
         case XCB_CONFIGURE_REQUEST: // 23
-        case XCB_MAPPING_NOTIFY: // 34
+        case XCB_MAPPING_NOTIFY:    // 34
             break;
         default:
             if (type == xkb_base_event)
@@ -987,52 +954,44 @@ void XcbWindow::handle_xcb_event(ev::loop_ref& loop, int type, xcb_generic_event
 
 void XcbWindow::selnotify(xcb_atom_t property, bool propnotify)
 {
-    if (property == XCB_ATOM_NONE)
-    {
+    if (property == XCB_ATOM_NONE) {
         LOGGER()->debug("got no data");
         return;
     }
 
-    xcb_get_property_reply_t *reply = xcb_get_property_reply(connection,
+    xcb_get_property_reply_t* reply = xcb_get_property_reply(connection,
             xcb_get_property(connection, 0, win, property, XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX), nullptr);
-    if (reply)
-    {
+    if (reply) {
         int len = xcb_get_property_value_length(reply);
-        if (propnotify && len == 0)
-        {
+        if (propnotify && len == 0) {
             // propnotify with no data means all data has been
             // transferred, and we no longer need property
             // notify events
             m_eventmask &= ~XCB_EVENT_MASK_PROPERTY_CHANGE;
 
             const uint32_t mask = XCB_CW_EVENT_MASK;
-            uint32_t values[1] = {
-                m_eventmask
-            };
+            uint32_t values[1] = {m_eventmask};
             xcb_change_window_attributes(connection, win, mask, values);
         }
 
-        if (reply->type == m_incr)
-        {
+        if (reply->type == m_incr) {
             // activate property change events so we receive
             // notification about the next chunk
             m_eventmask |= XCB_EVENT_MASK_PROPERTY_CHANGE;
 
             const uint32_t mask = XCB_CW_EVENT_MASK;
-            uint32_t values[1] = { m_eventmask };
+            uint32_t values[1] = {m_eventmask};
             xcb_change_window_attributes(connection, win, mask, values);
 
             // deleting the property is transfer start signal
             xcb_delete_property(connection, win, property);
-        }
-        else if (len > 0)
-        {
-            char *data = (char *) xcb_get_property_value(reply);
+        } else if (len > 0) {
+            char* data = (char*) xcb_get_property_value(reply);
 
             // fix line endings (\n -> \r)
-            char *repl = data;
-            char *last = data + len;
-            while ((repl = (char *) memchr(repl, '\n', last - repl)))
+            char* repl = data;
+            char* last = data + len;
+            while ((repl = (char*) memchr(repl, '\n', last - repl)))
                 *repl++ = '\r';
 
             // todo: move to a Term::paste function
@@ -1045,40 +1004,35 @@ void XcbWindow::selnotify(xcb_atom_t property, bool propnotify)
         }
 
         free(reply);
-    }
-    else
+    } else
         LOGGER()->error("unable to get clip property!");
 }
 
 // this callback is a noop, work is done by the prepare and check
-void XcbWindow::readcb(ev::io &, int)
-{ }
+void XcbWindow::readcb(ev::io&, int)
+{}
 
 // flush before blocking (and waiting for new events)
-void XcbWindow::preparecb(ev::prepare &, int)
+void XcbWindow::preparecb(ev::prepare&, int)
 {
     xcb_flush(connection);
 }
 
 // after handling other events, call xcb_poll_for_event
-void XcbWindow::checkcb(ev::check &w, int)
+void XcbWindow::checkcb(ev::check& w, int)
 {
-    xcb_generic_event_t *event;
+    xcb_generic_event_t* event;
 
-    while ((event = xcb_poll_for_event(connection)) != nullptr)
-    {
-        if (event->response_type == 0)
-        {
+    while ((event = xcb_poll_for_event(connection)) != nullptr) {
+        if (event->response_type == 0) {
             //if (event_is_ignored(event->sequence, 0))
             //    LOGGER()->debug("expected X11 Error received for sequence {:#x}", event->sequence);
             //else {
-                auto error = reinterpret_cast<xcb_generic_error_t *>(event);
-                LOGGER()->error("X11 Error received! sequence {:#x}, error_code = {}",
-                     error->sequence, error->error_code);
+            auto error = reinterpret_cast<xcb_generic_error_t*>(event);
+            LOGGER()->error("X11 Error received! sequence {:#x}, error_code = {}",
+                    error->sequence, error->error_code);
             //}
-        }
-        else
-        {
+        } else {
             // clear high bit (indicates generated)
             int type = (event->response_type & 0x7F);
             handle_xcb_event(w.loop, type, event);
@@ -1096,7 +1050,8 @@ void XcbWindow::checkcb(ev::check &w, int)
 /// \addtogroup Window
 /// @{
 std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus,
-        std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty) {
+        std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty)
+{
     return std::make_unique<xcbwin::XcbWindow>(std::move(bus),
             std::move(term), std::move(tty));
 }

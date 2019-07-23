@@ -1,7 +1,7 @@
-#include "rwte/version.h"
 #include "rwte/version-internal.h"
+#include "rwte/version.h"
 
-const char *version_string()
+const char* version_string()
 {
     return RWTE_VERSION;
 }

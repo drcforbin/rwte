@@ -9,9 +9,9 @@
 struct Cell;
 class Selection;
 namespace screen {
-    struct Cursor;
-    enum class cursor_type;
-    struct Glyph;
+struct Cursor;
+enum class cursor_type;
+struct Glyph;
 } // namespace screen
 class Tty;
 class Window;
@@ -20,9 +20,9 @@ namespace term {
 
 enum mouse_event_enum
 {
-	MOUSE_MOTION = 0,
-	MOUSE_PRESS = 1,
-	MOUSE_RELEASE = 2
+    MOUSE_MOTION = 0,
+    MOUSE_PRESS = 1,
+    MOUSE_RELEASE = 2
 };
 
 enum keymod_state_enum
@@ -34,7 +34,7 @@ enum keymod_state_enum
     MOD_LAST = MOD_LOGO
 };
 
-using keymod_state = std::bitset<MOD_LAST+1>;
+using keymod_state = std::bitset<MOD_LAST + 1>;
 
 enum term_mode_enum
 {
@@ -64,7 +64,7 @@ enum term_mode_enum
     MODE_LAST = MODE_SIXEL
 };
 
-using term_mode = std::bitset<MODE_LAST+1>;
+using term_mode = std::bitset<MODE_LAST + 1>;
 
 const term_mode mouse_modes(
         1 << MODE_MOUSEBTN | 1 << MODE_MOUSEMOTION |
@@ -119,7 +119,7 @@ public:
     void selclear();
     void clipcopy();
 
-    void send(const char *data, std::size_t len = 0);
+    void send(const char* data, std::size_t len = 0);
 
 private:
     std::unique_ptr<TermImpl> impl;

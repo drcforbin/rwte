@@ -15,7 +15,7 @@ static int window_mouse_press_ref = LUA_NOREF;
 static int window_key_press_ref = LUA_NOREF;
 static int window_ref = LUA_NOREF;
 
-const char * const LUAWND = "LUAWND*";
+const char* const LUAWND = "LUAWND*";
 
 struct LuaWndStruct
 {
@@ -25,8 +25,7 @@ struct LuaWndStruct
 // todo: share impl with lua term's getterm
 static inline std::shared_ptr<Window> getwindow(lua::State& L)
 {
-    if (L.pushref(window_ref))
-    {
+    if (L.pushref(window_ref)) {
         auto p = L.checkobj<LuaWndStruct>(-1, LUAWND);
         L.pop();
 
@@ -37,7 +36,7 @@ static inline std::shared_ptr<Window> getwindow(lua::State& L)
     return {};
 }
 
-static int window_gc(lua_State *l)
+static int window_gc(lua_State* l)
 {
     lua::State(l).delobj<LuaWndStruct>(1, LUAWND);
     return 0;
@@ -45,8 +44,8 @@ static int window_gc(lua_State *l)
 
 // methods for window object
 static const luaL_Reg window_obj_funcs[] = {
-    {"__gc", window_gc},
-    {nullptr, nullptr},
+        {"__gc", window_gc},
+        {nullptr, nullptr},
 };
 
 /// Sets the function to be called when a mouse button is pressed
@@ -71,7 +70,7 @@ static const luaL_Reg window_obj_funcs[] = {
 //         return true
 //     end
 // end)
-static int luawindow_mouse_press(lua_State *l)
+static int luawindow_mouse_press(lua_State* l)
 {
     lua::State L(l);
     window_mouse_press_ref = L.setfuncref(1, window_mouse_press_ref);
@@ -103,7 +102,7 @@ static int luawindow_mouse_press(lua_State *l)
 //         end
 //     end
 // end)
-static int luawindow_key_press(lua_State *l)
+static int luawindow_key_press(lua_State* l)
 {
     lua::State L(l);
     window_key_press_ref = L.setfuncref(1, window_key_press_ref);
@@ -114,7 +113,7 @@ static int luawindow_key_press(lua_State *l)
 //
 // @function clippaste
 // @usage window.clippaste()
-static int luawindow_clippaste(lua_State *l)
+static int luawindow_clippaste(lua_State* l)
 {
     lua::State L(l);
     if (auto window = getwindow(L))
@@ -127,7 +126,7 @@ static int luawindow_clippaste(lua_State *l)
 //
 // @function selpaste
 // @usage window.selpaste()
-static int luawindow_selpaste(lua_State *l)
+static int luawindow_selpaste(lua_State* l)
 {
     lua::State L(l);
     if (auto window = getwindow(L))
@@ -142,20 +141,18 @@ static int luawindow_selpaste(lua_State *l)
 //
 // @class field
 // @name id
-static int luawindow_index(lua_State *l)
+static int luawindow_index(lua_State* l)
 {
     lua::State L(l);
-    const char * key = L.checkstring(2);
+    const char* key = L.checkstring(2);
 
-    if (std::strcmp(key, "id") == 0)
-    {
+    if (std::strcmp(key, "id") == 0) {
         auto window = getwindow(L);
         if (window)
             L.pushinteger(window->windowid());
         else
             L.pushnil();
-    }
-    else
+    } else
         L.pushnil();
 
     return 1;
@@ -163,14 +160,13 @@ static int luawindow_index(lua_State *l)
 
 // functions for window library
 static const luaL_Reg window_lib_funcs[] = {
-    {"mouse_press", luawindow_mouse_press},
-    {"key_press", luawindow_key_press},
-    {"clippaste", luawindow_clippaste},
-    {"selpaste", luawindow_selpaste},
-    {nullptr, nullptr}
-};
+        {"mouse_press", luawindow_mouse_press},
+        {"key_press", luawindow_key_press},
+        {"clippaste", luawindow_clippaste},
+        {"selpaste", luawindow_selpaste},
+        {nullptr, nullptr}};
 
-static int window_openf(lua_State *l)
+static int window_openf(lua_State* l)
 {
     lua::State L(l);
 
@@ -186,8 +182,9 @@ static int window_openf(lua_State *l)
     // @class field
     // @name keys
     L.newtable();
-#define PUSH_ENUM_FIELD(nm)\
-    L.pushinteger(XKB_KEY_##nm); L.setfield(-2, #nm)
+#define PUSH_ENUM_FIELD(nm)      \
+    L.pushinteger(XKB_KEY_##nm); \
+    L.setfield(-2, #nm)
     // latin 1 keys (note that keys above U+007E are missing)
     PUSH_ENUM_FIELD(space);
     PUSH_ENUM_FIELD(exclam);
@@ -289,7 +286,7 @@ static int window_openf(lua_State *l)
     PUSH_ENUM_FIELD(Insert);
     PUSH_ENUM_FIELD(Delete);
     PUSH_ENUM_FIELD(End);
-    PUSH_ENUM_FIELD(Page_Up); // Prior
+    PUSH_ENUM_FIELD(Page_Up);   // Prior
     PUSH_ENUM_FIELD(Page_Down); // Next
     PUSH_ENUM_FIELD(Return);
     PUSH_ENUM_FIELD(ISO_Left_Tab);
@@ -355,13 +352,13 @@ static int window_openf(lua_State *l)
     return 1;
 }
 
-void lua::register_luawindow(lua::State *L)
+void lua::register_luawindow(lua::State* L)
 {
     L->requiref("window", window_openf, true);
     L->pop();
 }
 
-void lua::window::setWindow(lua::State *L, std::shared_ptr<Window> window)
+void lua::window::setWindow(lua::State* L, std::shared_ptr<Window> window)
 {
     // alloc and init
     auto p = L->newobj<LuaWndStruct>(LUAWND);
@@ -372,7 +369,7 @@ void lua::window::setWindow(lua::State *L, std::shared_ptr<Window> window)
     L->pop();
 }
 
-bool lua::window::call_mouse_press(lua::State *L, const Cell& cell, int button,
+bool lua::window::call_mouse_press(lua::State* L, const Cell& cell, int button,
         const term::keymod_state& mods)
 {
     // first, try to push the mouse_press ref
@@ -393,21 +390,18 @@ bool lua::window::call_mouse_press(lua::State *L, const Cell& cell, int button,
     L->setfield(-2, "logo");
     // todo: include num
 
-    if (L->pcall(4, 1, 0) == LUA_OK)
-    {
+    if (L->pcall(4, 1, 0) == LUA_OK) {
         bool result = L->tobool(-1);
         L->pop(1);
         return result;
-    }
-    else
-    {
+    } else {
         LOGGER()->error("mouse_press: {}", L->tostring(-1));
         L->pop(1);
         return false;
     }
 }
 
-bool lua::window::call_key_press(lua::State *L, int keysym,
+bool lua::window::call_key_press(lua::State* L, int keysym,
         const term::keymod_state& mods)
 {
     // first, try to push the key_press ref
@@ -426,17 +420,13 @@ bool lua::window::call_key_press(lua::State *L, int keysym,
     L->setfield(-2, "logo");
     // todo: include num
 
-    if (L->pcall(2, 1, 0) == LUA_OK)
-    {
+    if (L->pcall(2, 1, 0) == LUA_OK) {
         bool result = L->tobool(-1);
         L->pop(1);
         return result;
-    }
-    else
-    {
+    } else {
         LOGGER()->error("key_press: {}", L->tostring(-1));
         L->pop(1);
         return false;
     }
 }
-

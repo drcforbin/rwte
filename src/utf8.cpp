@@ -36,12 +36,14 @@ enum utf_action_enum
     ACT_INVALID
 };
 
-constexpr unsigned char transition(unsigned char action, unsigned char state) {
+constexpr unsigned char transition(unsigned char action, unsigned char state)
+{
     return action << 4 | state;
 }
 
-constexpr auto make_transitions() {
-    std::array<std::array<unsigned char, 256>, 8> arr {};
+constexpr auto make_transitions()
+{
+    std::array<std::array<unsigned char, 256>, 8> arr{};
     unsigned char invalid_val = transition(ACT_INVALID, UTF8_GROUND);
 
     for (int i = 0; i < 256; i++) {
@@ -110,17 +112,18 @@ constexpr auto UTF8_TRANSITIONS = make_transitions();
 class Utf8Decoder
 {
 public:
-    Utf8Decoder() : m_codepoint(0), m_state(UTF8_GROUND) {}
+    Utf8Decoder() :
+        m_codepoint(0),
+        m_state(UTF8_GROUND) {}
 
-    utf8_result feed(unsigned char b, char32_t *cp);
+    utf8_result feed(unsigned char b, char32_t* cp);
 
 private:
     char32_t m_codepoint;
     utf8_state_enum m_state;
 };
 
-
-utf8_result Utf8Decoder::feed(unsigned char b, char32_t *cp)
+utf8_result Utf8Decoder::feed(unsigned char b, char32_t* cp)
 {
     unsigned char chg = UTF8_TRANSITIONS[m_state][b];
     int action = (chg & 0xF0) >> 4;
@@ -128,48 +131,47 @@ utf8_result Utf8Decoder::feed(unsigned char b, char32_t *cp)
 
     utf8_result res = UTF8_RES_CONTINUE;
 
-    switch (action)
-    {
-    case ACT_NOOP:
-        break;
-    case ACT_EMIT:
-        *cp = b;
-        res = UTF8_RES_COMPLETE;
-        m_codepoint = 0;
-        break;
-    case ACT_SET_BYTE1_EMIT:
-        m_codepoint |= static_cast<char32_t>(b & 0b00111111);
-        *cp = m_codepoint;
-        res = UTF8_RES_COMPLETE;
-        m_codepoint = 0;
-        break;
-    case ACT_SET_BYTE2:
-        m_codepoint |= (static_cast<char32_t>(b & 0b00111111) << 6);
-        break;
-    case ACT_SET_BYTE3:
-        m_codepoint |= (static_cast<char32_t>(b & 0b00111111) << 12);
-        break;
-    case ACT_SET_BYTE2_TOP:
-        m_codepoint |= (static_cast<char32_t>(b & 0b00011111) << 6);
-        break;
-    case ACT_SET_BYTE3_TOP:
-        m_codepoint |= (static_cast<char32_t>(b & 0b00001111) << 12);
-        break;
-    case ACT_SET_BYTE4_TOP:
-        m_codepoint |= (static_cast<char32_t>(b & 0b00000111) << 18);
-        break;
-    case ACT_INVALID:
-        *cp = utf_invalid;
-        res = UTF8_RES_INVALID;
-        m_codepoint = 0;
-        break;
+    switch (action) {
+        case ACT_NOOP:
+            break;
+        case ACT_EMIT:
+            *cp = b;
+            res = UTF8_RES_COMPLETE;
+            m_codepoint = 0;
+            break;
+        case ACT_SET_BYTE1_EMIT:
+            m_codepoint |= static_cast<char32_t>(b & 0b00111111);
+            *cp = m_codepoint;
+            res = UTF8_RES_COMPLETE;
+            m_codepoint = 0;
+            break;
+        case ACT_SET_BYTE2:
+            m_codepoint |= (static_cast<char32_t>(b & 0b00111111) << 6);
+            break;
+        case ACT_SET_BYTE3:
+            m_codepoint |= (static_cast<char32_t>(b & 0b00111111) << 12);
+            break;
+        case ACT_SET_BYTE2_TOP:
+            m_codepoint |= (static_cast<char32_t>(b & 0b00011111) << 6);
+            break;
+        case ACT_SET_BYTE3_TOP:
+            m_codepoint |= (static_cast<char32_t>(b & 0b00001111) << 12);
+            break;
+        case ACT_SET_BYTE4_TOP:
+            m_codepoint |= (static_cast<char32_t>(b & 0b00000111) << 18);
+            break;
+        case ACT_INVALID:
+            *cp = utf_invalid;
+            res = UTF8_RES_INVALID;
+            m_codepoint = 0;
+            break;
     }
 
     m_state = newstate;
     return res;
 }
 
-std::size_t utf8decode(const char *c, char32_t *u, std::size_t clen)
+std::size_t utf8decode(const char* c, char32_t* u, std::size_t clen)
 {
     *u = utf_invalid;
     if (!clen)
@@ -178,44 +180,35 @@ std::size_t utf8decode(const char *c, char32_t *u, std::size_t clen)
     Utf8Decoder dec;
 
     std::size_t i = 0;
-    while (i < clen)
-    {
+    while (i < clen) {
         if (dec.feed(c[i], u) == UTF8_RES_CONTINUE)
             i++;
         else
-            return i+1;
+            return i + 1;
     }
 
     return 0;
 }
 
-std::size_t utf8encode(char32_t cp, char *c)
+std::size_t utf8encode(char32_t cp, char* c)
 {
-    if (cp <= 0x0000007F)
-    {
+    if (cp <= 0x0000007F) {
         // 0xxxxxxx
         c[0] = cp & 0b01111111;
 
         return 1;
-    }
-    else if (cp <= 0x000007FF)
-    {
+    } else if (cp <= 0x000007FF) {
         // 110xxxxx
         c[0] = 0b11000000 | (cp >> 6 & 0b00011111);
         // 10xxxxxx
         c[1] = 0b10000000 | (cp & 0b00111111);
 
         return 2;
-    }
-    else if (cp <= 0x0000FFFF)
-    {
-        if (0x0000D800 <= cp && cp <= 0x0000DFFF)
-        {
+    } else if (cp <= 0x0000FFFF) {
+        if (0x0000D800 <= cp && cp <= 0x0000DFFF) {
             // excluded range
             return 0;
-        }
-        else
-        {
+        } else {
             // 1110xxxx
             c[0] = 0b11100000 | (cp >> 12 & 0b00001111);
             // 10xxxxxx
@@ -225,9 +218,7 @@ std::size_t utf8encode(char32_t cp, char *c)
 
             return 3;
         }
-    }
-    else if (cp <= 0x0010FFFF)
-    {
+    } else if (cp <= 0x0010FFFF) {
         // 11110xxx
         c[0] = 0b11110000 | (cp >> 18 & 0b00000111);
         // 10xxxxxx
@@ -243,12 +234,11 @@ std::size_t utf8encode(char32_t cp, char *c)
     return 0;
 }
 
-const char * utf8strchr(const char *s, char32_t u)
+const char* utf8strchr(const char* s, char32_t u)
 {
     char32_t r;
     size_t len = std::strlen(s);
-    for (size_t i = 0, j = 0; i < len; i += j)
-    {
+    for (size_t i = 0, j = 0; i < len; i += j) {
         if (!(j = utf8decode(&s[i], &r, len - i)))
             break;
         if (r == u)
@@ -258,207 +248,229 @@ const char * utf8strchr(const char *s, char32_t u)
     return nullptr;
 }
 
-TEST_CASE( "valid code points can be encoded", "[utf8]" ) {
-
+TEST_CASE("valid code points can be encoded", "[utf8]")
+{
     char buf[] = {0, 0, 0, 0};
 
-    SECTION( "valid one byte encoding" ) {
+    SECTION("valid one byte encoding")
+    {
         auto sz = utf8encode(0x0024, buf);
 
-        REQUIRE( sz == 1 );
-        REQUIRE( (unsigned char) buf[0] == 0x24 );
-        REQUIRE( (unsigned char) buf[1] == 0x00 );
-        REQUIRE( (unsigned char) buf[2] == 0x00 );
-        REQUIRE( (unsigned char) buf[3] == 0x00 );
+        REQUIRE(sz == 1);
+        REQUIRE((unsigned char) buf[0] == 0x24);
+        REQUIRE((unsigned char) buf[1] == 0x00);
+        REQUIRE((unsigned char) buf[2] == 0x00);
+        REQUIRE((unsigned char) buf[3] == 0x00);
     }
 
-    SECTION( "valid two byte encoding" ) {
+    SECTION("valid two byte encoding")
+    {
         auto sz = utf8encode(0x00A2, buf);
 
-        REQUIRE( sz == 2 );
-        REQUIRE( (unsigned char) buf[0] == 0xC2 );
-        REQUIRE( (unsigned char) buf[1] == 0xA2 );
-        REQUIRE( (unsigned char) buf[2] == 0x00 );
-        REQUIRE( (unsigned char) buf[3] == 0x00 );
+        REQUIRE(sz == 2);
+        REQUIRE((unsigned char) buf[0] == 0xC2);
+        REQUIRE((unsigned char) buf[1] == 0xA2);
+        REQUIRE((unsigned char) buf[2] == 0x00);
+        REQUIRE((unsigned char) buf[3] == 0x00);
     }
 
-    SECTION( "valid three byte encoding" ) {
+    SECTION("valid three byte encoding")
+    {
         auto sz = utf8encode(0x20AC, buf);
 
-        REQUIRE( sz == 3 );
-        REQUIRE( (unsigned char) buf[0] == 0xE2 );
-        REQUIRE( (unsigned char) buf[1] == 0x82 );
-        REQUIRE( (unsigned char) buf[2] == 0xAC );
-        REQUIRE( (unsigned char) buf[3] == 0x00 );
+        REQUIRE(sz == 3);
+        REQUIRE((unsigned char) buf[0] == 0xE2);
+        REQUIRE((unsigned char) buf[1] == 0x82);
+        REQUIRE((unsigned char) buf[2] == 0xAC);
+        REQUIRE((unsigned char) buf[3] == 0x00);
     }
 
-    SECTION( "valid four byte encoding" ) {
+    SECTION("valid four byte encoding")
+    {
         auto sz = utf8encode(0x10348, buf);
 
-        REQUIRE( sz == 4 );
-        REQUIRE( (unsigned char) buf[0] == 0xF0 );
-        REQUIRE( (unsigned char) buf[1] == 0x90 );
-        REQUIRE( (unsigned char) buf[2] == 0x8D );
-        REQUIRE( (unsigned char) buf[3] == 0x88 );
+        REQUIRE(sz == 4);
+        REQUIRE((unsigned char) buf[0] == 0xF0);
+        REQUIRE((unsigned char) buf[1] == 0x90);
+        REQUIRE((unsigned char) buf[2] == 0x8D);
+        REQUIRE((unsigned char) buf[3] == 0x88);
     }
 }
 
-TEST_CASE( "cannot encode RFC 3629 code points", "[utf8]" ) {
+TEST_CASE("cannot encode RFC 3629 code points", "[utf8]")
+{
     // 0xD800 - 0xDFFF are excluded in RFC 3629
 
     char buf[] = {0, 0, 0, 0};
 
-    SECTION( "before range should work" ) {
+    SECTION("before range should work")
+    {
         auto sz = utf8encode(0xD7FF, buf);
 
-        REQUIRE( sz == 3 );
-        REQUIRE( (unsigned char) buf[0] == 0xED );
-        REQUIRE( (unsigned char) buf[1] == 0x9F );
-        REQUIRE( (unsigned char) buf[2] == 0xBF );
-        REQUIRE( (unsigned char) buf[3] == 0x00 );
+        REQUIRE(sz == 3);
+        REQUIRE((unsigned char) buf[0] == 0xED);
+        REQUIRE((unsigned char) buf[1] == 0x9F);
+        REQUIRE((unsigned char) buf[2] == 0xBF);
+        REQUIRE((unsigned char) buf[3] == 0x00);
     }
 
-    SECTION( "beginning of range fails" ) {
+    SECTION("beginning of range fails")
+    {
         auto sz = utf8encode(0xD800, buf);
 
-        REQUIRE( sz == 0 );
-        REQUIRE( (unsigned char) buf[0] == 0x00 );
-        REQUIRE( (unsigned char) buf[1] == 0x00 );
-        REQUIRE( (unsigned char) buf[2] == 0x00 );
-        REQUIRE( (unsigned char) buf[3] == 0x00 );
+        REQUIRE(sz == 0);
+        REQUIRE((unsigned char) buf[0] == 0x00);
+        REQUIRE((unsigned char) buf[1] == 0x00);
+        REQUIRE((unsigned char) buf[2] == 0x00);
+        REQUIRE((unsigned char) buf[3] == 0x00);
     }
 
-    SECTION( "in range fails" ) {
+    SECTION("in range fails")
+    {
         auto sz = utf8encode(0xD805, buf);
 
-        REQUIRE( sz == 0 );
-        REQUIRE( (unsigned char) buf[0] == 0x00 );
-        REQUIRE( (unsigned char) buf[1] == 0x00 );
-        REQUIRE( (unsigned char) buf[2] == 0x00 );
-        REQUIRE( (unsigned char) buf[3] == 0x00 );
+        REQUIRE(sz == 0);
+        REQUIRE((unsigned char) buf[0] == 0x00);
+        REQUIRE((unsigned char) buf[1] == 0x00);
+        REQUIRE((unsigned char) buf[2] == 0x00);
+        REQUIRE((unsigned char) buf[3] == 0x00);
     }
 
-    SECTION( "end of range fails" ) {
+    SECTION("end of range fails")
+    {
         auto sz = utf8encode(0xDFFF, buf);
 
-        REQUIRE( sz == 0 );
-        REQUIRE( (unsigned char) buf[0] == 0x00 );
-        REQUIRE( (unsigned char) buf[1] == 0x00 );
-        REQUIRE( (unsigned char) buf[2] == 0x00 );
-        REQUIRE( (unsigned char) buf[3] == 0x00 );
+        REQUIRE(sz == 0);
+        REQUIRE((unsigned char) buf[0] == 0x00);
+        REQUIRE((unsigned char) buf[1] == 0x00);
+        REQUIRE((unsigned char) buf[2] == 0x00);
+        REQUIRE((unsigned char) buf[3] == 0x00);
     }
 
-    SECTION( "after range should work" ) {
+    SECTION("after range should work")
+    {
         auto sz = utf8encode(0xE000, buf);
 
-        REQUIRE( sz == 3 );
-        REQUIRE( (unsigned char) buf[0] == 0xEE );
-        REQUIRE( (unsigned char) buf[1] == 0x80 );
-        REQUIRE( (unsigned char) buf[2] == 0x80 );
-        REQUIRE( (unsigned char) buf[3] == 0x00 );
+        REQUIRE(sz == 3);
+        REQUIRE((unsigned char) buf[0] == 0xEE);
+        REQUIRE((unsigned char) buf[1] == 0x80);
+        REQUIRE((unsigned char) buf[2] == 0x80);
+        REQUIRE((unsigned char) buf[3] == 0x00);
     }
 }
 
-TEST_CASE( "cannot encode invalid code points", "[utf8]" ) {
+TEST_CASE("cannot encode invalid code points", "[utf8]")
+{
     char buf[] = {0, 0, 0, 0};
 
-    SECTION( "last point should work" ) {
+    SECTION("last point should work")
+    {
         auto sz = utf8encode(0x10FFFF, buf);
 
-        REQUIRE( sz == 4 );
-        REQUIRE( (unsigned char) buf[0] == 0xF4 );
-        REQUIRE( (unsigned char) buf[1] == 0x8F );
-        REQUIRE( (unsigned char) buf[2] == 0xBF );
-        REQUIRE( (unsigned char) buf[3] == 0xBF );
+        REQUIRE(sz == 4);
+        REQUIRE((unsigned char) buf[0] == 0xF4);
+        REQUIRE((unsigned char) buf[1] == 0x8F);
+        REQUIRE((unsigned char) buf[2] == 0xBF);
+        REQUIRE((unsigned char) buf[3] == 0xBF);
     }
 
-    SECTION( "past last point should not work" ) {
+    SECTION("past last point should not work")
+    {
         auto sz = utf8encode(0x110000, buf);
 
-        REQUIRE( sz == 0 );
-        REQUIRE( (unsigned char) buf[0] == 0x00 );
-        REQUIRE( (unsigned char) buf[1] == 0x00 );
-        REQUIRE( (unsigned char) buf[2] == 0x00 );
-        REQUIRE( (unsigned char) buf[3] == 0x00 );
+        REQUIRE(sz == 0);
+        REQUIRE((unsigned char) buf[0] == 0x00);
+        REQUIRE((unsigned char) buf[1] == 0x00);
+        REQUIRE((unsigned char) buf[2] == 0x00);
+        REQUIRE((unsigned char) buf[3] == 0x00);
     }
 
-    SECTION( "way too large should not work" ) {
+    SECTION("way too large should not work")
+    {
         auto sz = utf8encode(0x222222, buf);
 
-        REQUIRE( sz == 0 );
-        REQUIRE( (unsigned char) buf[0] == 0x00 );
-        REQUIRE( (unsigned char) buf[1] == 0x00 );
-        REQUIRE( (unsigned char) buf[2] == 0x00 );
-        REQUIRE( (unsigned char) buf[3] == 0x00 );
+        REQUIRE(sz == 0);
+        REQUIRE((unsigned char) buf[0] == 0x00);
+        REQUIRE((unsigned char) buf[1] == 0x00);
+        REQUIRE((unsigned char) buf[2] == 0x00);
+        REQUIRE((unsigned char) buf[3] == 0x00);
     }
 }
 
-TEST_CASE( "valid code points can be decoded", "[utf8]" ) {
-
+TEST_CASE("valid code points can be decoded", "[utf8]")
+{
     char32_t cp = 0;
 
-    SECTION( "valid one byte encoding, exact len" ) {
+    SECTION("valid one byte encoding, exact len")
+    {
         char buf[] = {0x24};
         auto sz = utf8decode(buf, &cp, 1);
 
-        REQUIRE( sz == 1 );
-        REQUIRE( cp == 0x24 );
+        REQUIRE(sz == 1);
+        REQUIRE(cp == 0x24);
     }
 
-    SECTION( "valid one byte encoding, longer buffer" ) {
+    SECTION("valid one byte encoding, longer buffer")
+    {
         char buf[] = {0x24, 0x24, 0x24, 0x24};
         auto sz = utf8decode(buf, &cp, 4);
 
-        REQUIRE( sz == 1 );
-        REQUIRE( cp == 0x24 );
+        REQUIRE(sz == 1);
+        REQUIRE(cp == 0x24);
     }
 
-    SECTION( "valid two byte encoding, exact len" ) {
+    SECTION("valid two byte encoding, exact len")
+    {
         unsigned char buf[] = {0xC2, 0xA2};
-        auto sz = utf8decode((const char *) &buf[0], &cp, 2);
+        auto sz = utf8decode((const char*) &buf[0], &cp, 2);
 
-        REQUIRE( sz == 2 );
-        REQUIRE( cp == 0xA2 );
+        REQUIRE(sz == 2);
+        REQUIRE(cp == 0xA2);
     }
 
-    SECTION( "valid two byte encoding, longer buffer" ) {
+    SECTION("valid two byte encoding, longer buffer")
+    {
         unsigned char buf[] = {0xC2, 0xA2, 0x24, 0x24};
-        auto sz = utf8decode((const char *) &buf[0], &cp, 4);
+        auto sz = utf8decode((const char*) &buf[0], &cp, 4);
 
-        REQUIRE( sz == 2 );
-        REQUIRE( cp == 0xA2 );
+        REQUIRE(sz == 2);
+        REQUIRE(cp == 0xA2);
     }
 
-    SECTION( "valid three byte encoding, exact len" ) {
+    SECTION("valid three byte encoding, exact len")
+    {
         unsigned char buf[] = {0xE2, 0x82, 0xAC};
-        auto sz = utf8decode((const char *) &buf[0], &cp, 3);
+        auto sz = utf8decode((const char*) &buf[0], &cp, 3);
 
-        REQUIRE( sz == 3 );
-        REQUIRE( cp == 0x20AC );
+        REQUIRE(sz == 3);
+        REQUIRE(cp == 0x20AC);
     }
 
-    SECTION( "valid three byte encoding, longer buffer" ) {
+    SECTION("valid three byte encoding, longer buffer")
+    {
         unsigned char buf[] = {0xE2, 0x82, 0xAC, 0x24, 0x24};
-        auto sz = utf8decode((const char *) &buf[0], &cp, 5);
+        auto sz = utf8decode((const char*) &buf[0], &cp, 5);
 
-        REQUIRE( sz == 3 );
-        REQUIRE( cp == 0x20AC );
+        REQUIRE(sz == 3);
+        REQUIRE(cp == 0x20AC);
     }
 
-    SECTION( "valid four byte encoding, exact len" ) {
+    SECTION("valid four byte encoding, exact len")
+    {
         unsigned char buf[] = {0xF0, 0x90, 0x8D, 0x88};
-        auto sz = utf8decode((const char *) &buf[0], &cp, 4);
+        auto sz = utf8decode((const char*) &buf[0], &cp, 4);
 
-        REQUIRE( sz == 4 );
-        REQUIRE( cp == 0x10348 );
+        REQUIRE(sz == 4);
+        REQUIRE(cp == 0x10348);
     }
 
-    SECTION( "valid four byte encoding, longer buffer" ) {
+    SECTION("valid four byte encoding, longer buffer")
+    {
         unsigned char buf[] = {0xF0, 0x90, 0x8D, 0x88, 0x24, 0x24};
-        auto sz = utf8decode((const char *) &buf[0], &cp, 6);
+        auto sz = utf8decode((const char*) &buf[0], &cp, 6);
 
-        REQUIRE( sz == 4 );
-        REQUIRE( cp == 0x10348 );
+        REQUIRE(sz == 4);
+        REQUIRE(cp == 0x10348);
     }
 }
 

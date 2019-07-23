@@ -18,9 +18,9 @@ class Window;
 
 struct Options
 {
-    std::vector<const char *> cmd;
+    std::vector<const char*> cmd;
 
-    std::string title {"rwte"};
+    std::string title{"rwte"};
     std::string winname;
     std::string winclass;
     std::string font;
@@ -53,9 +53,9 @@ public:
 private:
     void onrefresh(const event::Refresh& evt);
 
-    void childcb(ev::child &w, int);
-    void flushcb(ev::timer &w, int);
-    void blinkcb(ev::timer &w, int);
+    void childcb(ev::child& w, int);
+    void flushcb(ev::timer& w, int);
+    void blinkcb(ev::timer& w, int);
 
     std::shared_ptr<event::Bus> m_bus;
     int m_refreshReg;

@@ -10,10 +10,11 @@
 
 namespace screen {
 
-template<typename T,
-    typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
-constexpr T limit(T x, T a, T b) {
-    return x < a? a : (x > b? b : x);
+template <typename T,
+        typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
+constexpr T limit(T x, T a, T b)
+{
+    return x < a ? a : (x > b ? b : x);
 }
 
 static cursor_type get_cursor_type()
@@ -41,7 +42,7 @@ static bool isdelim(char32_t c)
     auto L = rwte->lua();
     L->getglobal("config");
     L->getfield(-1, "word_delimiters");
-    const char * word_delimiters = L->tostring(-1);
+    const char* word_delimiters = L->tostring(-1);
 
     // if word_delimiters is missing, it'll select whole line
     // TODO: look to replacing utf8strchr with wcschr
@@ -60,9 +61,11 @@ class ScreenImpl
 public:
     ScreenImpl(std::shared_ptr<event::Bus> bus) :
         m_bus(bus),
-        m_rows(0), m_cols(0),
-        m_top(0), m_bot(0)
-    { }
+        m_rows(0),
+        m_cols(0),
+        m_top(0),
+        m_bot(0)
+    {}
 
     void reset()
     {
@@ -71,8 +74,7 @@ public:
         m_top = 0;
         m_bot = m_rows - 1;
 
-        for (int i = 0; i < 2; i++)
-        {
+        for (int i = 0; i < 2; i++) {
             clear();
             swapscreen();
         }
@@ -81,8 +83,7 @@ public:
     void resize(int cols, int rows)
     {
         // slide screen to keep cursor where we expect it
-        if (m_cursor.row - rows >= 0)
-        {
+        if (m_cursor.row - rows >= 0) {
             LOGGER()->debug("cursor {}, {}", m_cursor.row, m_cursor.col);
             LOGGER()->debug("removing {} lines for cursor",
                     (m_cursor.row - rows) + 1);
@@ -100,15 +101,13 @@ public:
         // resize each row to new width, zero-pad if needed
         int i;
         int minrow = std::min(rows, m_rows);
-        for (i = 0; i < minrow; i++)
-        {
+        for (i = 0; i < minrow; i++) {
             m_lines[i].resize(cols);
             m_alt_lines[i].resize(cols);
         }
 
         // allocate any new rows
-        for (; i < rows; i++)
-        {
+        for (; i < rows; i++) {
             m_lines[i].resize(cols);
             m_alt_lines[i].resize(cols);
         }
@@ -126,7 +125,7 @@ public:
 
     void clear()
     {
-        clear({0, 0}, {m_rows-1, m_cols-1});
+        clear({0, 0}, {m_rows - 1, m_cols - 1});
     }
 
     // note: includes end
@@ -142,12 +141,11 @@ public:
         if (row1 > row2)
             std::swap(row1, row2);
 
-        Glyph empty {
-            empty_char,
-            {},
-            m_cursor.attr.fg,
-            m_cursor.attr.bg
-        };
+        Glyph empty{
+                empty_char,
+                {},
+                m_cursor.attr.fg,
+                m_cursor.attr.bg};
 
         fill({row1, col1}, {row2, col2}, empty);
 
@@ -187,7 +185,7 @@ public:
         else
             row++;
 
-        moveto({row, first_col? 0 : m_cursor.col});
+        moveto({row, first_col ? 0 : m_cursor.col});
     }
 
     void deleteline(int n)
@@ -214,20 +212,19 @@ public:
 
         // move to screen
         auto lineit = m_lines[m_cursor.row].begin();
-        std::copy(lineit+src, lineit+src+size, lineit+dst);
-        clear({m_cursor.row, m_cols-n}, {m_cursor.row, m_cols-1});
+        std::copy(lineit + src, lineit + src + size, lineit + dst);
+        clear({m_cursor.row, m_cols - n}, {m_cursor.row, m_cols - 1});
     }
 
     void insertblank(int n)
     {
         n = limit(n, 0, m_cols - m_cursor.col);
-        if (n > 0)
-        {
+        if (n > 0) {
             // move things over
             auto& line = m_lines[m_cursor.row];
             std::copy_backward(
-                    line.begin()+m_cursor.col,
-                    line.end()-n,
+                    line.begin() + m_cursor.col,
+                    line.end() - n,
                     line.end());
 
             // clear moved area
@@ -237,8 +234,8 @@ public:
 
     void setscroll(int t, int b)
     {
-        t = limit(t, 0, m_rows-1);
-        b = limit(b, 0, m_rows-1);
+        t = limit(t, 0, m_rows - 1);
+        b = limit(b, 0, m_rows - 1);
 
         if (t > b)
             std::swap(t, b);
@@ -249,26 +246,26 @@ public:
 
     void scrollup(int orig, int n)
     {
-        n = limit(n, 0, m_bot-orig+1);
+        n = limit(n, 0, m_bot - orig + 1);
 
-        clear({orig, 0}, {orig+n-1, m_cols-1});
-        setdirty(orig+n, m_bot);
+        clear({orig, 0}, {orig + n - 1, m_cols - 1});
+        setdirty(orig + n, m_bot);
 
-        for (int i = orig; i <= m_bot-n; i++)
-            std::swap(m_lines[i], m_lines[i+n]);
+        for (int i = orig; i <= m_bot - n; i++)
+            std::swap(m_lines[i], m_lines[i + n]);
 
         selscroll(orig, -n);
     }
 
     void scrolldown(int orig, int n)
     {
-        n = limit(n, 0, m_bot-orig+1);
+        n = limit(n, 0, m_bot - orig + 1);
 
-        setdirty(orig, m_bot-n);
-        clear({m_bot-n+1, 0}, {m_bot, m_cols-1});
+        setdirty(orig, m_bot - n);
+        clear({m_bot - n + 1, 0}, {m_bot, m_cols - 1});
 
-        for (int i = m_bot; i >= orig+n; i--)
-            std::swap(m_lines[i], m_lines[i-n]);
+        for (int i = m_bot; i >= orig + n; i--)
+            std::swap(m_lines[i], m_lines[i - n]);
 
         selscroll(orig, n);
     }
@@ -276,19 +273,16 @@ public:
     void moveto(const Cell& cell)
     {
         int minrow, maxrow;
-        if (m_cursor.state & CURSOR_ORIGIN)
-        {
+        if (m_cursor.state & CURSOR_ORIGIN) {
             minrow = m_top;
             maxrow = m_bot;
-        }
-        else
-        {
+        } else {
             minrow = 0;
             maxrow = m_rows - 1;
         }
 
         m_cursor.state &= ~CURSOR_WRAPNEXT;
-        m_cursor.col = limit(cell.col, 0, m_cols-1);
+        m_cursor.col = limit(cell.col, 0, m_cols - 1);
         m_cursor.row = limit(cell.row, minrow, maxrow);
 
         m_bus->publish(event::Refresh{});
@@ -297,88 +291,78 @@ public:
     // for absolute user moves, when decom is set
     void moveato(const Cell& cell)
     {
-        moveto({cell.row + ((m_cursor.state & CURSOR_ORIGIN) ? m_top: 0),
+        moveto({cell.row + ((m_cursor.state & CURSOR_ORIGIN) ? m_top : 0),
                 cell.col});
     }
 
-    void selsnap(int *col, int *row, int direction)
+    void selsnap(int* col, int* row, int direction)
     {
         int newcol, newrow, colt, rowt;
         int delim, prevdelim;
         Glyph *gp, *prevgp;
 
-        switch (m_sel.snap)
-        {
-        case Selection::Snap::Word:
-            // Snap around if the word wraps around at the end or
-            // beginning of a line.
+        switch (m_sel.snap) {
+            case Selection::Snap::Word:
+                // Snap around if the word wraps around at the end or
+                // beginning of a line.
 
-            prevgp = &m_lines[*row][*col];
-            prevdelim = isdelim(prevgp->u);
-            for (;;)
-            {
-                newcol = *col + direction;
-                newrow = *row;
-                if (newcol < 0 || (m_cols - 1) < newcol)
-                {
-                    newrow += direction;
-                    newcol = (newcol + m_cols) % m_cols;
-                    if (newrow < 0 || (m_rows - 1) < newrow)
+                prevgp = &m_lines[*row][*col];
+                prevdelim = isdelim(prevgp->u);
+                for (;;) {
+                    newcol = *col + direction;
+                    newrow = *row;
+                    if (newcol < 0 || (m_cols - 1) < newcol) {
+                        newrow += direction;
+                        newcol = (newcol + m_cols) % m_cols;
+                        if (newrow < 0 || (m_rows - 1) < newrow)
+                            break;
+
+                        if (direction > 0)
+                            rowt = *row, colt = *col;
+                        else
+                            rowt = newrow, colt = newcol;
+                        if (!attr({rowt, colt})[ATTR_WRAP])
+                            break;
+                    }
+
+                    if (newcol >= linelen(newrow))
                         break;
 
-                    if (direction > 0)
-                        rowt = *row, colt = *col;
-                    else
-                        rowt = newrow, colt = newcol;
-                    if (!attr({rowt, colt})[ATTR_WRAP])
+                    gp = &m_lines[newrow][newcol];
+                    delim = isdelim(gp->u);
+                    if (!gp->attr[ATTR_WDUMMY] &&
+                            (delim != prevdelim || (delim && gp->u != prevgp->u)))
                         break;
+
+                    *col = newcol;
+                    *row = newrow;
+                    prevgp = gp;
+                    prevdelim = delim;
                 }
+                break;
+            case Selection::Snap::Line:
+                // Snap around if the the previous line or the current one
+                // has set ATTR_WRAP at its end. Then the whole next or
+                // previous line will be selected.
 
-                if (newcol >= linelen(newrow))
-                    break;
-
-                gp = &m_lines[newrow][newcol];
-                delim = isdelim(gp->u);
-                if (!gp->attr[ATTR_WDUMMY] &&
-                        (delim != prevdelim || (delim && gp->u != prevgp->u)))
-                    break;
-
-                *col = newcol;
-                *row = newrow;
-                prevgp = gp;
-                prevdelim = delim;
-            }
-            break;
-        case Selection::Snap::Line:
-            // Snap around if the the previous line or the current one
-            // has set ATTR_WRAP at its end. Then the whole next or
-            // previous line will be selected.
-
-            *col = (direction < 0) ? 0 : m_cols - 1;
-            if (direction < 0)
-            {
-                for (; *row > 0; *row += direction)
-                {
-                    if (!attr({*row-1, m_cols-1})[ATTR_WRAP])
-                    {
-                        break;
+                *col = (direction < 0) ? 0 : m_cols - 1;
+                if (direction < 0) {
+                    for (; *row > 0; *row += direction) {
+                        if (!attr({*row - 1, m_cols - 1})[ATTR_WRAP]) {
+                            break;
+                        }
+                    }
+                } else if (direction > 0) {
+                    for (; *row < m_rows - 1; *row += direction) {
+                        if (!attr({*row, m_cols - 1})[ATTR_WRAP]) {
+                            break;
+                        }
                     }
                 }
-            }
-            else if (direction > 0)
-            {
-                for (; *row < m_rows-1; *row += direction)
-                {
-                    if (!attr({*row, m_cols-1})[ATTR_WRAP])
-                    {
-                        break;
-                    }
-                }
-            }
-            break;
-        default:
-            // noop
-            break;
+                break;
+            default:
+                // noop
+                break;
         }
     }
 
@@ -397,30 +381,23 @@ public:
             return;
 
         if ((orig <= m_sel.ob.row && m_sel.ob.row <= m_bot) ||
-                (orig <= m_sel.oe.row && m_sel.oe.row <= m_bot))
-        {
+                (orig <= m_sel.oe.row && m_sel.oe.row <= m_bot)) {
             if ((m_sel.ob.row += n) > m_bot ||
-                    (m_sel.oe.row += n) < m_top)
-            {
+                    (m_sel.oe.row += n) < m_top) {
                 selclear();
                 return;
             }
-            if (m_sel.rectangular())
-            {
+            if (m_sel.rectangular()) {
                 if (m_sel.ob.row < m_top)
                     m_sel.ob.row = m_top;
                 if (m_sel.oe.row > m_bot)
                     m_sel.oe.row = m_bot;
-            }
-            else
-            {
-                if (m_sel.ob.row < m_top)
-                {
+            } else {
+                if (m_sel.ob.row < m_top) {
                     m_sel.ob.row = m_top;
                     m_sel.ob.col = 0;
                 }
-                if (m_sel.oe.row > m_bot)
-                {
+                if (m_sel.oe.row > m_bot) {
                     m_sel.oe.row = m_bot;
                     m_sel.oe.col = m_cols;
                 }
@@ -431,13 +408,10 @@ public:
 
     void selnormalize()
     {
-        if (!m_sel.rectangular() && m_sel.ob.row != m_sel.oe.row)
-        {
+        if (!m_sel.rectangular() && m_sel.ob.row != m_sel.oe.row) {
             m_sel.nb.col = m_sel.ob.row < m_sel.oe.row ? m_sel.ob.col : m_sel.oe.col;
             m_sel.ne.col = m_sel.ob.row < m_sel.oe.row ? m_sel.oe.col : m_sel.ob.col;
-        }
-        else
-        {
+        } else {
             m_sel.nb.col = std::min(m_sel.ob.col, m_sel.oe.col);
             m_sel.ne.col = std::max(m_sel.ob.col, m_sel.oe.col);
         }
@@ -470,15 +444,14 @@ public:
         return i;
     }
 
-
     bool isdirty(int row) const { return m_dirty[row]; }
-    void setdirty() { setdirty(0, m_rows-1); }
+    void setdirty() { setdirty(0, m_rows - 1); }
     void cleardirty(int row) { m_dirty[row] = false; }
 
     void setdirty(int top, int bot)
     {
-        top = limit(top, 0, m_rows-1);
-        bot = limit(bot, 0, m_rows-1);
+        top = limit(top, 0, m_rows - 1);
+        bot = limit(bot, 0, m_rows - 1);
 
         // todo: std::fill
         for (int i = top; i <= bot; i++)
@@ -528,10 +501,9 @@ private:
     {
         // note: assumes caller normalizes begin/end
 
-        for (int row = begin.row; row <= end.row; row++)
-        {
+        for (int row = begin.row; row <= end.row; row++) {
             auto lineit = m_lines[row].begin();
-            std::fill(lineit+begin.col, lineit+end.col+1, val);
+            std::fill(lineit + begin.col, lineit + end.col + 1, val);
 
             m_dirty[row] = true;
         }
@@ -543,10 +515,10 @@ private:
     screenRows m_lines;     // screen
     screenRows m_alt_lines; // alternate screen
 
-    std::vector<bool> m_dirty;  // dirtyness of lines
+    std::vector<bool> m_dirty; // dirtyness of lines
 
     int m_rows, m_cols; // size
-    int m_top, m_bot; // scroll limits
+    int m_top, m_bot;   // scroll limits
 
     Cursor m_cursor;
     Cursor m_stored_cursors[2];
@@ -557,140 +529,228 @@ private:
 
 Screen::Screen(std::shared_ptr<event::Bus> bus) :
     impl(std::make_unique<ScreenImpl>(std::move(bus)))
-{ }
+{}
 
 Screen::~Screen() = default;
 
 void Screen::reset()
-{ impl->reset(); }
+{
+    impl->reset();
+}
 
 void Screen::resize(int cols, int rows)
-{ impl->resize(cols, rows); }
+{
+    impl->resize(cols, rows);
+}
 
 void Screen::swapscreen()
-{ impl->swapscreen(); }
+{
+    impl->swapscreen();
+}
 
 void Screen::clear()
-{ impl->clear(); }
+{
+    impl->clear();
+}
 
 void Screen::clear(const Cell& begin, const Cell& end)
-{ impl->clear(begin, end); }
+{
+    impl->clear(begin, end);
+}
 
 const glyph_attribute& Screen::attr(const Cell& cell) const
-{ return impl->attr(cell); }
+{
+    return impl->attr(cell);
+}
 
 Glyph& Screen::glyph(const Cell& cell)
-{ return impl->glyph(cell); }
+{
+    return impl->glyph(cell);
+}
 
 const Glyph& Screen::glyph(const Cell& cell) const
-{ return impl->glyph(cell); }
+{
+    return impl->glyph(cell);
+}
 
 void Screen::setGlyph(const Cell& cell, const Glyph& glyph)
-{ impl->setGlyph(cell, glyph); }
+{
+    impl->setGlyph(cell, glyph);
+}
 
 void Screen::newline(bool first_col)
-{ impl->newline(first_col); }
+{
+    impl->newline(first_col);
+}
 
 void Screen::deleteline(int n)
-{ impl->deleteline(n); }
+{
+    impl->deleteline(n);
+}
 
 void Screen::insertblankline(int n)
-{ impl->insertblankline(n); }
+{
+    impl->insertblankline(n);
+}
 
 void Screen::deletechar(int n)
-{ impl->deletechar(n); }
+{
+    impl->deletechar(n);
+}
 
 void Screen::insertblank(int n)
-{ impl->insertblank(n); }
+{
+    impl->insertblank(n);
+}
 
 void Screen::setscroll(int t, int b)
-{ impl->setscroll(t, b); }
+{
+    impl->setscroll(t, b);
+}
 
 void Screen::scrollup(int orig, int n)
-{ impl->scrollup(orig, n); }
+{
+    impl->scrollup(orig, n);
+}
 
 void Screen::scrolldown(int orig, int n)
-{ impl->scrolldown(orig, n); }
+{
+    impl->scrolldown(orig, n);
+}
 
 void Screen::moveto(const Cell& cell)
-{ impl->moveto(cell); }
+{
+    impl->moveto(cell);
+}
 
 void Screen::moveato(const Cell& cell)
-{ impl->moveato(cell); }
+{
+    impl->moveato(cell);
+}
 
-void Screen::selsnap(int *col, int *row, int direction)
-{ impl->selsnap(col, row, direction); }
+void Screen::selsnap(int* col, int* row, int direction)
+{
+    impl->selsnap(col, row, direction);
+}
 
 void Screen::selclear()
-{ impl->selclear(); }
+{
+    impl->selclear();
+}
 
 void Screen::selscroll(int orig, int n)
-{ impl->selscroll(orig, n); }
+{
+    impl->selscroll(orig, n);
+}
 
 void Screen::selnormalize()
-{ impl->selnormalize(); }
+{
+    impl->selnormalize();
+}
 
 int Screen::linelen(int row)
-{ return impl->linelen(row); }
+{
+    return impl->linelen(row);
+}
 
 bool Screen::isdirty(int row) const
-{ return impl->isdirty(row); }
+{
+    return impl->isdirty(row);
+}
 
 void Screen::setdirty()
-{ impl->setdirty(); }
+{
+    impl->setdirty();
+}
 
 void Screen::setdirty(int top, int bot)
-{ impl->setdirty(top, bot); }
+{
+    impl->setdirty(top, bot);
+}
 
 void Screen::cleardirty(int row)
-{ impl->cleardirty(row); }
+{
+    impl->cleardirty(row);
+}
 
 screenRows& Screen::lines()
-{ return impl->lines(); }
+{
+    return impl->lines();
+}
 
 const screenRows& Screen::lines() const
-{ return impl->lines(); }
+{
+    return impl->lines();
+}
 
 screenRow& Screen::line(int row)
-{ return impl->line(row); }
+{
+    return impl->line(row);
+}
 
 const screenRow& Screen::line(int row) const
-{ return impl->line(row); }
+{
+    return impl->line(row);
+}
 
 const int Screen::rows() const
-{ return impl->rows(); }
+{
+    return impl->rows();
+}
 
 const int Screen::cols() const
-{ return impl->cols(); }
+{
+    return impl->cols();
+}
 
 const int Screen::top() const
-{ return impl->top(); }
+{
+    return impl->top();
+}
 
 const int Screen::bot() const
-{ return impl->bot(); }
+{
+    return impl->bot();
+}
 
 const Cursor& Screen::cursor() const
-{ return impl->cursor(); }
+{
+    return impl->cursor();
+}
 
 void Screen::setCursor(const Cursor& cursor)
-{ impl->setCursor(cursor); }
+{
+    impl->setCursor(cursor);
+}
 
 const Cursor& Screen::storedCursor(int idx) const
-{ return impl->storedCursor(idx); }
+{
+    return impl->storedCursor(idx);
+}
 
 void Screen::setStoredCursor(int idx, const Cursor& cursor)
-{ impl->setStoredCursor(idx, cursor); }
+{
+    impl->setStoredCursor(idx, cursor);
+}
 
 const cursor_type Screen::cursortype() const
-{ return impl->cursortype(); }
+{
+    return impl->cursortype();
+}
 
 void Screen::setCursortype(cursor_type t)
-{ impl->setCursortype(t); }
+{
+    impl->setCursortype(t);
+}
 
 Selection& Screen::sel()
-{ return impl->sel(); }
+{
+    return impl->sel();
+}
 
 const Selection& Screen::sel() const
-{ return impl->sel(); }
+{
+    return impl->sel();
+}
 
 } // namespace screen

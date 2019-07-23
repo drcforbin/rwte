@@ -19,10 +19,11 @@
 
 namespace renderer {
 
-template<typename T,
-    typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
-constexpr T limit(T x, T a, T b) {
-    return x < a? a : (x > b? b : x);
+template <typename T,
+        typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
+constexpr T limit(T x, T a, T b)
+{
+    return x < a ? a : (x > b ? b : x);
 }
 
 constexpr uint16_t sixd_to_16bit(int x)
@@ -33,8 +34,7 @@ constexpr uint16_t sixd_to_16bit(int x)
 static uint32_t lookup_color(uint32_t color)
 {
     // only need to lookup color if the magic bit is set
-    if (!color::isTruecol(color))
-    {
+    if (!color::isTruecol(color)) {
         // get colors lut
         auto L = rwte->lua();
         L->getglobal("config");
@@ -46,31 +46,24 @@ static uint32_t lookup_color(uint32_t color)
         L->geti(-1, color);
         int isnum = 0;
         uint32_t t = L->tointegerx(-1, &isnum);
-        if (isnum)
-        {
+        if (isnum) {
             // it's valid, we can use it
             color = t;
-        }
-        else
-        {
-            if (16 <= color && color <= 255)
-            {
+        } else {
+            if (16 <= color && color <= 255) {
                 // 256 color
-                if (color < 6*6*6+16)
-                {
+                if (color < 6 * 6 * 6 + 16) {
                     // same colors as xterm
                     color = color::truecol(
-                            sixd_to_16bit( ((color-16)/36)%6 ),
-                            sixd_to_16bit( ((color-16)/6) %6 ),
-                            sixd_to_16bit( ((color-16)/1) %6 ));
+                            sixd_to_16bit(((color - 16) / 36) % 6),
+                            sixd_to_16bit(((color - 16) / 6) % 6),
+                            sixd_to_16bit(((color - 16) / 1) % 6));
                 } else {
                     // greyscale
-                    int val = 0x0808 + 0x0a0a * (color - (6*6*6+16));
+                    int val = 0x0808 + 0x0a0a * (color - (6 * 6 * 6 + 16));
                     color = color::truecol(val, val, val);
                 }
-            }
-            else
-            {
+            } else {
                 // no match...find out what the black index is
                 L->getfield(-3, "black_idx");
                 color = L->tointegerx(-1, &isnum);
@@ -94,7 +87,7 @@ static uint32_t lookup_color(uint32_t color)
 }
 
 using shared_surface = std::shared_ptr<cairo_surface_t>;
-static shared_surface make_shared(cairo_surface_t *surface)
+static shared_surface make_shared(cairo_surface_t* surface)
 {
     return {surface, cairo_surface_destroy};
 }
@@ -104,9 +97,9 @@ class Context
 public:
     Context() {}
 
-    Context(cairo_surface_t *surface) :
+    Context(cairo_surface_t* surface) :
         m_ctx(cairo_create(surface))
-    { }
+    {}
 
     // copy ctor
     Context(const Context& other)
@@ -118,12 +111,11 @@ public:
     // move ctor
     Context(Context&& other) noexcept :
         m_ctx(std::exchange(other.m_ctx, nullptr))
-    { }
+    {}
 
     ~Context()
     {
-        if (m_ctx)
-        {
+        if (m_ctx) {
             cairo_destroy(m_ctx);
             m_ctx = nullptr;
         }
@@ -132,7 +124,7 @@ public:
     // copy assign
     Context& operator=(const Context& other)
     {
-         return *this = Context(other);
+        return *this = Context(other);
     }
 
     // move assign
@@ -182,7 +174,7 @@ public:
         cairo_set_source_rgb(m_ctx, r, g, b);
     }
 
-    void showLayout(PangoLayout *layout)
+    void showLayout(PangoLayout* layout)
     {
         pango_cairo_show_layout(m_ctx, layout);
     }
@@ -209,25 +201,35 @@ public:
         setSourceRgb(r, g, b);
     }
 
-    cairo_t *get() { return m_ctx; }
+    cairo_t* get() { return m_ctx; }
 
 private:
-    cairo_t *m_ctx = nullptr;
+    cairo_t* m_ctx = nullptr;
 };
 
 using shared_font_options = std::shared_ptr<cairo_font_options_t>;
-static shared_font_options make_shared(cairo_font_options_t *fo)
+static shared_font_options make_shared(cairo_font_options_t* fo)
 {
     return {fo, cairo_font_options_destroy};
 }
 
-struct font_desc_deleter {
-    void operator()(PangoFontDescription* fontdesc) { if (fontdesc) pango_font_description_free(fontdesc); }
+struct font_desc_deleter
+{
+    void operator()(PangoFontDescription* fontdesc)
+    {
+        if (fontdesc)
+            pango_font_description_free(fontdesc);
+    }
 };
 using unique_font_desc = std::unique_ptr<PangoFontDescription, font_desc_deleter>;
 
-struct layout_deleter {
-    void operator()(PangoLayout* layout) { if (layout) g_object_unref(layout); }
+struct layout_deleter
+{
+    void operator()(PangoLayout* layout)
+    {
+        if (layout)
+            g_object_unref(layout);
+    }
 };
 using unique_layout = std::unique_ptr<PangoLayout, layout_deleter>;
 
@@ -246,8 +248,7 @@ static shared_font_options create_font_options()
 static unique_font_desc create_font_desc()
 {
     std::string font = options.font;
-    if (font.empty())
-    {
+    if (font.empty()) {
         // get font from lua config
         font = lua::config::get_string("font");
         if (font.empty())
@@ -276,7 +277,7 @@ static int get_cursor_thickness()
 class Surface
 {
 public:
-    Surface(cairo_surface_t *surface, shared_font_options fo, int width, int height) :
+    Surface(cairo_surface_t* surface, shared_font_options fo, int width, int height) :
         m_surface(make_shared(surface)),
         m_surfcr(surface),
         m_fo(std::move(fo)),
@@ -302,12 +303,12 @@ public:
     }
 
     Context cr() const { return m_drawcr; }
-    PangoLayout *layout() const { return m_layout.get(); }
+    PangoLayout* layout() const { return m_layout.get(); }
 
 private:
     unique_layout create_layout(Context& cr)
     {
-        PangoContext *context = pango_cairo_create_context(cr.get());
+        PangoContext* context = pango_cairo_create_context(cr.get());
         pango_cairo_context_set_font_options(context, m_fo.get());
 
         unique_layout layout(pango_layout_new(context));
@@ -336,10 +337,10 @@ private:
 class RendererImpl
 {
 public:
-    RendererImpl(term::Term *term);
+    RendererImpl(term::Term* term);
 
-    void load_font(cairo_surface_t *root_surface);
-    void set_surface(cairo_surface_t *surface, int width, int height);
+    void load_font(cairo_surface_t* root_surface);
+    void set_surface(cairo_surface_t* surface, int width, int height);
 
     void resize(int width, int height);
 
@@ -352,44 +353,44 @@ public:
 
 private:
     void clear(Context& cr, int x1, int y1, int x2, int y2);
-    void drawglyph(Context& cr, PangoLayout *layout,
+    void drawglyph(Context& cr, PangoLayout* layout,
             const screen::Glyph& glyph, const Cell& cell);
-    void drawglyphs(Context& cr, PangoLayout *layout,
+    void drawglyphs(Context& cr, PangoLayout* layout,
             const screen::glyph_attribute& attr, uint32_t fg, uint32_t bg,
             const std::vector<char32_t>& runes, const Cell& cell);
-    void drawcursor(Context& cr, PangoLayout *layout);
+    void drawcursor(Context& cr, PangoLayout* layout);
     void load_font(Context& cr);
-    cairo_font_options_t *get_font_options();
+    cairo_font_options_t* get_font_options();
 
-    term::Term *m_term;
+    term::Term* m_term;
 
     shared_font_options m_fo;
     std::unique_ptr<Surface> m_surface;
 
     int m_cw = 0, m_ch = 0;
     int m_width = 0, m_height = 0;
-    Cell m_lastcur {0, 0};
+    Cell m_lastcur{0, 0};
 
     unique_font_desc m_fontdesc;
     int m_border_px;
 };
 
-RendererImpl::RendererImpl(term::Term *term) :
+RendererImpl::RendererImpl(term::Term* term) :
     m_term(term),
     m_fo(create_font_options()),
     m_fontdesc(create_font_desc()),
     // initial border_px value; we'll keep it semi-fresh as
     // calls are made to public funcs
     m_border_px(get_border_px())
-{ }
+{}
 
-void RendererImpl::load_font(cairo_surface_t *root_surface)
+void RendererImpl::load_font(cairo_surface_t* root_surface)
 {
-    Context cr {root_surface};
+    Context cr{root_surface};
     load_font(cr);
 }
 
-void RendererImpl::set_surface(cairo_surface_t *surface, int width, int height)
+void RendererImpl::set_surface(cairo_surface_t* surface, int width, int height)
 {
     m_width = width;
     m_height = height;
@@ -407,8 +408,7 @@ void RendererImpl::resize(int width, int height)
 
     m_surface->resize(width, height);
 
-    if (m_width < width)
-    {
+    if (m_width < width) {
         // paint from old width to new width, top to old height
         auto cr = m_surface->cr();
         cr.setSourceColor(m_term->defbg());
@@ -416,8 +416,7 @@ void RendererImpl::resize(int width, int height)
         cr.fill();
     }
 
-    if (m_height < height)
-    {
+    if (m_height < height) {
         // paint from old height to new height, all the way across
         auto cr = m_surface->cr();
         cr.setSourceColor(m_term->defbg());
@@ -453,40 +452,35 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
 
     auto& sel = m_term->sel();
     bool ena_sel = !sel.empty() &&
-        sel.alt == m_term->mode()[term::MODE_ALTSCREEN];
+                   sel.alt == m_term->mode()[term::MODE_ALTSCREEN];
 
     std::vector<char32_t> runes;
     Cell cell;
-    for (cell.row = begin.row; cell.row < end.row; cell.row++)
-    {
+    for (cell.row = begin.row; cell.row < end.row; cell.row++) {
         if (!m_term->isdirty(cell.row))
             continue;
 
         m_term->cleardirty(cell.row);
 
         cell.col = begin.col;
-        while (cell.col < end.col)
-        {
+        while (cell.col < end.col) {
             runes.clear();
 
             // making a copy, because we want to reverse it if it's
             // selected, without modifying the original
             screen::Glyph g = m_term->glyph(cell);
-            if (!g.attr[screen::ATTR_WDUMMY])
-            {
+            if (!g.attr[screen::ATTR_WDUMMY]) {
                 if (ena_sel && sel.selected(cell))
                     g.attr.flip(screen::ATTR_REVERSE);
             }
 
             runes.push_back(g.u);
 
-            for (int lookahead = cell.col + 1; lookahead < end.col; lookahead++)
-            {
+            for (int lookahead = cell.col + 1; lookahead < end.col; lookahead++) {
                 const screen::Glyph& g2 = m_term->glyph(
                         {cell.row, lookahead});
                 screen::glyph_attribute attr2 = g2.attr;
-                if (!attr2[screen::ATTR_WDUMMY])
-                {
+                if (!attr2[screen::ATTR_WDUMMY]) {
                     if (ena_sel && sel.selected({cell.row, lookahead}))
                         attr2.flip(screen::ATTR_REVERSE);
                 }
@@ -513,9 +507,8 @@ Cell RendererImpl::pxtocell(int x, int y) const
     int row = (y - m_border_px) / m_ch;
 
     return {
-        limit(row, 0, (m_height/m_ch)-1),
-        limit(col, 0, (m_width/m_cw)-1)
-    };
+            limit(row, 0, (m_height / m_ch) - 1),
+            limit(col, 0, (m_width / m_cw) - 1)};
 }
 
 void RendererImpl::clear(Context& cr, int x1, int y1, int x2, int y2)
@@ -532,14 +525,14 @@ void RendererImpl::clear(Context& cr, int x1, int y1, int x2, int y2)
     cr.fill();
 }
 
-void RendererImpl::drawglyph(Context& cr, PangoLayout *layout,
+void RendererImpl::drawglyph(Context& cr, PangoLayout* layout,
         const screen::Glyph& glyph, const Cell& cell)
 {
-    const std::vector<char32_t> rune {glyph.u};
+    const std::vector<char32_t> rune{glyph.u};
     drawglyphs(cr, layout, glyph.attr, glyph.fg, glyph.bg, rune, cell);
 }
 
-void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
+void RendererImpl::drawglyphs(Context& cr, PangoLayout* layout,
         const screen::glyph_attribute& attr, uint32_t fg, uint32_t bg,
         const std::vector<char32_t>& runes, const Cell& cell)
 {
@@ -552,8 +545,7 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
     if (attr[screen::ATTR_BOLD] && fg <= 7)
         fg = lookup_color(fg + 8);
 
-    if (m_term->mode()[term::MODE_REVERSE])
-    {
+    if (m_term->mode()[term::MODE_REVERSE]) {
         // if the fg or bg color is a default, use the other one,
         // otherwise invert them bitwise
 
@@ -577,8 +569,7 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
     }
 
     // todo: this assumes darker is fainter
-    if (attr[screen::ATTR_FAINT])
-    {
+    if (attr[screen::ATTR_FAINT]) {
         fg = lookup_color(fg);
         fg = color::truecol(
                 color::redByte(fg) / 2,
@@ -596,19 +587,17 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
         fg = bg;
 
     // border cleanup
-    if (cell.col == 0)
-    {
-        clear(cr, 0, (cell.row == 0)? 0 : winy, m_border_px,
-            winy + m_ch + ((cell.row >= m_term->rows()-1)? m_height : 0));
+    if (cell.col == 0) {
+        clear(cr, 0, (cell.row == 0) ? 0 : winy, m_border_px,
+                winy + m_ch + ((cell.row >= m_term->rows() - 1) ? m_height : 0));
     }
-    if (cell.col + charlen >= m_term->cols())
-    {
-        clear(cr, winx + width, (cell.row == 0)? 0 : winy, m_width,
-            ((cell.row >= m_term->rows()-1)? m_height : (winy + m_ch)));
+    if (cell.col + charlen >= m_term->cols()) {
+        clear(cr, winx + width, (cell.row == 0) ? 0 : winy, m_width,
+                ((cell.row >= m_term->rows() - 1) ? m_height : (winy + m_ch)));
     }
     if (cell.row == 0)
         clear(cr, winx, 0, winx + width, m_border_px);
-    if (cell.row == m_term->rows()-1)
+    if (cell.row == m_term->rows() - 1)
         clear(cr, winx, winy + m_ch, winx + width, m_height);
 
     // clean up the region we want to draw to.
@@ -626,8 +615,7 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
     std::vector<char> buf;
     char encoded[utf_size];
     std::size_t glyphlen = 0;
-    for (const auto& rune : runes)
-    {
+    for (const auto& rune : runes) {
         glyphlen = utf8encode(rune, encoded);
         std::copy(encoded, encoded + glyphlen, std::back_inserter(buf));
     }
@@ -638,33 +626,29 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
     pango_layout_set_text(layout, &buf[0], -1);
     pango_layout_set_font_description(layout, m_fontdesc.get());
 
-    PangoAttrList *attrlist = nullptr;
+    PangoAttrList* attrlist = nullptr;
 
-    if (attr[screen::ATTR_ITALIC])
-    {
+    if (attr[screen::ATTR_ITALIC]) {
         attrlist = pango_attr_list_new();
         auto attr = pango_attr_style_new(PANGO_STYLE_ITALIC);
         pango_attr_list_insert(attrlist, attr);
     }
 
-    if (attr[screen::ATTR_BOLD])
-    {
+    if (attr[screen::ATTR_BOLD]) {
         if (!attrlist)
             attrlist = pango_attr_list_new();
         auto attr = pango_attr_weight_new(PANGO_WEIGHT_BOLD);
         pango_attr_list_insert(attrlist, attr);
     }
 
-    if (attr[screen::ATTR_UNDERLINE])
-    {
+    if (attr[screen::ATTR_UNDERLINE]) {
         if (!attrlist)
             attrlist = pango_attr_list_new();
         auto attr = pango_attr_underline_new(PANGO_UNDERLINE_SINGLE);
         pango_attr_list_insert(attrlist, attr);
     }
 
-    if (attr[screen::ATTR_STRUCK])
-    {
+    if (attr[screen::ATTR_STRUCK]) {
         if (!attrlist)
             attrlist = pango_attr_list_new();
         auto attr = pango_attr_strikethrough_new(true);
@@ -680,7 +664,7 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout *layout,
     cr.showLayout(layout);
 }
 
-void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
+void RendererImpl::drawcursor(Context& cr, PangoLayout* layout)
 {
     screen::Glyph g;
     g.u = ' ';
@@ -689,8 +673,8 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
 
     auto& cursor = m_term->cursor();
 
-    m_lastcur.col = limit(m_lastcur.col, 0, m_term->cols()-1);
-    m_lastcur.row = limit(m_lastcur.row, 0, m_term->rows()-1);
+    m_lastcur.col = limit(m_lastcur.col, 0, m_term->cols() - 1);
+    m_lastcur.row = limit(m_lastcur.row, 0, m_term->rows() - 1);
 
     int curcol = cursor.col;
 
@@ -702,7 +686,7 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
 
     auto& sel = m_term->sel();
     bool ena_sel = !sel.empty() &&
-        sel.alt == m_term->mode()[term::MODE_ALTSCREEN];
+                   sel.alt == m_term->mode()[term::MODE_ALTSCREEN];
 
     // remove the old cursor
     // making a copy, because we want to reverse it if it's
@@ -721,31 +705,22 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
 
     // select the right color for the right mode.
     uint32_t drawcol;
-    if (m_term->mode()[term::MODE_REVERSE])
-    {
+    if (m_term->mode()[term::MODE_REVERSE]) {
         g.attr.set(screen::ATTR_REVERSE);
         g.bg = m_term->deffg();
-        if (ena_sel && sel.selected(cursor))
-        {
+        if (ena_sel && sel.selected(cursor)) {
             drawcol = m_term->defcs();
             g.fg = m_term->defrcs();
-        }
-        else
-        {
+        } else {
             drawcol = m_term->defrcs();
             g.fg = m_term->defcs();
         }
-    }
-    else
-    {
-        if (ena_sel && sel.selected(cursor))
-        {
+    } else {
+        if (ena_sel && sel.selected(cursor)) {
             drawcol = m_term->defrcs();
             g.fg = m_term->deffg();
             g.bg = m_term->defrcs();
-        }
-        else
-        {
+        } else {
             drawcol = m_term->defcs();
         }
     }
@@ -754,64 +729,53 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout *layout)
         return;
 
     // draw the new one
-    if (m_term->focused())
-    {
-        switch (m_term->cursortype())
-        {
-        case screen::cursor_type::CURSOR_BLINK_BLOCK:
-            if (m_term->mode()[term::MODE_BLINK])
+    if (m_term->focused()) {
+        switch (m_term->cursortype()) {
+            case screen::cursor_type::CURSOR_BLINK_BLOCK:
+                if (m_term->mode()[term::MODE_BLINK])
+                    break;
+                // fall through
+            case screen::cursor_type::CURSOR_STEADY_BLOCK:
+                g.attr[screen::ATTR_WIDE] = m_term->glyph({cursor.row, curcol})
+                                                    .attr[screen::ATTR_WIDE];
+                drawglyph(cr, layout, g, cursor);
                 break;
-            // fall through
-        case screen::cursor_type::CURSOR_STEADY_BLOCK:
-            g.attr[screen::ATTR_WIDE] = m_term->glyph({cursor.row, curcol})
-                .attr[screen::ATTR_WIDE];
-            drawglyph(cr, layout, g, cursor);
-            break;
-        case screen::cursor_type::CURSOR_BLINK_UNDER:
-            if (m_term->mode()[term::MODE_BLINK])
-                break;
-            // fall through
-        case screen::cursor_type::CURSOR_STEADY_UNDER:
-            {
+            case screen::cursor_type::CURSOR_BLINK_UNDER:
+                if (m_term->mode()[term::MODE_BLINK])
+                    break;
+                // fall through
+            case screen::cursor_type::CURSOR_STEADY_UNDER: {
                 int cursor_thickness = get_cursor_thickness();
                 cr.setSourceColor(drawcol);
                 cr.rectangle(
-                    m_border_px + curcol * m_cw,
-                    m_border_px + (cursor.row + 1) * m_ch - cursor_thickness,
-                    m_cw,
-                    cursor_thickness
-                );
+                        m_border_px + curcol * m_cw,
+                        m_border_px + (cursor.row + 1) * m_ch - cursor_thickness,
+                        m_cw,
+                        cursor_thickness);
                 cr.fill();
-            }
-            break;
-        case screen::cursor_type::CURSOR_BLINK_BAR:
-            if (m_term->mode()[term::MODE_BLINK])
-                break;
-            // fall through
-        case screen::cursor_type::CURSOR_STEADY_BAR:
-            {
+            } break;
+            case screen::cursor_type::CURSOR_BLINK_BAR:
+                if (m_term->mode()[term::MODE_BLINK])
+                    break;
+                // fall through
+            case screen::cursor_type::CURSOR_STEADY_BAR: {
                 int cursor_thickness = get_cursor_thickness();
                 cr.setSourceColor(drawcol);
                 cr.rectangle(
-                    m_border_px + curcol * m_cw,
-                    m_border_px + cursor.row * m_ch,
-                    cursor_thickness,
-                    m_ch
-                );
+                        m_border_px + curcol * m_cw,
+                        m_border_px + cursor.row * m_ch,
+                        cursor_thickness,
+                        m_ch);
                 cr.fill();
-            }
-            break;
+            } break;
         }
-    }
-    else
-    {
+    } else {
         cr.setSourceColor(drawcol);
         cr.rectangle(
-            m_border_px + curcol * m_cw + 0.5,
-            m_border_px + cursor.row * m_ch + 0.5,
-            m_cw - 1,
-            m_ch - 1
-        );
+                m_border_px + curcol * m_cw + 0.5,
+                m_border_px + cursor.row * m_ch + 0.5,
+                m_cw - 1,
+                m_ch - 1);
         cr.stroke();
     }
 
@@ -837,24 +801,24 @@ void RendererImpl::load_font(Context& cr)
     L->pop(3);
 
     // don't free defaults
-    PangoFontMap *fontmap = pango_cairo_font_map_get_default();
-    PangoLanguage *lang = pango_language_get_default();
+    PangoFontMap* fontmap = pango_cairo_font_map_get_default();
+    PangoLanguage* lang = pango_language_get_default();
 
     // measure font
-    PangoContext *context = pango_cairo_create_context(cr.get());
-    PangoFont *font = pango_font_map_load_font(fontmap, context, m_fontdesc.get());
-    PangoFontMetrics *metrics = pango_font_get_metrics(font, lang);
+    PangoContext* context = pango_cairo_create_context(cr.get());
+    PangoFont* font = pango_font_map_load_font(fontmap, context, m_fontdesc.get());
+    PangoFontMetrics* metrics = pango_font_get_metrics(font, lang);
     m_cw = std::ceil(
             (pango_font_metrics_get_approximate_char_width(metrics) / PANGO_SCALE) *
             cw_scale);
     m_ch = std::ceil(
             ((pango_font_metrics_get_ascent(metrics) +
-                pango_font_metrics_get_descent(metrics)) / PANGO_SCALE) *
+                     pango_font_metrics_get_descent(metrics)) /
+                    PANGO_SCALE) *
             ch_scale);
 
-    if (LOGGER()->level() <= logging::debug)
-    {
-        char *font = pango_font_description_to_string(m_fontdesc.get());
+    if (LOGGER()->level() <= logging::debug) {
+        char* font = pango_font_description_to_string(m_fontdesc.get());
         LOGGER()->debug("loaded {}, font size {}x{}", font, m_cw, m_ch);
         g_free(font);
     }
@@ -864,31 +828,45 @@ void RendererImpl::load_font(Context& cr)
     g_object_unref(context);
 }
 
-Renderer::Renderer(term::Term *term) :
+Renderer::Renderer(term::Term* term) :
     impl(std::make_unique<RendererImpl>(term))
-{ }
+{}
 
 Renderer::~Renderer() = default;
 
-void Renderer::load_font(cairo_surface_t *root_surface)
-{ impl->load_font(root_surface); }
+void Renderer::load_font(cairo_surface_t* root_surface)
+{
+    impl->load_font(root_surface);
+}
 
-void Renderer::set_surface(cairo_surface_t *surface, int width, int height)
-{ impl->set_surface(surface, width, height); }
+void Renderer::set_surface(cairo_surface_t* surface, int width, int height)
+{
+    impl->set_surface(surface, width, height);
+}
 
 void Renderer::resize(int width, int height)
-{ impl->resize(width, height); }
+{
+    impl->resize(width, height);
+}
 
 int Renderer::charwidth() const
-{ return impl->charwidth(); }
+{
+    return impl->charwidth();
+}
 
 int Renderer::charheight() const
-{ return impl->charheight(); }
+{
+    return impl->charheight();
+}
 
 void Renderer::drawregion(const Cell& begin, const Cell& end)
-{ impl->drawregion(begin, end); }
+{
+    impl->drawregion(begin, end);
+}
 
 Cell Renderer::pxtocell(int x, int y) const
-{ return impl->pxtocell(x, y); }
+{
+    return impl->pxtocell(x, y);
+}
 
 } // namespace renderer

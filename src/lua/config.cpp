@@ -5,7 +5,7 @@
 namespace lua {
 namespace config {
 
-int get_int(const char *name, int def)
+int get_int(const char* name, int def)
 {
     auto L = rwte->lua();
     L->getglobal("config");
@@ -16,7 +16,7 @@ int get_int(const char *name, int def)
     return val;
 }
 
-float get_float(const char *name, float def)
+float get_float(const char* name, float def)
 {
     auto L = rwte->lua();
     L->getglobal("config");
@@ -27,7 +27,7 @@ float get_float(const char *name, float def)
     return val;
 }
 
-bool get_bool(const char *name, bool def)
+bool get_bool(const char* name, bool def)
 {
     auto L = rwte->lua();
     L->getglobal("config");
@@ -38,14 +38,14 @@ bool get_bool(const char *name, bool def)
     return val;
 }
 
-std::string get_string(const char *name)
+std::string get_string(const char* name)
 {
     std::string val;
 
     auto L = rwte->lua();
     L->getglobal("config");
     L->getfield(-1, name);
-    const char * s = L->tostring(-1);
+    const char* s = L->tostring(-1);
     if (s)
         val = s;
     L->pop(2);

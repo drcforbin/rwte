@@ -2,12 +2,14 @@
 #define RWTE_EVENT_H
 
 #include "rwte/bus.h"
+
 #include <memory>
 
 namespace event {
 
 // todo: remove?
-class SetPrintMode {};
+class SetPrintMode
+{};
 
 struct Resize
 {
@@ -15,13 +17,14 @@ struct Resize
     int cols, rows;
 };
 
-struct Refresh {};
+struct Refresh
+{};
 
 typedef Bus<
-    SetPrintMode,
-    Resize,
-    Refresh
-> Bus;
+        SetPrintMode,
+        Resize,
+        Refresh>
+        Bus;
 
 } // namespace event
 

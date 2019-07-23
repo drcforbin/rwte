@@ -10,10 +10,12 @@ namespace wlwin {
 
 class BufferPool;
 
-class Buffer : public wayland::Buffer<Buffer> {
+class Buffer : public wayland::Buffer<Buffer>
+{
     using Base = wayland::Buffer<Buffer>;
+
 public:
-    Buffer(BufferPool *pool, wl_buffer *buffer, unsigned char *data,
+    Buffer(BufferPool* pool, wl_buffer* buffer, unsigned char* data,
             int width, int height, int stride);
     ~Buffer();
 
@@ -21,7 +23,7 @@ public:
     Buffer(const Buffer&) = delete;
     Buffer& operator=(const Buffer&) = delete;
 
-    unsigned char *data() { return m_data; }
+    unsigned char* data() { return m_data; }
     int width() const { return m_width; }
     int height() const { return m_height; }
     int stride() const { return m_stride; }
@@ -35,8 +37,8 @@ protected:
     void handle_release();
 
 private:
-    BufferPool *m_pool = nullptr;
-    unsigned char *m_data = nullptr;
+    BufferPool* m_pool = nullptr;
+    unsigned char* m_data = nullptr;
     int m_width = 0;
     int m_height = 0;
     int m_stride = 0;
@@ -46,9 +48,9 @@ private:
 class BufferPool
 {
 public:
-    BufferPool(wl_shm *shm) :
+    BufferPool(wl_shm* shm) :
         m_shm(shm)
-    { }
+    {}
 
     bool create_buffers(int width, int height);
     bool resize(int width, int height);
@@ -58,10 +60,10 @@ public:
 protected:
     friend class Buffer;
 
-    void release_buffer(Buffer *buffer);
+    void release_buffer(Buffer* buffer);
 
 private:
-    struct wl_shm *m_shm;
+    struct wl_shm* m_shm;
 
     std::vector<std::unique_ptr<Buffer>> buffers;
 };

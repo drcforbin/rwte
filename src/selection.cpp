@@ -49,9 +49,9 @@ bool Selection::selected(const Cell& cell) const
 
     if (m_rectangular)
         return (nb.row <= cell.row && cell.row <= ne.row) &&
-                (nb.col <= cell.col && cell.col <= ne.col);
+               (nb.col <= cell.col && cell.col <= ne.col);
 
     return (nb.row <= cell.row && cell.row <= ne.row) &&
-            (cell.row != nb.row || cell.col >= nb.col) &&
-            (cell.row != ne.row || cell.col <= ne.col);
+           (cell.row != nb.row || cell.col >= nb.col) &&
+           (cell.row != ne.row || cell.col <= ne.col);
 }

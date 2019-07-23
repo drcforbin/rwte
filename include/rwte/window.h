@@ -16,7 +16,8 @@ class Tty;
 
 /// \addtogroup Window
 /// @{
-class WindowError : public std::runtime_error {
+class WindowError : public std::runtime_error
+{
 public:
     explicit WindowError(const std::string& arg);
     explicit WindowError(const char* arg);
@@ -32,7 +33,7 @@ public:
 class Window
 {
 public:
-    virtual ~Window() { }
+    virtual ~Window() {}
 
     // todo: x specific?
     virtual uint32_t windowid() const = 0;

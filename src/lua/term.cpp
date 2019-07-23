@@ -10,7 +10,7 @@
 
 static int term_ref = LUA_NOREF;
 
-const char * const LUATERM = "LUATERM*";
+const char* const LUATERM = "LUATERM*";
 
 struct LuaTermStruct
 {
@@ -21,15 +21,12 @@ struct LuaTermStruct
 // a sort of generic "get shared object" func in lua::State
 static inline std::shared_ptr<term::Term> getterm(lua::State& L)
 {
-    if (L.pushref(term_ref))
-    {
+    if (L.pushref(term_ref)) {
         // get ptr
-        auto p = static_cast<LuaTermStruct *>(L.touserdata(-1));
-        if (p)
-        {
+        auto p = static_cast<LuaTermStruct*>(L.touserdata(-1));
+        if (p) {
             // fetch its metatable
-            if (L.getmetatable(-1))
-            {
+            if (L.getmetatable(-1)) {
                 // fetch expected metatable by name, and compare them
                 L.getmetatable(LUATERM);
                 // todo: add rawequal to lua::State
@@ -49,7 +46,7 @@ static inline std::shared_ptr<term::Term> getterm(lua::State& L)
     return {};
 }
 
-static int term_gc(lua_State *l)
+static int term_gc(lua_State* l)
 {
     lua::State(l).delobj<LuaTermStruct>(1, LUATERM);
     return 0;
@@ -57,8 +54,8 @@ static int term_gc(lua_State *l)
 
 // methods for term object
 static const luaL_Reg term_obj_funcs[] = {
-    {"__gc", term_gc},
-    {nullptr, nullptr},
+        {"__gc", term_gc},
+        {nullptr, nullptr},
 };
 
 /// Returns whether a terminal mode is set.
@@ -67,7 +64,7 @@ static const luaL_Reg term_obj_funcs[] = {
 // @int mode Mode flag. See values in @{modes}
 // @usage
 // is_crlf = term.mode(term.modes.MODE_CRLF)
-static int luaterm_mode(lua_State *l)
+static int luaterm_mode(lua_State* l)
 {
     lua::State L(l);
     auto mode = static_cast<term::term_mode_enum>(L.checkinteger(1));
@@ -87,13 +84,12 @@ static int luaterm_mode(lua_State *l)
 // @string s String to send
 // @usage
 // term.send("\025")
-static int luaterm_send(lua_State *l)
+static int luaterm_send(lua_State* l)
 {
     lua::State L(l);
-    if (auto term = getterm(L))
-    {
+    if (auto term = getterm(L)) {
         size_t len = 0;
-        const char * buffer = L.checklstring(1, &len);
+        const char* buffer = L.checklstring(1, &len);
         term->send(buffer, len);
     }
 
@@ -105,7 +101,7 @@ static int luaterm_send(lua_State *l)
 // @function clipcopy
 // @usage
 // term.clipcopy()
-static int luaterm_clipcopy(lua_State *l)
+static int luaterm_clipcopy(lua_State* l)
 {
     lua::State L(l);
     if (auto term = getterm(L))
@@ -116,13 +112,12 @@ static int luaterm_clipcopy(lua_State *l)
 
 // functions for term library
 static const luaL_Reg term_funcs[] = {
-    {"mode", luaterm_mode},
-    {"send", luaterm_send},
-    {"clipcopy", luaterm_clipcopy},
-    {nullptr, nullptr}
-};
+        {"mode", luaterm_mode},
+        {"send", luaterm_send},
+        {"clipcopy", luaterm_clipcopy},
+        {nullptr, nullptr}};
 
-static int term_openf(lua_State *l)
+static int term_openf(lua_State* l)
 {
     lua::State L(l);
 
@@ -134,8 +129,9 @@ static int term_openf(lua_State *l)
     // @class field
     // @name modes
     L.newtable();
-#define PUSH_ENUM_FIELD(nm)\
-    L.pushinteger(term::nm); L.setfield(-2, #nm)
+#define PUSH_ENUM_FIELD(nm)  \
+    L.pushinteger(term::nm); \
+    L.setfield(-2, #nm)
     PUSH_ENUM_FIELD(MODE_WRAP);
     PUSH_ENUM_FIELD(MODE_INSERT);
     PUSH_ENUM_FIELD(MODE_APPKEYPAD);
@@ -162,10 +158,10 @@ static int term_openf(lua_State *l)
 #undef PUSH_ENUM_FIELD
     L.setfield(-2, "modes");
 
-	return 1;
+    return 1;
 }
 
-void lua::setTerm(lua::State *L, std::shared_ptr<term::Term> term)
+void lua::setTerm(lua::State* L, std::shared_ptr<term::Term> term)
 {
     // alloc and init
     auto p = L->newobj<LuaTermStruct>(LUATERM);
@@ -176,7 +172,7 @@ void lua::setTerm(lua::State *L, std::shared_ptr<term::Term> term)
     L->pop();
 }
 
-void lua::register_luaterm(lua::State *L)
+void lua::register_luaterm(lua::State* L)
 {
     L->requiref("term", term_openf, true);
     L->pop();
