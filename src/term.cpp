@@ -13,23 +13,21 @@
 #include "rwte/utf8.h"
 #include "rwte/window.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 
 #define LOGGER() (logging::get("term"))
 
-// todo: std::min, std::max
-#define MIN(a, b) ((a) < (b)? (a) : (b))
-#define MAX(a, b) ((a) < (b)? (b) : (a))
-
-#define DEFAULT(a, b)  (a) = (a) ? (a) : (b)
-
-// todo: constexpr
-#define TIMEDIFF(t1, t2) \
-        (((t1).tv_sec-(t2).tv_sec)*1000 + \
-         ((t1).tv_nsec-(t2).tv_nsec)/1E6)
-
 namespace term {
+
+template<typename T>
+void defaultval(T& a, const T& b) { a = a? a : b; }
+
+time_t timediff(const timespec& t1, const timespec& t2) {
+    return (t1.tv_sec-t2.tv_sec)*1000 +
+         (t1.tv_nsec-t2.tv_nsec)/1E6;
+}
 
 template<typename T,
     typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
@@ -447,8 +445,8 @@ void TermImpl::resizeCore(int cols, int rows)
 {
     LOGGER()->info("resize to {}x{}", cols, rows);
 
-    int minrow = MIN(rows, m_screen.rows());
-    int mincol = MIN(cols, m_screen.cols());
+    int minrow = std::min(rows, m_screen.rows());
+    int mincol = std::min(cols, m_screen.cols());
 
     if (cols < 1 || rows < 1) {
         LOGGER()->error("attempted resize to {}x{}", cols, rows);
@@ -923,7 +921,7 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
 
                 L->pop(3);
 
-                struct timespec now;
+                timespec now;
                 clock_gettime(CLOCK_MONOTONIC, &now);
 
                 // clear previous selection, logically and visually.
@@ -935,9 +933,9 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
 
                 // if the user clicks below predefined timeouts specific
                 // snapping behaviour is exposed.
-                if (TIMEDIFF(now, sel.tclick2) <= tclick_timeout)
+                if (timediff(now, sel.tclick2) <= tclick_timeout)
                     sel.snap = Selection::Snap::Line;
-                else if (TIMEDIFF(now, sel.tclick1) <= dclick_timeout)
+                else if (timediff(now, sel.tclick1) <= dclick_timeout)
                     sel.snap = Selection::Snap::Word;
                 else
                     sel.snap = Selection::Snap::None;
@@ -994,7 +992,8 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
             getbuttoninfo(cell, mod);
 
             if (oldoe != sel.oe)
-                m_screen.setdirty(MIN(sel.nb.row, oldsbrow), MAX(sel.ne.row, oldserow));
+                m_screen.setdirty(std::min(sel.nb.row, oldsbrow),
+                        std::max(sel.ne.row, oldserow));
         }
     }
 }
@@ -1046,7 +1045,7 @@ void TermImpl::send(const char *data, std::size_t len)
 
 void TermImpl::setchar(char32_t u, const screen::Glyph& attr, const Cell& cell)
 {
-    const char *vt100_0[62] = { // 0x41 - 0x7e
+    const char * const vt100_0[62] = { // 0x41 - 0x7e
         "↑", "↓", "→", "←", "█", "▚", "☃", // A - G
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, // H - O
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, // P - W
@@ -1100,7 +1099,7 @@ void TermImpl::defutf8(char ascii)
 
 void TermImpl::deftran(char ascii)
 {
-    const char cs[] = "0B";
+    const char * const cs = "0B";
     const int vcs[] = {CS_GRAPHIC0, CS_USA};
 
     const char *p;
@@ -1602,16 +1601,16 @@ void TermImpl::csihandle()
     switch (m_csiesc.mode[0])
     {
     case '@': // ICH -- Insert <n> blank char
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.insertblank(m_csiesc.arg[0]);
         break;
     case 'A': // CUU -- Cursor <n> Up
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.moveto({cursor.row-m_csiesc.arg[0], cursor.col});
         break;
     case 'B': // CUD -- Cursor <n> Down
     case 'e': // VPR --Cursor <n> Down
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.moveto({cursor.row+m_csiesc.arg[0], cursor.col});
         break;
     case 'i': // MC -- Media Copy
@@ -1651,19 +1650,19 @@ void TermImpl::csihandle()
         break;
     case 'C': // CUF -- Cursor <n> Forward
     case 'a': // HPR -- Cursor <n> Forward
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.moveto({cursor.row, cursor.col+m_csiesc.arg[0]});
         break;
     case 'D': // CUB -- Cursor <n> Backward
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.moveto({cursor.row, cursor.col-m_csiesc.arg[0]});
         break;
     case 'E': // CNL -- Cursor <n> Down and first col
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.moveto({cursor.row+m_csiesc.arg[0], 0});
         break;
     case 'F': // CPL -- Cursor <n> Up and first col
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.moveto({cursor.row-m_csiesc.arg[0], 0});
         break;
     case 'g': // TBC -- Tabulation clear
@@ -1682,17 +1681,17 @@ void TermImpl::csihandle()
         break;
     case 'G': // CHA -- Move to <col>
     case '`': // HPA
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.moveto({cursor.row, m_csiesc.arg[0]-1});
         break;
     case 'H': // CUP -- Move to <row> <col>
     case 'f': // HVP
-        DEFAULT(m_csiesc.arg[0], 1);
-        DEFAULT(m_csiesc.arg[1], 1);
+        defaultval(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[1], 1);
         m_screen.moveato({m_csiesc.arg[0]-1, m_csiesc.arg[1]-1});
         break;
     case 'I': // CHT -- Cursor Forward Tabulation <n> tab stops
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         puttab(m_csiesc.arg[0]);
         break;
     case 'J': // ED -- Clear screen
@@ -1734,38 +1733,38 @@ void TermImpl::csihandle()
         }
         break;
     case 'S': // SU -- Scroll <n> line up
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.scrollup(m_screen.top(), m_csiesc.arg[0]);
         break;
     case 'T': // SD -- Scroll <n> line down
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.scrolldown(m_screen.top(), m_csiesc.arg[0]);
         break;
     case 'L': // IL -- Insert <n> blank lines
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.insertblankline(m_csiesc.arg[0]);
         break;
     case 'l': // RM -- Reset Mode
         settmode(m_csiesc.priv, false, m_csiesc.arg, m_csiesc.narg);
         break;
     case 'M': // DL -- Delete <n> lines
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.deleteline(m_csiesc.arg[0]);
         break;
     case 'X': // ECH -- Erase <n> char
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.clear(cursor, {cursor.row, cursor.col + m_csiesc.arg[0] - 1});
         break;
     case 'P': // DCH -- Delete <n> char
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.deletechar(m_csiesc.arg[0]);
         break;
     case 'Z': // CBT -- Cursor Backward Tabulation <n> tab stops
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         puttab(-m_csiesc.arg[0]);
         break;
     case 'd': // VPA -- Move to <row>
-        DEFAULT(m_csiesc.arg[0], 1);
+        defaultval(m_csiesc.arg[0], 1);
         m_screen.moveato({m_csiesc.arg[0]-1, cursor.col});
         break;
     case 'h': // SM -- Set terminal mode
@@ -1793,8 +1792,8 @@ void TermImpl::csihandle()
             goto unknown;
         else
         {
-            DEFAULT(m_csiesc.arg[0], 1);
-            DEFAULT(m_csiesc.arg[1], m_screen.rows());
+            defaultval(m_csiesc.arg[0], 1);
+            defaultval(m_csiesc.arg[1], m_screen.rows());
             m_screen.setscroll(m_csiesc.arg[0]-1, m_csiesc.arg[1]-1);
             m_screen.moveato({0, 0});
         }
@@ -1809,7 +1808,7 @@ void TermImpl::csihandle()
         switch (m_csiesc.mode[1])
         {
         case 'q': // DECSCUSR -- Set Cursor Style
-            DEFAULT(m_csiesc.arg[0], 1);
+            defaultval(m_csiesc.arg[0], 1);
             switch(m_csiesc.arg[0])
             {
             case 2: // Steady Block
@@ -2204,7 +2203,7 @@ std::shared_ptr<char> TermImpl::getsel()
             gp = &m_screen.glyph({row, sel.nb.row == row ? sel.nb.col : 0});
             lastcol = (sel.ne.row == row) ? sel.ne.col : m_screen.cols()-1;
         }
-        last = &m_screen.glyph({row, MIN(lastcol, llen-1)});
+        last = &m_screen.glyph({row, std::min(lastcol, llen-1)});
         while (last >= gp && last->u == screen::empty_char)
             --last;
 

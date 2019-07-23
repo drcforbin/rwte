@@ -15,7 +15,7 @@ static int window_mouse_press_ref = LUA_NOREF;
 static int window_key_press_ref = LUA_NOREF;
 static int window_ref = LUA_NOREF;
 
-#define LUAWND "LUAWND*"
+const char * const LUAWND = "LUAWND*";
 
 struct LuaWndStruct
 {

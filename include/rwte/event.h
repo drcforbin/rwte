@@ -6,6 +6,7 @@
 
 namespace event {
 
+// todo: remove?
 class SetPrintMode {};
 
 struct Resize

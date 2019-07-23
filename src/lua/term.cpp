@@ -10,7 +10,7 @@
 
 static int term_ref = LUA_NOREF;
 
-#define LUATERM "LUATERM*"
+const char * const LUATERM = "LUATERM*";
 
 struct LuaTermStruct
 {
@@ -127,6 +127,7 @@ static int term_openf(lua_State *l)
     lua::State L(l);
 
     // make the lib (3 funcs, 1 values)
+    // todo: verify that 4 is right
     L.newlib(term_funcs, 4);
 
     /// Mode flag table; maps mode flags to their integer value.

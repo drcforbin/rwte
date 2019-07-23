@@ -11,6 +11,7 @@
 #include "rwte/version.h"
 #include "rwte/window.h"
 
+#include <algorithm>
 #include <basedir.h>
 #include <basedir_fs.h>
 #include <getopt.h>
@@ -22,9 +23,6 @@
 #include "rwte/catch.hpp"
 
 #define LOGGER() (logging::get("rwte-main"))
-
-// todo: std::max
-#define MAX(a, b) ((a) < (b)? (b) : (a))
 
 static void add_to_search_path(lua::State *L, const std::vector<std::string>& searchpaths, bool for_lua)
 {
@@ -364,8 +362,8 @@ int main(int argc, char *argv[])
         L->pop(3);
     }
 
-    cols = MAX(cols, 1);
-    rows = MAX(rows, 1);
+    cols = std::max(cols, 1);
+    rows = std::max(rows, 1);
 
     try
     {

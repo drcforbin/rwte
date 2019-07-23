@@ -8,10 +8,6 @@
 
 #define LOGGER() (logging::get("screen"))
 
-// todo: std::min, std::max
-#define MIN(a, b) ((a) < (b)? (a) : (b))
-#define MAX(a, b) ((a) < (b)? (b) : (a))
-
 namespace screen {
 
 template<typename T,
@@ -103,7 +99,7 @@ public:
 
         // resize each row to new width, zero-pad if needed
         int i;
-        int minrow = MIN(rows, m_rows);
+        int minrow = std::min(rows, m_rows);
         for (i = 0; i < minrow; i++)
         {
             m_lines[i].resize(cols);
@@ -442,11 +438,11 @@ public:
         }
         else
         {
-            m_sel.nb.col = MIN(m_sel.ob.col, m_sel.oe.col);
-            m_sel.ne.col = MAX(m_sel.ob.col, m_sel.oe.col);
+            m_sel.nb.col = std::min(m_sel.ob.col, m_sel.oe.col);
+            m_sel.ne.col = std::max(m_sel.ob.col, m_sel.oe.col);
         }
-        m_sel.nb.row = MIN(m_sel.ob.row, m_sel.oe.row);
-        m_sel.ne.row = MAX(m_sel.ob.row, m_sel.oe.row);
+        m_sel.nb.row = std::min(m_sel.ob.row, m_sel.oe.row);
+        m_sel.ne.row = std::max(m_sel.ob.row, m_sel.oe.row);
 
         selsnap(&m_sel.nb.col, &m_sel.nb.row, -1);
         selsnap(&m_sel.ne.col, &m_sel.ne.row, +1);

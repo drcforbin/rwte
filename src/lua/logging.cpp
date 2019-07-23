@@ -8,7 +8,7 @@
 /// Logger class.
 // @type Logger
 
-#define LUALOG "LUALOG*"
+const char * const LUALOG = "LUALOG*";
 
 struct LuaLogStruct
 {

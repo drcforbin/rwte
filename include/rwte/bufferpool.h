@@ -1,5 +1,5 @@
-#ifndef RWTE_BUFERPOOL_H
-#define RWTE_BUFERPOOL_H
+#ifndef RWTE_BUFFERPOOL_H
+#define RWTE_BUFFERPOOL_H
 
 #include "rwte/wayland.h"
 
@@ -68,4 +68,4 @@ private:
 
 } // namespace wlwin
 
-#endif // RWTE_BUFERPOOL_H
+#endif // RWTE_BUFFERPOOL_H

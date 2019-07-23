@@ -43,9 +43,6 @@
 
 #define LOGGER() (logging::get("xcbwindow"))
 
-// todo: std::max
-#define MAX(a, b) ((a) < (b)? (b) : (a))
-
 // XEMBED messages
 // todo: static const / constexpr
 #define XEMBED_FOCUS_IN  4
@@ -430,7 +427,7 @@ void XcbWindow::set_wmmachine_name()
 
 void XcbWindow::register_atoms()
 {
-    const char * atom_names[] = {
+    const char * const atom_names[] = {
         "WM_PROTOCOLS",
         "WM_DELETE_WINDOW",
         "_XEMBED",

@@ -8,6 +8,7 @@
 #include "rwte/utf8.h"
 #include "rwte/window.h"
 
+#include <algorithm>
 #include <cctype>
 #include <csignal>
 #include <cstdint>
@@ -23,9 +24,6 @@
 #include <unistd.h>
 
 #define LOGGER() (logging::get("tty"))
-
-// todo: std::min
-#define MIN(a, b) ((a) < (b)? (a) : (b))
 
 // most we write in a chunk
 const std::size_t max_write = 255;

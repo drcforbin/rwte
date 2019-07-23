@@ -6,7 +6,7 @@
 // global logger map
 static std::unordered_map<std::string, std::shared_ptr<logging::Logger>> g_loggers;
 
-static const char *level_names[] {
+const char * const level_names[] {
     "TRACE",
     "DEBUG",
     " INFO",

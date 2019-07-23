@@ -40,7 +40,7 @@ public:
             if (written > 0)
                 static_cast<T*>(this)->log_write(true, data, written);
 
-            if (written == len)
+            if (static_cast<std::size_t>(written) == len)
                 return;
 
             data += written;
@@ -119,6 +119,7 @@ private:
             else
             {
                 // if anything's left, move it up front, and shrink
+//todo: remove
                 std::copy(m_wbuffer.begin() + written, m_wbuffer.end(),
                         m_wbuffer.begin());
                 m_wbuffer.resize(remaining);
