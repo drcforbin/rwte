@@ -158,6 +158,9 @@ static int term_openf(lua_State* l)
 #undef PUSH_ENUM_FIELD
     L.setfield(-2, "modes");
 
+    // add LUATERM object
+    L.setobjfuncs(LUATERM, term_obj_funcs);
+
     return 1;
 }
 
