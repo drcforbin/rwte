@@ -103,7 +103,7 @@ static bool run_config(lua::State* L, xdgHandle* xdg, const char* confpatharg)
 
 static void exit_help(int code)
 {
-    fprintf((code == EXIT_SUCCESS) ? stdout : stderr,
+    fmt::print((code == EXIT_SUCCESS) ? stdout : stderr,
             "Usage: rwte [options] [-- args]\n"
             "  -c, --config FILE     overrides config file\n"
             "  -a, --noalt           disables alt screens\n"
@@ -130,7 +130,7 @@ static void exit_help(int code)
 
 static void exit_version()
 {
-    fprintf(stdout, "rwte %s\n", version_string());
+    fmt::print("rwte {}\n", version_string());
     exit(EXIT_SUCCESS);
 }
 
@@ -251,7 +251,7 @@ int main(int argc, char* argv[])
                 got_wayland = true;
                 break;
             case 1:
-                fprintf(stderr, "%s: invalid arg -- '%s'\n",
+                fmt::print(stderr, "{}: invalid arg -- '{}'\n",
                         argv[0], argv[optind - 1]);
             default:
                 exit_help(EXIT_FAILURE);

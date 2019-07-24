@@ -15,7 +15,6 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <cstring>
 
 #define LOGGER() (logging::get("term"))
 
@@ -1409,27 +1408,30 @@ void TermImpl::strhandle()
 
 std::string TermImpl::strdump()
 {
-    fmt::MemoryWriter msg;
-    msg << "ESC" << m_stresc.type;
+    fmt::memory_buffer msg;
+    fmt::writer writer(msg);
+
+    writer.write("ESC");
+    writer.write(m_stresc.type);
 
     for (int i = 0; i < m_stresc.len; i++) {
         unsigned int c = m_stresc.buf[i] & 0xff;
         if (c == '\0')
-            return msg.str(); // early exit
+            return fmt::to_string(msg); // early exit
         else if (isprint(c))
-            msg << static_cast<char>(c);
+            writer.write(static_cast<char>(c));
         else if (c == '\n')
-            msg << "(\\n)";
+            writer.write("(\\n)");
         else if (c == '\r')
-            msg << "(\\r)";
+            writer.write("(\\r)");
         else if (c == 0x1b)
-            msg << "(\\e)";
+            writer.write("(\\e)");
         else
-            msg.write("(0x{:02X})", c);
+            fmt::format_to(msg, "(0x{:02X})", c);
     }
 
-    msg << "ESC\\\n";
-    return msg.str();
+    writer.write("ESC\\\n");
+    return fmt::to_string(msg);
 }
 
 void TermImpl::strsequence(unsigned char c)
@@ -1734,24 +1736,26 @@ void TermImpl::csihandle()
 
 std::string TermImpl::csidump()
 {
-    fmt::MemoryWriter msg;
-    msg << "ESC[";
+    fmt::memory_buffer msg;
+    fmt::writer writer(msg);
+
+    writer.write("ESC[");
 
     for (std::size_t i = 0; i < m_csiesc.len; i++) {
         unsigned int c = m_csiesc.buf[i] & 0xff;
         if (isprint(c))
-            msg << static_cast<char>(c);
+            writer.write(static_cast<char>(c));
         else if (c == '\n')
-            msg << "(\\n)";
+            writer.write("(\\n)");
         else if (c == '\r')
-            msg << "(\\r)";
+            writer.write("(\\r)");
         else if (c == 0x1b)
-            msg << "(\\e)";
+            writer.write("(\\e)");
         else
-            msg.write("(0x{:02X})", c);
+            fmt::format_to(msg, "(0x{:02X})", c);
     }
 
-    return msg.str();
+    return fmt::to_string(msg);
 }
 
 void TermImpl::setattr(int* attr, int len)

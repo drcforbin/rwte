@@ -95,7 +95,7 @@ struct Message
     logging::level_enum level = logging::trace;
     std::chrono::system_clock::time_point ts;
 
-    fmt::MemoryWriter msg;
+    std::string msg;
 };
 
 void log_message(const Message& msg);
@@ -114,7 +114,7 @@ inline void logging::Logger::log(logging::level_enum lvl, const char* fmt, const
         return;
 
     details::Message message(&m_name, lvl);
-    message.msg.write(fmt, args...);
+    message.msg = fmt::format(fmt, args...);
     details::log_message(message);
 
     if (lvl == logging::fatal)
@@ -128,7 +128,7 @@ inline void logging::Logger::log(logging::level_enum lvl, const char* msg)
         return;
 
     details::Message message(&m_name, lvl);
-    message.msg << msg;
+    message.msg = msg;
     details::log_message(message);
 
     if (lvl == logging::fatal)
@@ -142,7 +142,7 @@ inline void logging::Logger::log(logging::level_enum lvl, const T& msg)
         return;
 
     details::Message message(&m_name, lvl);
-    message.msg << msg;
+    message.msg = fmt::format(msg);
     details::log_message(message);
 
     if (lvl == logging::fatal)

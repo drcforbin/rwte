@@ -1,3 +1,4 @@
+#include "fmt/time.h"
 #include "rwte/logging.h"
 
 #include <ctime>
@@ -29,7 +30,7 @@ std::shared_ptr<logging::Logger> logging::get(const std::string& name)
 
 void logging::details::log_message(const logging::details::Message& msg)
 {
-    time_t ts = std::chrono::system_clock::to_time_t(msg.ts);
+    auto ts = std::chrono::system_clock::to_time_t(msg.ts);
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
             msg.ts.time_since_epoch())
                       .count();
@@ -37,17 +38,11 @@ void logging::details::log_message(const logging::details::Message& msg)
     std::tm ltm = {0};
     localtime_r(&ts, &ltm);
 
-    char timestr[sizeof "YYYY-MM-DDTHH:MM:SS.NNN"];
-    snprintf(timestr, sizeof timestr,
-            "%04u-%02u-%02uT%02u:%02u:%02u.%03lu",
-            ltm.tm_year + 1900, ltm.tm_mon + 1, ltm.tm_mday,
-            ltm.tm_hour, ltm.tm_min, ltm.tm_sec,
-            ms % 1000);
-
     int level = msg.level;
     if (level < logging::trace || logging::off < level)
         level = logging::off; // OTHER
     const char* levelstr = level_names[level];
 
-    printf("%s %s %s - %s\n", timestr, levelstr, msg.logname->c_str(), msg.msg.c_str());
+    fmt::print("{:%Y-%m-%dT%H:%M:%S}.{:03d} {} {} - {}\n",
+            ltm, ms % 1000, levelstr, *msg.logname, msg.msg);
 }

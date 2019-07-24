@@ -1,3 +1,14 @@
+// todo: see if this goes away with a more recent ver
+// gcc complains about the fmt::to_string(uint32_t) call below
+#if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+#include "fmt/format.h"
+#if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC diagnostic pop
+#endif
+
 #include "lua/state.h"
 #include "rwte/asyncio.h"
 #include "rwte/config.h"
@@ -9,19 +20,9 @@
 #include "rwte/window.h"
 
 #include <algorithm>
-#include <cctype>
-#include <csignal>
-#include <cstdint>
-#include <cstdlib>
-#include <ev++.h>
 #include <fcntl.h>
-#include <limits.h>
 #include <pty.h>
 #include <pwd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 #define LOGGER() (logging::get("tty"))
 
@@ -32,10 +33,8 @@ static void setenv_windowid(Window* window)
 {
     // todo: don't set this for wayland
 
-    char buf[sizeof(long) * 8 + 1];
-
-    snprintf(buf, sizeof(buf), "%u", window->windowid());
-    setenv("WINDOWID", buf, 1);
+    auto val = fmt::to_string(window->windowid());
+    setenv("WINDOWID", val.c_str(), 1);
 }
 
 static void execsh(Window* window)
@@ -299,18 +298,20 @@ void TtyImpl::log_write(bool initial, const char* data, size_t len)
     if (logging::trace < LOGGER()->level())
         return;
 
-    fmt::MemoryWriter msg;
+    fmt::memory_buffer msg;
+    fmt::writer writer(msg);
+
     for (size_t i = 0; i < len; i++) {
         char ch = data[i];
         if (ch == '\033')
-            msg << "ESC";
+            writer.write("ESC");
         else if (isprint(ch))
-            msg << ch;
+            writer.write(ch);
         else
-            msg.write("<{:02x}>", (unsigned int) ch);
+            fmt::format_to(msg, "<{:02x}>", (unsigned int) ch);
     }
 
-    LOGGER()->trace("wrote '{}' ({}, {})", msg.str(), len, initial);
+    LOGGER()->trace("wrote '{}' ({}, {})", msg.data(), len, initial);
 }
 
 std::size_t TtyImpl::onread(const char* ptr, std::size_t len)
