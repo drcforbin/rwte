@@ -40,6 +40,7 @@ testexe = executable(
     'rwte-test', [
         'rwte-test.cpp',
         'screen-test.cpp',
+        'utf8-test.cpp',
         common_sources
     ],
     dependencies: rwte_deps,

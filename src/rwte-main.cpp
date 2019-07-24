@@ -18,9 +18,6 @@
 #include <vector>
 #include <wordexp.h>
 
-#define CATCH_CONFIG_RUNNER
-#include "rwte/catch.hpp"
-
 #define LOGGER() (logging::get("rwte-main"))
 
 static void add_to_search_path(lua::State* L, const std::vector<std::string>& searchpaths, bool for_lua)
