@@ -110,8 +110,9 @@ public:
     void selclear();
     void selscroll(int orig, int n);
     void selnormalize();
+    std::shared_ptr<char> getsel() const;
 
-    int linelen(int row);
+    int linelen(int row) const;
 
     bool isdirty(int row) const;
     void setdirty();

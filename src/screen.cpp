@@ -210,7 +210,6 @@ public:
         int src = m_cursor.col + n;
         int size = m_cols - src;
 
-        // move to screen
         auto lineit = m_lines[m_cursor.row].begin();
         std::copy(lineit + src, lineit + src + size, lineit + dst);
         clear({m_cursor.row, m_cols - n}, {m_cursor.row, m_cols - 1});
@@ -431,7 +430,56 @@ public:
             m_sel.ne.col = m_cols - 1;
     }
 
-    int linelen(int row)
+    // todo: move to screen?
+    std::shared_ptr<char> getsel() const
+    {
+        char *str, *ptr;
+        int row, bufsize, lastcol, llen;
+        const screen::Glyph *gp, *last;
+
+        if (m_sel.empty())
+            return nullptr;
+
+        bufsize = (m_cols + 1) * (m_sel.ne.row - m_sel.nb.row + 1) * utf_size;
+        // todo: look at using std::array or vector instead, w/ move
+        ptr = str = new char[bufsize];
+
+        // append every set & selected glyph to the selection
+        for (row = m_sel.nb.row; row <= m_sel.ne.row; row++) {
+            if ((llen = linelen(row)) == 0) {
+                *ptr++ = '\n';
+                continue;
+            }
+
+            if (m_sel.rectangular()) {
+                gp = &glyph({row, m_sel.nb.col});
+                lastcol = m_sel.ne.col;
+            } else {
+                gp = &glyph({row, m_sel.nb.row == row ? m_sel.nb.col : 0});
+                lastcol = (m_sel.ne.row == row) ? m_sel.ne.col : m_cols - 1;
+            }
+            last = &glyph({row, std::min(lastcol, llen - 1)});
+            while (last >= gp && last->u == screen::empty_char)
+                --last;
+
+            for (; gp <= last; ++gp) {
+                if (gp->attr[screen::ATTR_WDUMMY])
+                    continue;
+
+                ptr += utf8encode(gp->u, ptr);
+            }
+
+            // use \n for line ending in outgoing data
+            if ((row < m_sel.ne.row || lastcol >= llen) &&
+                    !(last->attr[screen::ATTR_WRAP]))
+                *ptr++ = '\n';
+        }
+        *ptr = 0;
+
+        return std::shared_ptr<char>(str, std::default_delete<char[]>());
+    }
+
+    int linelen(int row) const
     {
         int i = m_cols;
 
@@ -648,7 +696,12 @@ void Screen::selnormalize()
     impl->selnormalize();
 }
 
-int Screen::linelen(int row)
+std::shared_ptr<char> Screen::getsel() const
+{
+    return impl->getsel();
+}
+
+int Screen::linelen(int row) const
 {
     return impl->linelen(row);
 }

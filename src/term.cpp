@@ -267,7 +267,6 @@ private:
     void setattr(int* attr, int len);
     void settmode(bool priv, bool set, int* args, int narg);
     void getbuttoninfo(const Cell& cell, const keymod_state& mod);
-    std::shared_ptr<char> getsel();
 
     std::shared_ptr<event::Bus> m_bus;
     int m_resizeReg;
@@ -895,7 +894,7 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
                     getbuttoninfo(cell, mod);
 
                     // set primary sel and tell window about it
-                    sel.primary = getsel();
+                    sel.primary = m_screen.getsel();
                     if (auto window = m_window.lock())
                         window->setsel();
                     else
@@ -951,7 +950,7 @@ void TermImpl::setfocused(bool focused)
 void TermImpl::clipcopy()
 {
     // set clipboard sel and tell window about it
-    m_screen.sel().clipboard = getsel();
+    m_screen.sel().clipboard = m_screen.getsel();
     if (auto window = m_window.lock())
         window->setclip();
     else
@@ -2032,56 +2031,6 @@ void TermImpl::getbuttoninfo(const Cell& cell, const keymod_state& mod)
     // consider leaving it in the rectangular state if it
     // was started with alt, but alt was released
     sel.setrectangular((mod & ALT_MASK) == ALT_MASK);
-}
-
-// todo: move to screen?
-std::shared_ptr<char> TermImpl::getsel()
-{
-    char *str, *ptr;
-    int row, bufsize, lastcol, llen;
-    screen::Glyph *gp, *last;
-
-    const auto& sel = m_screen.sel();
-    if (sel.empty())
-        return nullptr;
-
-    bufsize = (m_screen.cols() + 1) * (sel.ne.row - sel.nb.row + 1) * utf_size;
-    // todo: look at using std::array or vector instead, w/ move
-    ptr = str = new char[bufsize];
-
-    // append every set & selected glyph to the selection
-    for (row = sel.nb.row; row <= sel.ne.row; row++) {
-        if ((llen = m_screen.linelen(row)) == 0) {
-            *ptr++ = '\n';
-            continue;
-        }
-
-        if (sel.rectangular()) {
-            gp = &m_screen.glyph({row, sel.nb.col});
-            lastcol = sel.ne.col;
-        } else {
-            gp = &m_screen.glyph({row, sel.nb.row == row ? sel.nb.col : 0});
-            lastcol = (sel.ne.row == row) ? sel.ne.col : m_screen.cols() - 1;
-        }
-        last = &m_screen.glyph({row, std::min(lastcol, llen - 1)});
-        while (last >= gp && last->u == screen::empty_char)
-            --last;
-
-        for (; gp <= last; ++gp) {
-            if (gp->attr[screen::ATTR_WDUMMY])
-                continue;
-
-            ptr += utf8encode(gp->u, ptr);
-        }
-
-        // use \n for line ending in outgoing data
-        if ((row < sel.ne.row || lastcol >= llen) &&
-                !(last->attr[screen::ATTR_WRAP]))
-            *ptr++ = '\n';
-    }
-    *ptr = 0;
-
-    return std::shared_ptr<char>(str, std::default_delete<char[]>());
 }
 
 Term::Term(std::shared_ptr<event::Bus> bus, int cols, int rows) :
