@@ -1,6 +1,8 @@
 project('rwte', ['c', 'cpp'],
+    version: '1.0.0',
     default_options: [
-        'cpp_std=c++17'
+        'cpp_std=c++17',
+        'b_lto=true'
     ])
 
 cc = meson.get_compiler('c')

@@ -1,6 +1,14 @@
+version_file = configure_file(
+    input: 'version.cpp.in',
+    output: 'version.cpp',
+    configuration: {
+      'version': meson.project_version()
+    }
+)
+
 common_sources = files(
-    'fmt/format.cpp',
-    'fmt/ostream.cpp',
+    'fmt/format.cc',
+    'fmt/posix.cc',
 
     'lua/config.cpp',
     'lua/logging.cpp',
@@ -19,7 +27,6 @@ common_sources = files(
     'term.cpp',
     'tty.cpp',
     'utf8.cpp',
-    'version.cpp',
     'window.cpp',
     'wlwindow.cpp',
     'xcbwindow.cpp',
@@ -30,7 +37,8 @@ common_sources = files(
 executable(
     'rwte', [
         'rwte-main.cpp',
-        common_sources
+        common_sources,
+        version_file
     ],
     dependencies: rwte_deps,
     include_directories: inc

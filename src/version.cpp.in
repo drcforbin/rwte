@@ -3,5 +3,5 @@
 
 const char* version_string()
 {
-    return RWTE_VERSION;
+    return "@version@";
 }
