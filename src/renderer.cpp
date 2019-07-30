@@ -809,13 +809,16 @@ void RendererImpl::load_font(Context& cr)
     PangoFont* font = pango_font_map_load_font(fontmap, context, m_fontdesc.get());
     PangoFontMetrics* metrics = pango_font_get_metrics(font, lang);
     m_cw = std::ceil(
-            (pango_font_metrics_get_approximate_char_width(metrics) / PANGO_SCALE) *
-            cw_scale);
+            pango_font_metrics_get_approximate_char_width(metrics) /
+            (float) PANGO_SCALE * cw_scale);
+    // height should equal ascent + descend, but the pango docs say height
+    // can be zero, implying that the values may not be directly connected.
+    // let's just take the max and not worry about it
     m_ch = std::ceil(
-            ((pango_font_metrics_get_ascent(metrics) +
-                     pango_font_metrics_get_descent(metrics)) /
-                    PANGO_SCALE) *
-            ch_scale);
+            std::max(pango_font_metrics_get_height(metrics),
+                    (pango_font_metrics_get_ascent(metrics) +
+                            pango_font_metrics_get_descent(metrics))) /
+            (float) PANGO_SCALE * ch_scale);
 
     if (LOGGER()->level() <= logging::debug) {
         char* font = pango_font_description_to_string(m_fontdesc.get());
