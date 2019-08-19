@@ -22,6 +22,11 @@ public:
     ~Renderer();
 
     void load_font(cairo_surface_t* root_surface);
+
+    /// \brief Sets the surface the renderer should render to.
+    ///
+    /// To reset the surface, nullptr may be passed. Note that the renderer
+    /// will assume ownership of the surface.
     void set_surface(cairo_surface_t* surface, int width, int height);
 
     void resize(int width, int height);

@@ -928,6 +928,7 @@ void Registry::handle_global(uint32_t name, const char* interface, uint32_t vers
         {
             int size = 32;
             auto v = getenv("XCURSOR_SIZE");
+            // todo: std::from_chars
             if (v)
                 size = atoi(v);
 

@@ -6,6 +6,10 @@
 
 #include <xkbcommon/xkbcommon-keysyms.h>
 
+// todo: bell can be implemented using paplay or aplay:
+// paplay ~/.config/sounds/shortbeep.wav
+// aplay -q ~/.config/sounds/shortbeep.wav
+
 /// Window module; `window` is the global window object.
 // @module window
 

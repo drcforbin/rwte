@@ -138,12 +138,14 @@ static bool parse_geometry(const char* g, int* cols, int* rows)
 {
     // parse cols
     char* end = nullptr;
+    // todo: std::from_chars
     int c = strtol(g, &end, 10);
     if (c > 0 && *end == 'x') {
         // move past x
         end++;
 
         // parse rows
+        // todo: std::from_chars
         int r = strtol(end, &end, 10);
         if (r > 0 && *end == 0) {
             *cols = c;
