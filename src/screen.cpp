@@ -10,13 +10,6 @@
 
 namespace screen {
 
-template <typename T,
-        typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
-constexpr T limit(T x, T a, T b)
-{
-    return x < a ? a : (x > b ? b : x);
-}
-
 static cursor_type get_cursor_type()
 {
     auto cursor_type = lua::config::get_string("cursor_type");
@@ -131,10 +124,10 @@ public:
     // note: includes end
     void clear(const Cell& begin, const Cell& end)
     {
-        int col1 = limit(begin.col, 0, m_cols - 1);
-        int row1 = limit(begin.row, 0, m_rows - 1);
-        int col2 = limit(end.col, 0, m_cols - 1);
-        int row2 = limit(end.row, 0, m_rows - 1);
+        int col1 = std::clamp(begin.col, 0, m_cols - 1);
+        int row1 = std::clamp(begin.row, 0, m_rows - 1);
+        int col2 = std::clamp(end.col, 0, m_cols - 1);
+        int row2 = std::clamp(end.row, 0, m_rows - 1);
 
         if (col1 > col2)
             std::swap(col1, col2);
@@ -204,7 +197,7 @@ public:
 
     void deletechar(int n)
     {
-        n = limit(n, 0, m_cols - m_cursor.col);
+        n = std::clamp(n, 0, m_cols - m_cursor.col);
 
         int dst = m_cursor.col;
         int src = m_cursor.col + n;
@@ -217,7 +210,7 @@ public:
 
     void insertblank(int n)
     {
-        n = limit(n, 0, m_cols - m_cursor.col);
+        n = std::clamp(n, 0, m_cols - m_cursor.col);
         if (n > 0) {
             // move things over
             auto& line = m_lines[m_cursor.row];
@@ -233,8 +226,8 @@ public:
 
     void setscroll(int t, int b)
     {
-        t = limit(t, 0, m_rows - 1);
-        b = limit(b, 0, m_rows - 1);
+        t = std::clamp(t, 0, m_rows - 1);
+        b = std::clamp(b, 0, m_rows - 1);
 
         if (t > b)
             std::swap(t, b);
@@ -245,7 +238,7 @@ public:
 
     void scrollup(int orig, int n)
     {
-        n = limit(n, 0, m_bot - orig + 1);
+        n = std::clamp(n, 0, m_bot - orig + 1);
 
         clear({orig, 0}, {orig + n - 1, m_cols - 1});
         setdirty(orig + n, m_bot);
@@ -258,7 +251,7 @@ public:
 
     void scrolldown(int orig, int n)
     {
-        n = limit(n, 0, m_bot - orig + 1);
+        n = std::clamp(n, 0, m_bot - orig + 1);
 
         setdirty(orig, m_bot - n);
         clear({m_bot - n + 1, 0}, {m_bot, m_cols - 1});
@@ -281,8 +274,8 @@ public:
         }
 
         m_cursor.state &= ~CURSOR_WRAPNEXT;
-        m_cursor.col = limit(cell.col, 0, m_cols - 1);
-        m_cursor.row = limit(cell.row, minrow, maxrow);
+        m_cursor.col = std::clamp(cell.col, 0, m_cols - 1);
+        m_cursor.row = std::clamp(cell.row, minrow, maxrow);
 
         m_bus->publish(event::Refresh{});
     }
@@ -498,8 +491,8 @@ public:
 
     void setdirty(int top, int bot)
     {
-        top = limit(top, 0, m_rows - 1);
-        bot = limit(bot, 0, m_rows - 1);
+        top = std::clamp(top, 0, m_rows - 1);
+        bot = std::clamp(bot, 0, m_rows - 1);
 
         // todo: std::fill
         for (int i = top; i <= bot; i++)

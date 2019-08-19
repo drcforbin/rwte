@@ -32,13 +32,6 @@ time_t timediff(const timespec& t1, const timespec& t2)
            (t1.tv_nsec - t2.tv_nsec) / 1E6;
 }
 
-template <typename T,
-        typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
-constexpr T limit(T x, T a, T b)
-{
-    return x < a ? a : (x > b ? b : x);
-}
-
 static const keymod_state EMPTY_MASK; // no mods
 static const keymod_state SHIFT_MASK(1 << MOD_SHIFT);
 static const keymod_state ALT_MASK(1 << MOD_ALT);
@@ -127,6 +120,7 @@ static int32_t hexcolor(const char* src)
 
     std::size_t in_len = std::strlen(src);
     if (in_len == 7 && src[0] == '#') {
+        // todo: std::from_chars
         if ((val = strtoul(src + 1, &e, 16)) != ULONG_MAX && (e == src + 7))
             idx = 1 << 24 | val;
         else
@@ -1077,7 +1071,7 @@ void TermImpl::controlcode(unsigned char ascii)
 
                 // default bell_volume to 0 if invalid
                 int bell_volume = lua::config::get_int("bell_volume", 0);
-                bell_volume = limit(bell_volume, -100, 100);
+                bell_volume = std::clamp(bell_volume, -100, 100);
 
                 if (bell_volume) {
                     if (auto window = m_window.lock())
@@ -1278,7 +1272,7 @@ void TermImpl::puttab(int n)
                 ; // nothing
     }
 
-    cursor.col = limit(col, 0, m_screen.cols() - 1);
+    cursor.col = std::clamp(col, 0, m_screen.cols() - 1);
     m_screen.setCursor(cursor);
 }
 
@@ -1319,6 +1313,7 @@ void TermImpl::strhandle()
     m_esc.reset(ESC_STR_END);
     m_esc.reset(ESC_STR);
     strparse();
+    // todo: std::from_chars
     par = (narg = m_stresc.narg) ? atoi(m_stresc.args[0]) : 0;
 
     LOGGER()->trace("strhandle {}", strdump());
@@ -1372,6 +1367,7 @@ void TermImpl::strhandle()
                     // todo: remove dump
                     LOGGER()->debug("OSC 4/104: {}", strdump());
                     /*
+            use std::from_chars
             j = (narg > 1) ? atoi(m_stresc.args[1]) : -1;
             todo: color
             if (xsetcolorname(j, p)) {
@@ -1476,6 +1472,7 @@ void TermImpl::csiparse()
     m_csiesc.buf[m_csiesc.len] = '\0';
     while (p < m_csiesc.buf + m_csiesc.len) {
         np = nullptr;
+        // todo: std::from_chars
         v = strtol(p, &np, 10);
         if (np == p)
             v = 0;
