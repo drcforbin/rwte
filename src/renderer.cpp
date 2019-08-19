@@ -19,13 +19,14 @@
 
 namespace renderer {
 
-template <typename T,
-        typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
-constexpr T limit(T x, T a, T b)
-{
-    return x < a ? a : (x > b ? b : x);
-}
-
+/// \brief Converts 6-level color to 8-bit color
+///
+/// todo: fix comment
+/// Six levels for every primary, with 6³ = 216 combinations. The index
+/// can be addressed by (36×R)+(6×G)+B, with all R, G and B values in a
+/// range from 0 to 5. Intended as homogeneous RGB cube, it gives six
+/// true grays. Also there is room for another sorts of 40 colors, so
+/// operating systems or programs can add extra colors.
 constexpr uint16_t sixd_to_16bit(int x)
 {
     return x == 0 ? 0 : 0x3737 + 0x2828 * x;
@@ -84,12 +85,6 @@ static uint32_t lookup_color(uint32_t color)
     }
 
     return color;
-}
-
-using shared_surface = std::shared_ptr<cairo_surface_t>;
-static shared_surface make_shared(cairo_surface_t* surface)
-{
-    return {surface, cairo_surface_destroy};
 }
 
 class Context
@@ -179,11 +174,6 @@ public:
         pango_cairo_show_layout(m_ctx, layout);
     }
 
-    void setSourceSurface(shared_surface& m_drawsurf)
-    {
-        cairo_set_source_surface(m_ctx, m_drawsurf.get(), 0, 0);
-    }
-
     void paint()
     {
         cairo_paint(m_ctx);
@@ -207,12 +197,6 @@ private:
     cairo_t* m_ctx = nullptr;
 };
 
-using shared_font_options = std::shared_ptr<cairo_font_options_t>;
-static shared_font_options make_shared(cairo_font_options_t* fo)
-{
-    return {fo, cairo_font_options_destroy};
-}
-
 struct font_desc_deleter
 {
     void operator()(PangoFontDescription* fontdesc)
@@ -223,29 +207,7 @@ struct font_desc_deleter
 };
 using unique_font_desc = std::unique_ptr<PangoFontDescription, font_desc_deleter>;
 
-struct layout_deleter
-{
-    void operator()(PangoLayout* layout)
-    {
-        if (layout)
-            g_object_unref(layout);
-    }
-};
-using unique_layout = std::unique_ptr<PangoLayout, layout_deleter>;
-
-static shared_font_options create_font_options()
-{
-    auto fo = make_shared(cairo_font_options_create());
-
-    cairo_font_options_set_hint_metrics(fo.get(), CAIRO_HINT_METRICS_ON);
-    cairo_font_options_set_hint_style(fo.get(), CAIRO_HINT_STYLE_SLIGHT);
-    cairo_font_options_set_subpixel_order(fo.get(), CAIRO_SUBPIXEL_ORDER_RGB);
-    cairo_font_options_set_antialias(fo.get(), CAIRO_ANTIALIAS_SUBPIXEL);
-
-    return fo;
-}
-
-static unique_font_desc create_font_desc()
+static PangoFontDescription* create_font_desc()
 {
     std::string font = options.font;
     if (font.empty()) {
@@ -255,9 +217,9 @@ static unique_font_desc create_font_desc()
             LOGGER()->fatal("config.font is invalid");
     }
 
-    unique_font_desc fontdesc(pango_font_description_from_string(font.c_str()));
+    PangoFontDescription* fontdesc(pango_font_description_from_string(font.c_str()));
 
-    pango_font_description_set_weight(fontdesc.get(), PANGO_WEIGHT_MEDIUM);
+    pango_font_description_set_weight(fontdesc, PANGO_WEIGHT_MEDIUM);
     return fontdesc;
 }
 
@@ -277,45 +239,45 @@ static int get_cursor_thickness()
 class Surface
 {
 public:
-    Surface(cairo_surface_t* surface, shared_font_options fo, int width, int height) :
-        m_surface(make_shared(surface)),
-        m_surfcr(surface),
-        m_fo(std::move(fo)),
-        m_drawsurf(nullptr)
+    Surface(cairo_surface_t* surface, cairo_font_options_t* fo,
+            PangoFontDescription* fontdesc, int width,
+            int height) :
+        m_surface(surface),
+        m_cr(surface)
     {
-        m_drawsurf = m_surface;
-        m_drawcr = m_surfcr;
+        set_defaults(m_cr);
 
-        set_defaults(m_drawcr);
+        PangoContext* context = pango_cairo_create_context(m_cr.get());
+        pango_cairo_context_set_font_options(context, fo);
+        pango_context_set_font_description(context, fontdesc);
+        m_layout = pango_layout_new(context);
+        g_object_unref(context);
+    }
 
-        m_layout = create_layout(m_drawcr);
+    ~Surface()
+    {
+        if (m_surface)
+            cairo_surface_destroy(m_surface);
+        if (m_layout)
+            g_object_unref(m_layout);
     }
 
     void resize(int width, int height)
     {
-        if (cairo_surface_get_type(m_surface.get()) == CAIRO_SURFACE_TYPE_XCB)
-            cairo_xcb_surface_set_size(m_surface.get(), width, height);
+        if (cairo_surface_get_type(m_surface) == CAIRO_SURFACE_TYPE_XCB)
+            cairo_xcb_surface_set_size(m_surface, width, height);
     }
 
     void flush()
     {
-        cairo_surface_flush(m_surface.get());
+        cairo_surface_flush(m_surface);
     }
 
-    Context cr() const { return m_drawcr; }
-    PangoLayout* layout() const { return m_layout.get(); }
+    cairo_surface_t* get() { return m_surface; }
+    Context cr() const { return m_cr; }
+    PangoLayout* layout() const { return m_layout; }
 
 private:
-    unique_layout create_layout(Context& cr)
-    {
-        PangoContext* context = pango_cairo_create_context(cr.get());
-        pango_cairo_context_set_font_options(context, m_fo.get());
-
-        unique_layout layout(pango_layout_new(context));
-        g_object_unref(context);
-        return layout;
-    }
-
     void set_defaults(Context& ctx)
     {
         // all of our lines are 1 wide
@@ -324,20 +286,16 @@ private:
         ctx.setAntialias(CAIRO_ANTIALIAS_SUBPIXEL);
     }
 
-    shared_surface m_surface;
-    Context m_surfcr;
-
-    shared_font_options m_fo;
-
-    shared_surface m_drawsurf;
-    Context m_drawcr;
-    unique_layout m_layout;
+    cairo_surface_t* m_surface;
+    Context m_cr;
+    PangoLayout* m_layout;
 };
 
 class RendererImpl
 {
 public:
     RendererImpl(term::Term* term);
+    ~RendererImpl();
 
     void load_font(cairo_surface_t* root_surface);
     void set_surface(cairo_surface_t* surface, int width, int height);
@@ -360,29 +318,42 @@ private:
             const std::vector<char32_t>& runes, const Cell& cell);
     void drawcursor(Context& cr, PangoLayout* layout);
     void load_font(Context& cr);
-    cairo_font_options_t* get_font_options();
 
     term::Term* m_term;
 
-    shared_font_options m_fo;
+    cairo_font_options_t* m_fo;
+    PangoFontDescription* m_fontdesc;
+
     std::unique_ptr<Surface> m_surface;
 
     int m_cw = 0, m_ch = 0;
     int m_width = 0, m_height = 0;
     Cell m_lastcur{0, 0};
 
-    unique_font_desc m_fontdesc;
     int m_border_px;
 };
 
 RendererImpl::RendererImpl(term::Term* term) :
     m_term(term),
-    m_fo(create_font_options()),
+    m_fo(cairo_font_options_create()),
     m_fontdesc(create_font_desc()),
     // initial border_px value; we'll keep it semi-fresh as
     // calls are made to public funcs
     m_border_px(get_border_px())
-{}
+{
+    cairo_font_options_set_hint_metrics(m_fo, CAIRO_HINT_METRICS_ON);
+    cairo_font_options_set_hint_style(m_fo, CAIRO_HINT_STYLE_SLIGHT);
+    cairo_font_options_set_subpixel_order(m_fo, CAIRO_SUBPIXEL_ORDER_RGB);
+    cairo_font_options_set_antialias(m_fo, CAIRO_ANTIALIAS_SUBPIXEL);
+}
+
+RendererImpl::~RendererImpl()
+{
+    if (m_fontdesc)
+        pango_font_description_free(m_fontdesc);
+    if (m_fo)
+        cairo_font_options_destroy(m_fo);
+}
 
 void RendererImpl::load_font(cairo_surface_t* root_surface)
 {
@@ -395,10 +366,12 @@ void RendererImpl::set_surface(cairo_surface_t* surface, int width, int height)
     m_width = width;
     m_height = height;
 
-    if (surface)
-        m_surface = std::make_unique<Surface>(surface, m_fo, width, height);
-    else
+    if (surface) {
+        m_surface = std::make_unique<Surface>(surface, m_fo, m_fontdesc,
+                width, height);
+    } else {
         m_surface.reset();
+    }
 }
 
 void RendererImpl::resize(int width, int height)
@@ -507,8 +480,8 @@ Cell RendererImpl::pxtocell(int x, int y) const
     int row = (y - m_border_px) / m_ch;
 
     return {
-            limit(row, 0, (m_height / m_ch) - 1),
-            limit(col, 0, (m_width / m_cw) - 1)};
+            std::clamp(row, 0, (m_height / m_ch) - 1),
+            std::clamp(col, 0, (m_width / m_cw) - 1)};
 }
 
 void RendererImpl::clear(Context& cr, int x1, int y1, int x2, int y2)
@@ -624,7 +597,6 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout* layout,
     buf.push_back(0);
 
     pango_layout_set_text(layout, &buf[0], -1);
-    pango_layout_set_font_description(layout, m_fontdesc.get());
 
     PangoAttrList* attrlist = nullptr;
 
@@ -673,8 +645,8 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout* layout)
 
     auto& cursor = m_term->cursor();
 
-    m_lastcur.col = limit(m_lastcur.col, 0, m_term->cols() - 1);
-    m_lastcur.row = limit(m_lastcur.row, 0, m_term->rows() - 1);
+    m_lastcur.col = std::clamp(m_lastcur.col, 0, m_term->cols() - 1);
+    m_lastcur.row = std::clamp(m_lastcur.row, 0, m_term->rows() - 1);
 
     int curcol = cursor.col;
 
@@ -806,7 +778,7 @@ void RendererImpl::load_font(Context& cr)
 
     // measure font
     PangoContext* context = pango_cairo_create_context(cr.get());
-    PangoFont* font = pango_font_map_load_font(fontmap, context, m_fontdesc.get());
+    PangoFont* font = pango_font_map_load_font(fontmap, context, m_fontdesc);
     PangoFontMetrics* metrics = pango_font_get_metrics(font, lang);
     m_cw = std::ceil(
             pango_font_metrics_get_approximate_char_width(metrics) /
@@ -821,7 +793,7 @@ void RendererImpl::load_font(Context& cr)
             (float) PANGO_SCALE * ch_scale);
 
     if (LOGGER()->level() <= logging::debug) {
-        char* font = pango_font_description_to_string(m_fontdesc.get());
+        char* font = pango_font_description_to_string(m_fontdesc);
         LOGGER()->debug("loaded {}, font size {}x{}", font, m_cw, m_ch);
         g_free(font);
     }
