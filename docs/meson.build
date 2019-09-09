@@ -8,7 +8,7 @@ if doxygen.found()
     conf_data.set('DOXYGEN_OUTPUT', meson.current_build_dir())
 
     doxyfile = configure_file(
-        input: 'Doxyfile.in',
+        input: files('Doxyfile.in'),
         output: 'Doxyfile',
         configuration: conf_data
     )
