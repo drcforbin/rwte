@@ -45,6 +45,7 @@ MARKDOWN_SUPPORT       = YES
 BUILTIN_STL_SUPPORT    = NO
 
 GENERATE_LATEX         = NO
+GENERATE_XML           = YES
 
 # Build config
 
