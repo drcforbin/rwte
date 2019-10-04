@@ -7,10 +7,6 @@
 
 namespace event {
 
-// todo: remove?
-class SetPrintMode
-{};
-
 struct Resize
 {
     size_t width, height;
@@ -21,7 +17,6 @@ struct Refresh
 {};
 
 typedef Bus<
-        SetPrintMode,
         Resize,
         Refresh>
         Bus;
