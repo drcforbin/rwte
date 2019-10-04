@@ -1,6 +1,6 @@
 #include "rwte/version.h"
 
-const char* version_string()
+std::string_view version_string()
 {
     return "@version@";
 }
