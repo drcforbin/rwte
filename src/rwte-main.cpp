@@ -66,7 +66,8 @@ static bool run_file(lua::State* L, const char* path)
         return true;
 }
 
-static bool run_config(lua::State* L, xdgHandle* xdg, const char* confpatharg)
+static bool run_config(lua::State* L, xdgHandle* xdg,
+        const char* confpatharg)
 {
     // try specified path first
     if (confpatharg) {
@@ -123,7 +124,9 @@ static void exit_help(int code)
             "                        device\n"
             "  -h, --help            show help\n"
             "  -b, --bench           run config and exit\n"
+#if !defined(RWTE_NO_WAYLAND) && !defined(RWTE_NO_XCB)
             "  -x, --wayland         use wayland rather than xcb\n"
+#endif
             "  -v, --version         show version and exit\n");
     exit(code);
 }
@@ -177,32 +180,41 @@ int main(int argc, char* argv[])
     L->setglobal("args");
 
     static const struct option long_options[] =
-            {
-                    {"config", required_argument, nullptr, 'c'},
-                    {"winclass", required_argument, nullptr, 'w'},
-                    {"noalt", no_argument, nullptr, 'a'},
-                    {"font", required_argument, nullptr, 'f'},
-                    {"geometry", required_argument, nullptr, 'g'}, // colsxrows, e.g., 80x24
-                    {"title", required_argument, nullptr, 't'},
-                    {"name", required_argument, nullptr, 'n'},
-                    {"exe", required_argument, nullptr, 'e'},
-                    {"out", required_argument, nullptr, 'o'},
-                    {"line", required_argument, nullptr, 'l'},
-                    {"help", no_argument, nullptr, 'h'},
-                    {"bench", no_argument, nullptr, 'b'},
-                    {"wayland", no_argument, nullptr, 'x'},
-                    {"version", no_argument, nullptr, 'v'},
-                    {nullptr, 0, nullptr, 0}};
+    {
+        {"config", required_argument, nullptr, 'c'},
+        {"winclass", required_argument, nullptr, 'w'},
+        {"noalt", no_argument, nullptr, 'a'},
+        {"font", required_argument, nullptr, 'f'},
+        {"geometry", required_argument, nullptr, 'g'}, // colsxrows, e.g., 80x24
+        {"title", required_argument, nullptr, 't'},
+        {"name", required_argument, nullptr, 'n'},
+        {"exe", required_argument, nullptr, 'e'},
+        {"out", required_argument, nullptr, 'o'},
+        {"line", required_argument, nullptr, 'l'},
+        {"help", no_argument, nullptr, 'h'},
+        {"bench", no_argument, nullptr, 'b'},
+#if !defined(RWTE_NO_WAYLAND) && !defined(RWTE_NO_XCB)
+        {"wayland", no_argument, nullptr, 'x'},
+#endif
+        {"version", no_argument, nullptr, 'v'},
+        {nullptr, 0, nullptr, 0}
+    };
 
     const char* confpath = nullptr;
+
+#if !defined(RWTE_NO_WAYLAND) && !defined(RWTE_NO_XCB)
+    const char* optargstr = "-c:w:af:g:t:n:o:l:hbve:x";
+    bool got_wayland = false;
+#else
+    const char* optargstr = "-c:w:af:g:t:n:o:l:hbve:";
+#endif
 
     int opt;
     int cols = 0, rows = 0;
     bool got_exe = false;
     bool got_bench = false;
     bool got_title = false;
-    bool got_wayland = false;
-    while ((opt = getopt_long(argc, argv, "-c:w:af:g:t:n:o:l:hbve:x",
+    while ((opt = getopt_long(argc, argv, optargstr,
                     long_options, nullptr)) != -1) {
         switch (opt) {
             case 'c':
@@ -248,13 +260,16 @@ int main(int argc, char* argv[])
                 options.cmd.push_back(optarg);
                 got_exe = true;
                 break;
+#if !defined(RWTE_NO_WAYLAND) && !defined(RWTE_NO_XCB)
             case 'x':
                 LOGGER()->info("using wayland", optarg);
                 got_wayland = true;
                 break;
+#endif
             case 1:
                 fmt::print(stderr, "{}: invalid arg -- '{}'\n",
                         argv[0], argv[optind - 1]);
+                [[fallthrough]];
             default:
                 exit_help(EXIT_FAILURE);
         }
@@ -317,7 +332,7 @@ int main(int argc, char* argv[])
         L->getglobal("config");
         if (L->istable(-1)) {
             L->getfield(-1, "title");
-            std::string title = L->tostring(-1);
+            auto title = L->tostring(-1);
             if (!title.empty())
                 options.title = title;
             L->pop();
@@ -348,12 +363,20 @@ int main(int argc, char* argv[])
         term->setTty(tty);
 
         std::shared_ptr<Window> window;
+
+#if defined(RWTE_NO_WAYLAND)
+        window = createXcbWindow(bus, term, tty);
+#elif defined(RWTE_NO_XCB)
+        options.throttledraw = false;
+        window = createWlWindow(bus, term, tty);
+#else
         if (!got_wayland)
             window = createXcbWindow(bus, term, tty);
         else {
             options.throttledraw = false;
             window = createWlWindow(bus, term, tty);
         }
+#endif
 
         rwte->setWindow(window);
         rwte->setTerm(term);

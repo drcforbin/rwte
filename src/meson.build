@@ -67,6 +67,36 @@ executable(
     include_directories: inc
 )
 
+executable(
+    'rwte-xcb', [
+        'rwte-main.cpp',
+        common_sources,
+        xcb_sources,
+        version_file
+    ],
+    dependencies: [
+        rwte_common_deps,
+        xcb_deps
+    ],
+    include_directories: inc,
+    cpp_args : '-DRWTE_NO_WAYLAND'
+)
+
+executable(
+    'rwte-wayland', [
+        'rwte-main.cpp',
+        common_sources,
+        wayland_sources,
+        version_file
+    ],
+    dependencies: [
+        rwte_common_deps,
+        wayland_deps
+    ],
+    include_directories: inc,
+    cpp_args : '-DRWTE_NO_XCB'
+)
+
 testexe = executable(
     'rwte-test', [
         'rwte-test.cpp',
