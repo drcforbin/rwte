@@ -23,21 +23,15 @@ util = cc.find_library('util')
 rt = cc.find_library('rt')
 
 
-rwte_deps = [
+rwte_common_deps = [
     xdg_basedir,
-    xcb,
-    xcb_util,
     cairo,
     pangocairo,
     xkbc,
-    xkbc_x11,
-    xcd_xkb,
-    wayland_client,
-    wayland_cursor,
     lua,
     ev,
     util,
-    rt,
+    rt
 ]
 
 inc = include_directories('include')
