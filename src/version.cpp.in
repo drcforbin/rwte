@@ -1,6 +1,8 @@
 #include "rwte/version.h"
 
+using namespace std::literals;
+
 std::string_view version_string()
 {
-    return "@version@";
+    return "@version@"sv;
 }

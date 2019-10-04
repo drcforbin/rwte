@@ -14,7 +14,7 @@
 #include "rwte/window.h"
 
 #include <algorithm>
-#include <cstdint>
+#include <chrono>
 
 #define LOGGER() (logging::get("term"))
 
@@ -24,12 +24,6 @@ template <typename T>
 void defaultval(T& a, const T& b)
 {
     a = a ? a : b;
-}
-
-time_t timediff(const timespec& t1, const timespec& t2)
-{
-    return (t1.tv_sec - t2.tv_sec) * 1000 +
-           (t1.tv_nsec - t2.tv_nsec) / 1E6;
 }
 
 static const keymod_state EMPTY_MASK; // no mods
@@ -77,11 +71,14 @@ const int str_arg_size = esc_arg_size;
 // ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]]
 struct CSIEscape
 {
+    // todo: arrayify
     char buf[esc_buf_size]; // raw string
     std::size_t len;        // raw string length
     bool priv;
+    // todo: arrayify
     int arg[esc_arg_size];
     int narg; // num args
+    // todo: arrayify
     char mode[2];
 };
 
@@ -90,8 +87,10 @@ struct CSIEscape
 struct STREscape
 {
     char type;              // ESC type ...
+    // todo: arrayify
     char buf[str_buf_size]; // raw string
     int len;                // raw string length
+    // todo: cppify
     char* args[str_arg_size];
     int narg; // nb of args
 };
@@ -228,7 +227,7 @@ public:
     void selclear() { m_screen.selclear(); }
     void clipcopy();
 
-    void send(const char* data, std::size_t len);
+    void send(std::string_view data);
 
 private:
     void onresize(const event::Resize& evt);
@@ -453,6 +452,7 @@ void TermImpl::resizeCore(int cols, int rows)
             while (--bp != m_tabs.cbegin() && !*bp) {
             }
         // set tabs from here (resize cleared newly added tabs)
+        // todo: is this backwards? do we even need idx?
         auto idx = static_cast<decltype(m_tabs)::size_type>(
                 std::distance(m_tabs.cbegin(), bp));
         for (idx += tab_spaces; idx < m_tabs.size(); idx += tab_spaces)
@@ -520,7 +520,7 @@ static bool iscontrol(char32_t c)
 
 void TermImpl::putc(char32_t u)
 {
-    char c[utf_size];
+    std::array<char, utf_size> c;
     int width;
     std::size_t len;
 
@@ -531,16 +531,17 @@ void TermImpl::putc(char32_t u)
         c[0] = u;
         width = len = 1;
     } else {
-        len = utf8encode(u, c);
+        len = utf8encode(u, c.begin()) - c.begin();
         if (!control && (width = wcwidth(u)) == -1) {
-            std::memcpy(c, "\357\277\275", 4); /* UTF_INVALID */
+            // todo: feels like a hack
+            std::memcpy(c.data(), "\xEF\xBF\xBD", 4); // UTF_INVALID
             width = 1;
         }
     }
 
     if (m_mode[MODE_PRINT]) {
         if (auto tty = m_tty.lock())
-            tty->print(c, len);
+            tty->print({c.data(), len});
         else
             LOGGER()->debug("print without tty");
     }
@@ -585,7 +586,8 @@ void TermImpl::putc(char32_t u)
                 return;
             }
 
-            std::memmove(&m_stresc.buf[m_stresc.len], c, len);
+            // todo: replace with something
+            std::memmove(&m_stresc.buf[m_stresc.len], c.data(), len);
             m_stresc.len += len;
             return;
         }
@@ -842,15 +844,18 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
                 L->getglobal("config");
 
                 L->getfield(-1, "dclick_timeout");
-                int dclick_timeout = L->tointegerdef(-1, DEFAULT_DCLICK_TIMEOUT);
+                auto dclick_timeout = std::chrono::milliseconds{
+                    L->tointegerdef(-1, DEFAULT_DCLICK_TIMEOUT)
+                };
 
                 L->getfield(-2, "tclick_timeout");
-                int tclick_timeout = L->tointegerdef(-1, DEFAULT_TCLICK_TIMEOUT);
+                auto tclick_timeout = std::chrono::milliseconds{
+                    L->tointegerdef(-1, DEFAULT_TCLICK_TIMEOUT)
+                };
 
                 L->pop(3);
 
-                timespec now;
-                clock_gettime(CLOCK_MONOTONIC, &now);
+                auto now = std::chrono::steady_clock::now();
 
                 // clear previous selection, logically and visually.
                 m_screen.selclear();
@@ -861,9 +866,9 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
 
                 // if the user clicks below predefined timeouts specific
                 // snapping behaviour is exposed.
-                if (timediff(now, sel.tclick2) <= tclick_timeout)
+                if (now - sel.tclick2 <= tclick_timeout)
                     sel.snap = Selection::Snap::Line;
-                else if (timediff(now, sel.tclick1) <= dclick_timeout)
+                else if (now - sel.tclick1 <= dclick_timeout)
                     sel.snap = Selection::Snap::Word;
                 else
                     sel.snap = Selection::Snap::None;
@@ -931,9 +936,9 @@ void TermImpl::setfocused(bool focused)
     if (m_mode[MODE_FOCUS]) {
         if (auto tty = m_tty.lock()) {
             if (m_focused)
-                tty->write("\033[I", 3);
+                tty->write({"\033[I", 3});
             else
-                tty->write("\033[O", 3);
+                tty->write({"\033[O", 3});
         } else
             LOGGER()->debug("tried to send focus without tty");
     }
@@ -951,10 +956,10 @@ void TermImpl::clipcopy()
         LOGGER()->debug("clip copy without window");
 }
 
-void TermImpl::send(const char* data, std::size_t len)
+void TermImpl::send(std::string_view data)
 {
     if (auto tty = m_tty.lock())
-        tty->write(data, len);
+        tty->write(data);
     else
         LOGGER()->debug("tried to send without tty");
 }
@@ -976,8 +981,10 @@ void TermImpl::setchar(char32_t u, const screen::Glyph& attr, const Cell& cell)
     // The table is proudly stolen from st, where it was
     // stolen from rxvt.
     if (m_trantbl[m_charset] == CS_GRAPHIC0 &&
-            (0x41 <= u && u <= 0x7e) && vt100_0[u - 0x41])
-        utf8decode(vt100_0[u - 0x41], &u, utf_size);
+            (0x41 <= u && u <= 0x7e) && vt100_0[u - 0x41]) {
+        // we know everything in the above array is valid, ignore size
+        std::tie(std::ignore, u) = utf8decode({vt100_0[u - 0x41], utf_size});
+    }
 
     auto thisGlyph = m_screen.glyph(cell);
     if (thisGlyph.attr[screen::ATTR_WIDE]) {
@@ -1362,7 +1369,7 @@ void TermImpl::strhandle()
                         break;
                     // todo: color
                     // p = m_stresc.args[2];
-                    // FALLTHROUGH
+                    [[fallthrough]];
                 case 104: // color reset, here p = NULL
                     // todo: remove dump
                     LOGGER()->debug("OSC 4/104: {}", strdump());
@@ -1958,7 +1965,7 @@ void TermImpl::settmode(bool priv, bool set, int* args, int narg)
                     if (!allow_alt_screen())
                         break;
                     TermImpl::cursor(set ? CURSOR_SAVE : CURSOR_LOAD);
-                    // FALLTHROUGH
+                    [[fallthrough]];
                 case 47: // swap screen
                 case 1047:
                     if (!allow_alt_screen())
@@ -1970,7 +1977,7 @@ void TermImpl::settmode(bool priv, bool set, int* args, int narg)
                         swapscreen();
                     if (*args != 1049)
                         break;
-                    // FALLTHROUGH
+                    [[fallthrough]];
                 case 1048:
                     TermImpl::cursor(set ? CURSOR_SAVE : CURSOR_LOAD);
                     break;
@@ -2167,11 +2174,9 @@ void Term::clipcopy()
     impl->clipcopy();
 }
 
-void Term::send(const char* data, std::size_t len /* = 0 */)
+void Term::send(std::string_view data)
 {
-    if (!len)
-        len = std::strlen(data);
-    impl->send(data, len);
+    impl->send(data);
 }
 
 } // namespace term

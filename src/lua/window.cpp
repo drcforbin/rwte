@@ -4,6 +4,8 @@
 #include "rwte/logging.h"
 #include "rwte/window.h"
 
+using namespace std::literals;
+
 #include <xkbcommon/xkbcommon-keysyms.h>
 
 // todo: bell can be implemented using paplay or aplay:
@@ -148,9 +150,9 @@ static int luawindow_selpaste(lua_State* l)
 static int luawindow_index(lua_State* l)
 {
     lua::State L(l);
-    const char* key = L.checkstring(2);
+    auto key = L.checkstring(2);
 
-    if (std::strcmp(key, "id") == 0) {
+    if (key == "id"sv) {
         auto window = getwindow(L);
         if (window)
             L.pushinteger(window->windowid());

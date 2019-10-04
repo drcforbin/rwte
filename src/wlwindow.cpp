@@ -273,7 +273,7 @@ public:
     void drawCore();
 
     void draw();
-    void settitle(const std::string& name);
+    void settitle(std::string_view name);
 
     // todo
     void seturgent(bool urgent) {}
@@ -498,10 +498,10 @@ void WlWindow::draw()
     }
 }
 
-void WlWindow::settitle(const std::string& name)
+void WlWindow::settitle(std::string_view name)
 {
     LOGGER()->debug("setting title to {}", name);
-    toplevel->set_title(name.c_str());
+    toplevel->set_title(name);
 }
 
 void WlWindow::setpointer(const PointerFrame& frame)
@@ -785,6 +785,7 @@ void Keyboard::handle_keymap(uint32_t format, int fd, uint32_t size)
         return;
     }
 
+    // todo: replace all getenv with std::getenv
     const char* locale = getenv("LC_ALL");
     if (!locale)
         locale = getenv("LC_CTYPE");

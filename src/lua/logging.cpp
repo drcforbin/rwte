@@ -2,6 +2,8 @@
 #include "lua/state.h"
 #include "rwte/logging.h"
 
+using namespace std::literals;
+
 /// Logging module; this is the api for logging.
 // @module logging
 
@@ -41,14 +43,13 @@ static int logger_log(lua_State* l)
 
     std::string msg;
 
-    size_t len;
     for (int i = 3; i <= nargs; i++) {
         L.pushvalue(-1); // push tostring
         L.pushvalue(i);  // push next arg
         L.call(1, 1);
 
-        const char* s = L.tolstring(-1, &len);
-        if (!s)
+        auto s = L.tostring(-1);
+        if (s.empty())
             return luaL_error(l, "tostring must return a string to print");
 
         msg += s;
@@ -132,9 +133,9 @@ static int logger_index(lua_State* l)
     lua::State L(l);
     auto logger = tologger(L);
 
-    const char* key = L.checkstring(2);
+    auto key = L.checkstring(2);
 
-    if (std::strcmp(key, "level") == 0)
+    if (key == "level"sv)
         L.pushinteger(logger->level());
     else
         L.pushnil();
@@ -147,9 +148,9 @@ static int logger_newindex(lua_State* l)
     lua::State L(l);
     auto logger = tologger(L);
 
-    const char* key = L.checkstring(2);
+    auto key = L.checkstring(2);
 
-    if (std::strcmp(key, "level") == 0) {
+    if (key == "level"sv) {
         auto level = static_cast<logging::level_enum>(L.checkinteger(3));
         logger->level(level);
     }
@@ -190,7 +191,7 @@ static int logging_get(lua_State* l)
 {
     // get the name before doing any allocation
     lua::State L(l);
-    const char* name = L.checkstring(1);
+    auto name = L.checkstring(1);
 
     // alloc and init
     auto p = L.newobj<LuaLogStruct>(LUALOG);

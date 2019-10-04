@@ -56,12 +56,9 @@ public:
     int geti(int index, int i);
     void seti(int index, int n);
 
-    const char* tostring(int index);
-    const char* tolstring(int index, size_t* len);
-    const char* checkstring(int arg);
-    const char* checklstring(int arg, size_t* l);
-    void pushstring(const char* s);
-    void pushstring(const std::string& s);
+    std::string_view tostring(int index);
+    std::string_view checkstring(int arg);
+    void pushstring(std::string_view s);
 
     int tointeger(int index);
     int tointegerx(int index, int* isnum);

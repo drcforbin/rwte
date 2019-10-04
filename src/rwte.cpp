@@ -8,6 +8,12 @@
 
 #include <memory>
 
+// todo: mark [[noreturn]] funcs
+// todo: std::starts_with/ends_with
+// todo: std::span
+// todo: std::bit_cast
+// todo: std::shift_left/shift_right
+
 // globals
 Options options;
 std::unique_ptr<Rwte> rwte;

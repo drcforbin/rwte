@@ -28,26 +28,29 @@ public:
     void setFd(int fd) { m_fd = fd; }
     int fd() const { return m_fd; }
 
-    void write(const char* data, std::size_t len)
+    void write(std::string_view data)
     {
+        auto pdata = data.data();
+        std::size_t len = data.size();
+
         // if nothing's pending for write, kick it off
         if (m_wbuffer.empty()) {
-            ssize_t written = ::write(m_fd, data, std::min(len, max_write));
+            ssize_t written = ::write(m_fd, pdata, std::min(len, max_write));
             if (written < 0)
                 written = 0;
 
             if (written > 0)
-                static_cast<T*>(this)->log_write(true, data, written);
+                static_cast<T*>(this)->log_write(true, pdata, written);
 
             if (static_cast<std::size_t>(written) == len)
                 return;
 
-            data += written;
+            pdata += written;
             len -= written;
         }
 
         // copy anything left into m_wbuffer
-        std::copy(data, data + len, std::back_inserter(m_wbuffer));
+        std::copy(pdata, pdata + len, std::back_inserter(m_wbuffer));
 
         // now we want write events too
         m_io.set(ev::READ | ev::WRITE);

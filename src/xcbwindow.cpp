@@ -75,7 +75,7 @@ public:
     uint16_t cols() const { return m_cols; }
 
     void draw();
-    void settitle(const std::string& name);
+    void settitle(std::string_view name);
     void seturgent(bool urgent);
     void bell(int volume);
 
@@ -318,12 +318,12 @@ static std::string get_term_name()
     return name;
 }
 
-void XcbWindow::settitle(const std::string& name)
+void XcbWindow::settitle(std::string_view name)
 {
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
-            XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8, name.size(), name.c_str());
+            XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8, name.size(), name.data());
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
-            m_netwmname, XCB_ATOM_STRING, 8, name.size(), name.c_str());
+            m_netwmname, XCB_ATOM_STRING, 8, name.size(), name.data());
 }
 
 void XcbWindow::seturgent(bool urgent)
@@ -962,7 +962,7 @@ void XcbWindow::selnotify(xcb_atom_t property, bool propnotify)
     xcb_get_property_reply_t* reply = xcb_get_property_reply(connection,
             xcb_get_property(connection, 0, win, property, XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX), nullptr);
     if (reply) {
-        int len = xcb_get_property_value_length(reply);
+        std::size_t len = xcb_get_property_value_length(reply);
         if (propnotify && len == 0) {
             // propnotify with no data means all data has been
             // transferred, and we no longer need property
@@ -997,10 +997,10 @@ void XcbWindow::selnotify(xcb_atom_t property, bool propnotify)
             // todo: move to a Term::paste function
             bool brcktpaste = m_term->mode()[term::MODE_BRCKTPASTE];
             if (brcktpaste)
-                m_tty->write("\033[200~", 6);
-            m_tty->write(data, len);
+                m_tty->write({"\033[200~", 6});
+            m_tty->write({data, len});
             if (brcktpaste)
-                m_tty->write("\033[201~", 6);
+                m_tty->write({"\033[201~", 6});
         }
 
         free(reply);

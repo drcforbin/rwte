@@ -193,34 +193,29 @@ void State::seti(int index, int n)
     lua_seti(m_L, index, n);
 }
 
-const char* State::tostring(int index)
+std::string_view State::tostring(int index)
 {
-    return lua_tostring(m_L, index);
+    std::size_t len = 0;
+    const char *p = lua_tolstring(m_L, index, &len);
+    if (p)
+        return {p, len};
+    else
+        return {};
 }
 
-const char* State::tolstring(int index, size_t* len)
+std::string_view State::checkstring(int arg)
 {
-    return lua_tolstring(m_L, index, len);
+    std::size_t len = 0;
+    const char *p = luaL_checklstring(m_L, arg, &len);
+    if (p)
+        return {p, len};
+    else
+        return {};
 }
 
-const char* State::checkstring(int arg)
+void State::pushstring(std::string_view s)
 {
-    return luaL_checkstring(m_L, arg);
-}
-
-const char* State::checklstring(int arg, size_t* l)
-{
-    return luaL_checklstring(m_L, arg, l);
-}
-
-void State::pushstring(const char* s)
-{
-    lua_pushstring(m_L, s);
-}
-
-void State::pushstring(const std::string& s)
-{
-    lua_pushlstring(m_L, s.c_str(), s.size());
+    lua_pushlstring(m_L, s.data(), s.size());
 }
 
 int State::tointeger(int index)

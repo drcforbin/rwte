@@ -23,6 +23,7 @@
 #include <fcntl.h>
 #include <pty.h>
 #include <pwd.h>
+#include <utility>
 
 #define LOGGER() (logging::get("tty"))
 
@@ -66,9 +67,10 @@ static void execsh(Window* window)
             else {
                 // still couldn't find it. check config
                 L->getfield(-1, "default_shell");
-                sh = L->tostring(-1);
-                if (!sh)
+                auto shv = L->tostring(-1);
+                if (shv.empty())
                     LOGGER()->fatal("config.default_shell is not valid");
+                sh = shv.data();
                 sh_on_stack = true;
             }
         }
@@ -80,8 +82,8 @@ static void execsh(Window* window)
     args.push_back(nullptr);
 
     L->getfield(sh_on_stack ? -2 : -1, "term_name");
-    const char* term_name = L->tostring(-1);
-    if (!term_name)
+    auto term_name = L->tostring(-1);
+    if (term_name.empty())
         LOGGER()->fatal("config.term_name is not valid");
 
     unsetenv("COLUMNS");
@@ -91,7 +93,7 @@ static void execsh(Window* window)
     setenv("USER", pw->pw_name, 1);
     setenv("SHELL", args[0], 1);
     setenv("HOME", pw->pw_dir, 1);
-    setenv("TERM", term_name, 1);
+    setenv("TERM", term_name.data(), 1);
     setenv_windowid(window);
 
     signal(SIGCHLD, SIG_DFL);
@@ -115,19 +117,21 @@ static void stty()
     L->getglobal("config");
     L->getfield(-1, "stty_args");
 
-    char cmd[_POSIX_ARG_MAX];
+    std::array<char, _POSIX_ARG_MAX> cmd;
 
-    size_t len = 0;
-    const char* stty_args = L->tolstring(-1, &len);
-    if (!stty_args || len == 0 || len > sizeof(cmd) - 1)
+    auto stty_args = L->tostring(-1);
+    if (stty_args.empty() || stty_args.size() > cmd.size() - 1)
         LOGGER()->fatal("config.stty_args is invalid");
 
-    memcpy(cmd, stty_args, len);
+    // todo: there's a better way to do this!
+    // tbh, review this whole func.
+    memcpy(cmd.data(), stty_args.data(), stty_args.size());
     L->pop(2);
 
-    char* q = cmd + len;
-    size_t siz = sizeof(cmd) - len;
+    char* q = cmd.data() + stty_args.size();
+    size_t siz = cmd.size() - stty_args.size();
     const char* s;
+    size_t len = 0;
     for (const char** p = options.cmd.data(); p && (s = *p); ++p) {
         if ((len = strlen(s)) > siz - 1)
             LOGGER()->fatal("config.stty_args parameter length too long");
@@ -138,7 +142,7 @@ static void stty()
         siz -= len + 1;
     }
     *q = '\0';
-    if (system(cmd) != 0)
+    if (std::system(cmd.data()) != 0)
         LOGGER()->fatal("Couldn't call stty");
 }
 
@@ -150,7 +154,7 @@ public:
 
     void open(Window* window);
 
-    void print(const char* data, std::size_t len);
+    void print(std::string_view data);
 
     void hup();
 
@@ -251,12 +255,16 @@ void TtyImpl::open(Window* window)
     }
 }
 
-void TtyImpl::print(const char* data, size_t len)
+void TtyImpl::print(std::string_view data)
 {
+    // todo: refactor
+    auto pdata = data.data();
+    auto len = data.size();
+
     if (m_iofd != -1 && len > 0) {
         ssize_t r;
         while (len > 0) {
-            r = ::write(m_iofd, data, len);
+            r = ::write(m_iofd, pdata, len);
             if (r < 0) {
                 LOGGER()->error("error writing in {}: {}",
                         options.io, strerror(errno));
@@ -266,7 +274,7 @@ void TtyImpl::print(const char* data, size_t len)
             }
 
             len -= r;
-            data += r;
+            pdata += r;
         }
     }
 }
@@ -314,31 +322,32 @@ void TtyImpl::log_write(bool initial, const char* data, size_t len)
     LOGGER()->trace("wrote '{}' ({}, {})", msg.data(), len, initial);
 }
 
+// todo: string_view
 std::size_t TtyImpl::onread(const char* ptr, std::size_t len)
 {
-    for (;;) {
+    std::string_view data{ptr, len};
+    while (!data.empty()) {
         // UTF8 but not SIXEL
         if (m_term->mode()[term::MODE_UTF8] &&
                 !m_term->mode()[term::MODE_SIXEL]) {
             // process a complete utf8 char
-            char32_t unicodep;
-            int charsize = utf8decode(ptr, &unicodep, len);
-            if (charsize == 0)
+            auto [sz, cp] = utf8decode(data);
+            if (sz == 0)
                 break; // incomplete char
 
-            m_term->putc(unicodep);
-            ptr += charsize;
-            len -= charsize;
+            m_term->putc(cp);
+            data = data.substr(sz);
         } else {
             if (len <= 0)
                 break;
 
-            m_term->putc(*ptr++ & 0xFF);
-            len--;
+            m_term->putc(data.front() & 0xFF);
+            data = data.substr(1);
         }
     }
 
-    return len;
+    // return number of bytes not sent
+    return data.size();
 }
 
 Tty::Tty(std::shared_ptr<event::Bus> bus, std::shared_ptr<term::Term> term) :
@@ -353,19 +362,14 @@ void Tty::open(Window* window)
     impl->open(window);
 }
 
-void Tty::write(const std::string& data)
+void Tty::write(std::string_view data)
 {
-    impl->write(data.c_str(), data.size());
+    impl->write(data);
 }
 
-void Tty::write(const char* data, std::size_t len)
+void Tty::print(std::string_view data)
 {
-    impl->write(data, len);
-}
-
-void Tty::print(const char* data, std::size_t len)
-{
-    impl->print(data, len);
+    impl->print(data);
 }
 
 void Tty::hup()

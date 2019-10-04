@@ -35,10 +35,9 @@ void process_key(uint32_t key, term::Term* trm, Tty* tty, xkb_state* state,
     xkb_keysym_t ksym = xkb_state_key_get_one_sym(state, key);
 
     // The buffer will be null-terminated, so n >= 2 for 1 actual character.
-    char buffer[128];
-    memset(buffer, 0, sizeof(buffer));
+    std::array<char, 128> buffer{};
 
-    int len = 0;
+    std::size_t len = 0;
     bool composed = false;
     if (compose_state &&
             xkb_compose_state_feed(compose_state, ksym) == XKB_COMPOSE_FEED_ACCEPTED) {
@@ -49,7 +48,7 @@ void process_key(uint32_t key, term::Term* trm, Tty* tty, xkb_state* state,
                 return;
             case XKB_COMPOSE_COMPOSED:
                 len = xkb_compose_state_get_utf8(compose_state,
-                        buffer, sizeof(buffer));
+                        buffer.data(), buffer.size()-1);
                 ksym = xkb_compose_state_get_one_sym(compose_state);
                 composed = true;
                 break;
@@ -73,6 +72,7 @@ void process_key(uint32_t key, term::Term* trm, Tty* tty, xkb_state* state,
                 else
                     buffer[1] = 'O';
 
+                // todo: safetyfy...tightly coupled to val of XKB_KEY_Left
                 buffer[2] = "dacb"[ksym - XKB_KEY_Left];
             } else {
                 if (!mode[term::MODE_APPCURSOR])
@@ -80,11 +80,11 @@ void process_key(uint32_t key, term::Term* trm, Tty* tty, xkb_state* state,
                 else
                     buffer[1] = 'O';
 
+                // todo: safetyfy...tightly coupled to val of XKB_KEY_Left
                 buffer[2] = "DACB"[ksym - XKB_KEY_Left];
             }
 
-            buffer[3] = 0;
-            trm->send(buffer);
+            trm->send({buffer.data(), 3});
             return;
     }
 
@@ -93,13 +93,13 @@ void process_key(uint32_t key, term::Term* trm, Tty* tty, xkb_state* state,
         return;
 
     if (!composed)
-        len = xkb_state_key_get_utf8(state, key, buffer, sizeof(buffer));
+        len = xkb_state_key_get_utf8(state, key, buffer.data(), buffer.size()-1);
 
     if (len == 1 && keymod[term::MOD_ALT]) {
         if (mode[term::MODE_8BIT]) {
-            if (*buffer < 0177) {
-                char32_t c = *buffer | 0x80;
-                len = utf8encode(c, buffer);
+            if (buffer[0] < 0177) {
+                char32_t c = buffer[0] | 0x80;
+                len = utf8encode(c, buffer.begin()) - buffer.begin();
             }
         } else {
             buffer[1] = buffer[0];
@@ -108,6 +108,5 @@ void process_key(uint32_t key, term::Term* trm, Tty* tty, xkb_state* state,
         }
     }
 
-    // this feels dirty
-    tty->write(buffer, len);
+    tty->write({buffer.data(), len});
 }

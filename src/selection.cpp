@@ -2,12 +2,6 @@
 
 #include <cstring>
 
-Selection::Selection()
-{
-    std::memset(&tclick1, 0, sizeof(tclick1));
-    std::memset(&tclick2, 0, sizeof(tclick2));
-}
-
 void Selection::clear()
 {
     m_mode = Mode::Idle;

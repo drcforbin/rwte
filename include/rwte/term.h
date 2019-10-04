@@ -119,7 +119,7 @@ public:
     void selclear();
     void clipcopy();
 
-    void send(const char* data, std::size_t len = 0);
+    void send(std::string_view data);
 
 private:
     std::unique_ptr<TermImpl> impl;

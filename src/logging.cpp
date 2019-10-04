@@ -1,13 +1,37 @@
 #include "fmt/time.h"
+#include "pdata/map.h"
 #include "rwte/logging.h"
 
 #include <ctime>
-#include <unordered_map>
+
+template <>
+struct fmt::formatter<std::shared_ptr<logging::Logger>>
+{
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const std::shared_ptr<logging::Logger>& logger, FormatContext& ctx)
+    {
+        if (logger) {
+            return format_to(ctx.out(), "logger '{}'", logger->name());
+        } else {
+            return format_to(ctx.out(), "null logger");
+        }
+    }
+};
 
 // global logger map
-static std::unordered_map<std::string, std::shared_ptr<logging::Logger>> g_loggers;
+// todo: when switched to c++20, use std:atomic<std::shared_ptr<...>>
+static std::shared_ptr<
+        pdata::persistent_map<std::string, std::shared_ptr<logging::Logger>>>
+        g_loggers;
 
-const char* const level_names[]{
+// todo: literal string_viewify?
+constexpr std::string_view level_names[]{
         "TRACE",
         "DEBUG",
         " INFO",
@@ -16,16 +40,47 @@ const char* const level_names[]{
         "FATAL",
         "OTHER"};
 
-std::shared_ptr<logging::Logger> logging::get(const std::string& name)
+std::shared_ptr<logging::Logger> logging::get(std::string_view name)
 {
-    auto found = g_loggers.find(name);
-    if (found != g_loggers.end())
-        return found->second;
-    else {
-        auto logger = std::make_shared<logging::Logger>(name);
-        g_loggers[name] = logger;
-        return logger;
+    auto loggers = std::atomic_load(&g_loggers);
+    if (!loggers) {
+        // make a new one
+        loggers = std::make_shared<decltype(g_loggers)::element_type>();
+
+        decltype(g_loggers) target{}; // replace if empty
+        if (!std::atomic_compare_exchange_strong(&g_loggers, &target, loggers)) {
+            // somebody beat us to it.
+            loggers = target;
+        }
     }
+
+    // todo: allocating a string here feels like a hack
+    std::string sname{name};
+    for (;;) {
+        // if it already exists in loggers, return it
+        auto logger = loggers->find(sname);
+        if (logger) {
+            return logger.value();
+        } else {
+            // otherwise, make a new one
+            auto logger = std::make_shared<logging::Logger>(name);
+
+            // try to replace the old map with a new one containing
+            // the new logger
+            if (std::atomic_compare_exchange_weak(&g_loggers, &loggers,
+                        loggers->assoc(sname, logger))) {
+                // succeeded, we can return our new logger
+                return logger;
+            }
+            // no luck, but loggers is now the current value of g_loggers,
+            // so go around again
+        }
+    }
+}
+
+std::shared_ptr<logging::Logger> logging::dbg()
+{
+    return logging::get("dbg");
 }
 
 void logging::details::log_message(const logging::details::Message& msg)
@@ -41,8 +96,8 @@ void logging::details::log_message(const logging::details::Message& msg)
     int level = msg.level;
     if (level < logging::trace || logging::off < level)
         level = logging::off; // OTHER
-    const char* levelstr = level_names[level];
+    auto levelstr = level_names[level];
 
     fmt::print("{:%Y-%m-%dT%H:%M:%S}.{:03d} {} {} - {}\n",
-            ltm, ms % 1000, levelstr, *msg.logname, msg.msg);
+            ltm, ms % 1000, levelstr, msg.logname, msg.msg);
 }

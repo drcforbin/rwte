@@ -21,10 +21,9 @@ public:
 
     void open(Window* window);
 
-    void write(const std::string& data);
-    void write(const char* data, std::size_t len);
+    void write(std::string_view data);
 
-    void print(const char* data, std::size_t len);
+    void print(std::string_view data);
 
     void hup();
 

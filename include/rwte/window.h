@@ -40,7 +40,7 @@ public:
 
     virtual void draw() = 0;
 
-    virtual void settitle(const std::string& name) = 0;
+    virtual void settitle(std::string_view name) = 0;
     virtual void seturgent(bool urgent) = 0;
     virtual void bell(int volume) = 0;
 

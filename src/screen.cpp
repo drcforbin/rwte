@@ -35,15 +35,15 @@ static bool isdelim(char32_t c)
     auto L = rwte->lua();
     L->getglobal("config");
     L->getfield(-1, "word_delimiters");
-    const char* word_delimiters = L->tostring(-1);
+    auto word_delimiters = L->tostring(-1);
 
     // if word_delimiters is missing, it'll select whole line
-    // TODO: look to replacing utf8strchr with wcschr
+    // TODO: look to replacing utf8contains with wcschr
     // (that's what st did)
     // their default word_delimiters is just " " by default
     bool delim = false;
-    if (word_delimiters)
-        delim = c != 0 && utf8strchr(word_delimiters, c) != nullptr;
+    if (!word_delimiters.empty())
+        delim = c != 0 && utf8contains(word_delimiters, c);
 
     L->pop(2);
     return delim;
@@ -459,7 +459,7 @@ public:
                 if (gp->attr[screen::ATTR_WDUMMY])
                     continue;
 
-                ptr += utf8encode(gp->u, ptr);
+                ptr = utf8encode(gp->u, ptr);
             }
 
             // use \n for line ending in outgoing data

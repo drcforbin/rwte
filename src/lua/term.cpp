@@ -88,9 +88,8 @@ static int luaterm_send(lua_State* l)
 {
     lua::State L(l);
     if (auto term = getterm(L)) {
-        size_t len = 0;
-        const char* buffer = L.checklstring(1, &len);
-        term->send(buffer, len);
+        auto buffer = L.checkstring(1);
+        term->send(buffer);
     }
 
     return 0;

@@ -425,14 +425,16 @@ public:
         xdg_toplevel_destroy(toplevel);
     }
 
-    void set_title(const char* title)
+    void set_title(std::string_view title)
     {
-        xdg_toplevel_set_title(toplevel, title);
+        std::string stitle{title};
+        xdg_toplevel_set_title(toplevel, stitle.c_str());
     }
 
-    void set_app_id(const char* app_id)
+    void set_app_id(std::string_view app_id)
     {
-        xdg_toplevel_set_app_id(toplevel, app_id);
+        std::string sapp_id{app_id};
+        xdg_toplevel_set_app_id(toplevel, sapp_id.c_str());
     }
 
     void unset_fullscreen()

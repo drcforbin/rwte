@@ -40,14 +40,10 @@ bool get_bool(const char* name, bool def)
 
 std::string get_string(const char* name)
 {
-    std::string val;
-
     auto L = rwte->lua();
     L->getglobal("config");
     L->getfield(-1, name);
-    const char* s = L->tostring(-1);
-    if (s)
-        val = s;
+    std::string val{L->tostring(-1)};
     L->pop(2);
 
     return val;

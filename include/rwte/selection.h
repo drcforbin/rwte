@@ -3,14 +3,13 @@
 
 #include "rwte/coords.h"
 
+#include <chrono>
 #include <memory>
 #include <time.h>
 
 class Selection
 {
 public:
-    Selection();
-
     enum class Mode
     {
         Idle = 0,
@@ -53,8 +52,8 @@ public:
     std::shared_ptr<char> clipboard;
 
     bool alt = false;
-    struct timespec tclick1 = {0};
-    struct timespec tclick2 = {0};
+    std::chrono::time_point<std::chrono::steady_clock> tclick1 = {};
+    std::chrono::time_point<std::chrono::steady_clock> tclick2 = {};
 
 private:
     Mode m_mode = Mode::Idle;

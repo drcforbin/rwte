@@ -586,11 +586,8 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout* layout,
 
     // decode to a vector
     std::vector<char> buf;
-    char encoded[utf_size];
-    std::size_t glyphlen = 0;
     for (const auto& rune : runes) {
-        glyphlen = utf8encode(rune, encoded);
-        std::copy(encoded, encoded + glyphlen, std::back_inserter(buf));
+        utf8encode(rune, std::back_inserter(buf));
     }
 
     // zero-terminate
@@ -706,7 +703,7 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout* layout)
             case screen::cursor_type::CURSOR_BLINK_BLOCK:
                 if (m_term->mode()[term::MODE_BLINK])
                     break;
-                // fall through
+                [[fallthrough]];
             case screen::cursor_type::CURSOR_STEADY_BLOCK:
                 g.attr[screen::ATTR_WIDE] = m_term->glyph({cursor.row, curcol})
                                                     .attr[screen::ATTR_WIDE];
@@ -715,7 +712,7 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout* layout)
             case screen::cursor_type::CURSOR_BLINK_UNDER:
                 if (m_term->mode()[term::MODE_BLINK])
                     break;
-                // fall through
+                [[fallthrough]];
             case screen::cursor_type::CURSOR_STEADY_UNDER: {
                 int cursor_thickness = get_cursor_thickness();
                 cr.setSourceColor(drawcol);
@@ -729,7 +726,7 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout* layout)
             case screen::cursor_type::CURSOR_BLINK_BAR:
                 if (m_term->mode()[term::MODE_BLINK])
                     break;
-                // fall through
+                [[fallthrough]];
             case screen::cursor_type::CURSOR_STEADY_BAR: {
                 int cursor_thickness = get_cursor_thickness();
                 cr.setSourceColor(drawcol);

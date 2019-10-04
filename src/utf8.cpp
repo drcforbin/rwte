@@ -2,6 +2,9 @@
 
 #include <array>
 #include <cstring>
+#include <tuple>
+
+// todo: enum classes
 
 enum utf8_result
 {
@@ -22,7 +25,7 @@ enum utf8_state_enum
     UTF8_TAIL3
 };
 
-enum utf_action_enum
+enum utf8_action_enum
 {
     ACT_NOOP,
     ACT_EMIT,
@@ -111,37 +114,34 @@ constexpr auto UTF8_TRANSITIONS = make_transitions();
 class Utf8Decoder
 {
 public:
-    Utf8Decoder() :
-        m_codepoint(0),
-        m_state(UTF8_GROUND) {}
-
-    utf8_result feed(unsigned char b, char32_t* cp);
+    constexpr std::pair<utf8_result, char32_t> feed(unsigned char b);
 
 private:
-    char32_t m_codepoint;
-    utf8_state_enum m_state;
+    char32_t m_codepoint = 0;
+    utf8_state_enum m_state = UTF8_GROUND;
 };
 
-utf8_result Utf8Decoder::feed(unsigned char b, char32_t* cp)
+constexpr std::pair<utf8_result, char32_t> Utf8Decoder::feed(unsigned char b)
 {
-    unsigned char chg = UTF8_TRANSITIONS[m_state][b];
-    int action = (chg & 0xF0) >> 4;
-    utf8_state_enum newstate = static_cast<utf8_state_enum>(chg & 0x0F);
+    auto chg = UTF8_TRANSITIONS[m_state][b];
+    auto action = static_cast<utf8_action_enum>((chg & 0xF0) >> 4);
+    auto newstate = static_cast<utf8_state_enum>(chg & 0x0F);
 
-    utf8_result res = UTF8_RES_CONTINUE;
+    auto res = UTF8_RES_CONTINUE;
+    char32_t cp = 0;
 
     switch (action) {
         case ACT_NOOP:
             break;
         case ACT_EMIT:
-            *cp = b;
             res = UTF8_RES_COMPLETE;
+            cp = b;
             m_codepoint = 0;
             break;
         case ACT_SET_BYTE1_EMIT:
             m_codepoint |= static_cast<char32_t>(b & 0b00111111);
-            *cp = m_codepoint;
             res = UTF8_RES_COMPLETE;
+            cp = m_codepoint;
             m_codepoint = 0;
             break;
         case ACT_SET_BYTE2:
@@ -160,33 +160,14 @@ utf8_result Utf8Decoder::feed(unsigned char b, char32_t* cp)
             m_codepoint |= (static_cast<char32_t>(b & 0b00000111) << 18);
             break;
         case ACT_INVALID:
-            *cp = utf_invalid;
             res = UTF8_RES_INVALID;
+            cp = utf_invalid;
             m_codepoint = 0;
             break;
     }
 
     m_state = newstate;
-    return res;
-}
-
-std::size_t utf8decode(const char* c, char32_t* u, std::size_t clen)
-{
-    *u = utf_invalid;
-    if (!clen)
-        return 0;
-
-    Utf8Decoder dec;
-
-    std::size_t i = 0;
-    while (i < clen) {
-        if (dec.feed(c[i], u) == UTF8_RES_CONTINUE)
-            i++;
-        else
-            return i + 1;
-    }
-
-    return 0;
+    return {res, cp};
 }
 
 std::size_t utf8encode(char32_t cp, char* c)
@@ -233,6 +214,7 @@ std::size_t utf8encode(char32_t cp, char* c)
     return 0;
 }
 
+/*
 const char* utf8strchr(const char* s, char32_t u)
 {
     char32_t r;
@@ -245,4 +227,38 @@ const char* utf8strchr(const char* s, char32_t u)
     }
 
     return nullptr;
+}
+*/
+
+std::pair<std::size_t, char32_t> utf8decode(std::string_view c)
+{
+    if (!c.empty()) {
+        Utf8Decoder dec;
+        utf8_result state;
+        std::size_t i = 0;
+        char32_t cp = utf_invalid;
+        while (i < c.size()) {
+            std::tie(state, cp) = dec.feed(c[i]);
+            if (state == UTF8_RES_CONTINUE)
+                i++;
+            else
+                return {i + 1, cp};
+        }
+    }
+
+    return {0, utf_invalid};
+}
+
+bool utf8contains(std::string_view s, char32_t cp)
+{
+    while (!s.empty()) {
+        auto [len, curr] = utf8decode(s);
+        if (!len)
+            break;
+        if (curr == cp)
+            return true;
+        s = s.substr(len);
+    }
+
+    return false;
 }
