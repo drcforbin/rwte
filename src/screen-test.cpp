@@ -2,7 +2,8 @@
 #include "rwte/catch.hpp"
 #include "rwte/screen.h"
 
-class ScreenFixture {
+class ScreenFixture
+{
 public:
     ScreenFixture() :
         bus(std::make_shared<event::Bus>()),
@@ -11,7 +12,7 @@ public:
         // fill a screen with known data
         screen.resize(initial_cols, initial_rows);
         // todo: seems like this should be part of resize
-        screen.setscroll(0, initial_rows-1);
+        screen.setscroll(0, initial_rows - 1);
 
         for (auto& line : screen.lines()) {
             for (auto& g : line) {
@@ -36,21 +37,20 @@ protected:
 const int ScreenFixture::initial_rows = 5;
 const int ScreenFixture::initial_cols = 6;
 
-const screen::Glyph ScreenFixture::initial_fill {
-    32655,
-    {screen::ATTR_BOLD},
-    982374,
-    8758
-};
+const screen::Glyph ScreenFixture::initial_fill{
+        32655,
+        {screen::ATTR_BOLD},
+        982374,
+        8758};
 
-const screen::Glyph ScreenFixture::second_fill {
-    3423,
-    {screen::ATTR_FAINT},
-    8474,
-    2897
-};
+const screen::Glyph ScreenFixture::second_fill{
+        3423,
+        {screen::ATTR_FAINT},
+        8474,
+        2897};
 
-class ScreenFixtureVarying : public ScreenFixture {
+class ScreenFixtureVarying : public ScreenFixture
+{
 public:
     ScreenFixtureVarying()
     {
@@ -63,7 +63,8 @@ public:
     }
 
 protected:
-    screen::Glyph glyphForCell(const Cell& cell) {
+    screen::Glyph glyphForCell(const Cell& cell)
+    {
         // todo: review bitset constructor usage...
         // this should be calling the ulonglong ctor,
         // but we might be misusing it elsewhere
@@ -71,14 +72,14 @@ protected:
         // return a glyph encoding cell and field number
         uint32_t magic = (cell.row << 10) | (cell.col << 2);
         return {
-            magic | 0,
-            {magic | 1},
-            magic | 2,
-            magic | 3
-        };
+                magic | 0,
+                {magic | 1},
+                magic | 2,
+                magic | 3};
     }
 
-    void checkMotion(const std::vector<Cell> sources) {
+    void checkMotion(const std::vector<Cell> sources)
+    {
         // iterate over each location in screen. values dir will
         // contain offsets to where the current value of a cell
         // came from. if {0,0}, the target value should be
@@ -108,7 +109,7 @@ protected:
                 screen::Glyph expected;
                 Cell from{cell.row + source->row, cell.col + source->col};
                 if (0 <= from.row && from.row < screen.rows() &&
-                    0 <= from.col && from.col < screen.cols()) {
+                        0 <= from.col && from.col < screen.cols()) {
                     // source is in screen; get it.
                     expected = glyphForCell(from);
                 } else {
@@ -119,12 +120,12 @@ protected:
                 }
 
                 INFO("cell {"
-                    << cell.row << "," << cell.col
-                    << "} should be copied from {"
-                    << from.row << "," << from.col
-                    << "}; got value from {"
-                    << ((actual.u >> 10) & 0xFF) << ","
-                    << ((actual.u >> 2) & 0xFF) << "}")
+                        << cell.row << "," << cell.col
+                        << "} should be copied from {"
+                        << from.row << "," << from.col
+                        << "}; got value from {"
+                        << ((actual.u >> 10) & 0xFF) << ","
+                        << ((actual.u >> 2) & 0xFF) << "}")
                 REQUIRE(actual.u == expected.u);
                 REQUIRE(actual.attr == expected.attr);
                 REQUIRE(actual.fg == expected.fg);
@@ -138,8 +139,10 @@ protected:
     }
 };
 
-TEST_CASE_METHOD(ScreenFixture, "resize resizes", "[screen]") {
-    SECTION("initial resize works") {
+TEST_CASE_METHOD(ScreenFixture, "resize resizes", "[screen]")
+{
+    SECTION("initial resize works")
+    {
         REQUIRE(screen.cols() == initial_cols);
         REQUIRE(screen.rows() == initial_rows);
 
@@ -163,7 +166,8 @@ TEST_CASE_METHOD(ScreenFixture, "resize resizes", "[screen]") {
         REQUIRE(count == 30);
     }
 
-    SECTION("resize smaller works") {
+    SECTION("resize smaller works")
+    {
         screen.resize(3, 2);
         REQUIRE(screen.cols() == 3);
         REQUIRE(screen.rows() == 2);
@@ -188,7 +192,8 @@ TEST_CASE_METHOD(ScreenFixture, "resize resizes", "[screen]") {
         REQUIRE(count == 6);
     }
 
-    SECTION("resize larger works") {
+    SECTION("resize larger works")
+    {
         screen.resize(9, 10);
         REQUIRE(screen.cols() == 9);
         REQUIRE(screen.rows() == 10);
@@ -221,9 +226,10 @@ TEST_CASE_METHOD(ScreenFixture, "resize resizes", "[screen]") {
     }
 }
 
-TEST_CASE_METHOD(ScreenFixture, "clear clears", "[screen]") {
+TEST_CASE_METHOD(ScreenFixture, "clear clears", "[screen]")
+{
     auto checkRange = [this](
-            int row1, int col1, int row2, int col2) {
+                              int row1, int col1, int row2, int col2) {
         Cell cell;
         for (cell.row = 0; cell.row < this->screen.rows(); cell.row++) {
             for (cell.col = 0; cell.col < this->screen.cols(); cell.col++) {
@@ -246,60 +252,72 @@ TEST_CASE_METHOD(ScreenFixture, "clear clears", "[screen]") {
         }
     };
 
-    SECTION("clear all sets to cursor") {
+    SECTION("clear all sets to cursor")
+    {
         screen.clear();
         checkRange(0, 0, initial_rows - 1, initial_cols - 1);
     }
 
-    SECTION("clear sets top left to cursor") {
+    SECTION("clear sets top left to cursor")
+    {
         screen.clear({0, 0}, {2, 2});
         checkRange(0, 0, 2, 2);
     }
 
-    SECTION("clear sets middle to cursor") {
+    SECTION("clear sets middle to cursor")
+    {
         screen.clear({1, 1}, {3, 3});
         checkRange(1, 1, 3, 3);
     }
 
-    SECTION("clear sets bottom right to cursor") {
+    SECTION("clear sets bottom right to cursor")
+    {
         screen.clear({2, 3}, {initial_rows - 1, initial_cols - 1});
         checkRange(2, 3, initial_rows - 1, initial_cols - 1);
     }
 
-    SECTION("clear handles overflow top left") {
+    SECTION("clear handles overflow top left")
+    {
         screen.clear({-6, -4}, {2, 2});
         checkRange(0, 0, 2, 2);
     }
 
-    SECTION("clear handles overflow bottom right") {
+    SECTION("clear handles overflow bottom right")
+    {
         screen.clear({2, 3}, {9, 10});
         checkRange(2, 3, initial_rows - 1, initial_cols - 1);
     }
 
-    SECTION("clear handles complete overflow") {
+    SECTION("clear handles complete overflow")
+    {
         screen.clear({-6, -4}, {9, 10});
         checkRange(0, 0, initial_rows - 1, initial_cols - 1);
     }
 
-    SECTION("clear handles missorted cols") {
+    SECTION("clear handles missorted cols")
+    {
         screen.clear({1, 3}, {3, 1});
         checkRange(1, 1, 3, 3);
     }
 
-    SECTION("clear handles missorted rows") {
+    SECTION("clear handles missorted rows")
+    {
         screen.clear({3, 1}, {1, 3});
         checkRange(1, 1, 3, 3);
     }
 
-    SECTION("clear handles missorted coords") {
+    SECTION("clear handles missorted coords")
+    {
         screen.clear({3, 3}, {1, 1});
         checkRange(1, 1, 3, 3);
     }
 }
 
 TEST_CASE_METHOD(ScreenFixtureVarying, "newline moves cursor down",
-        "[screen]") {
-    SECTION("moves down when not on last line") {
+        "[screen]")
+{
+    SECTION("moves down when not on last line")
+    {
         auto c = screen.cursor();
         c.row = 2, c.col = 3;
         screen.setCursor(c);
@@ -313,11 +331,11 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "newline moves cursor down",
 
         // verify display unchanged
         checkMotion(
-                {{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}});
+                {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}});
 
         // should move down again, reset to col 0, and not
         // modify the display
@@ -328,14 +346,15 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "newline moves cursor down",
 
         // verify display unchanged
         checkMotion(
-                {{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}});
+                {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}});
     }
 
-    SECTION("will scroll when on last line") {
+    SECTION("will scroll when on last line")
+    {
         auto c = screen.cursor();
         c.row = screen.bot(), c.col = 3;
         screen.setCursor(c);
@@ -348,11 +367,11 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "newline moves cursor down",
 
         // verify display scrolled 1
         checkMotion(
-                {{1,0}, {1,0}, {1,0}, {1,0}, {1,0}, {1,0},
-                {1,0}, {1,0}, {1,0}, {1,0}, {1,0}, {1,0},
-                {1,0}, {1,0}, {1,0}, {1,0}, {1,0}, {1,0},
-                {1,0}, {1,0}, {1,0}, {1,0}, {1,0}, {1,0},
-                {1,0}, {1,0}, {1,0}, {1,0}, {1,0}, {1,0}});
+                {{1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0},
+                        {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0},
+                        {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0},
+                        {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0},
+                        {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}});
 
         // should keep the same row, reset to col 0, and scroll display
         screen.newline(true);
@@ -362,17 +381,19 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "newline moves cursor down",
 
         // verify display scrolled another 1
         checkMotion(
-                {{2,0}, {2,0}, {2,0}, {2,0}, {2,0}, {2,0},
-                {2,0}, {2,0}, {2,0}, {2,0}, {2,0}, {2,0},
-                {2,0}, {2,0}, {2,0}, {2,0}, {2,0}, {2,0},
-                {2,0}, {2,0}, {2,0}, {2,0}, {2,0}, {2,0},
-                {2,0}, {2,0}, {2,0}, {2,0}, {2,0}, {2,0}});
+                {{2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0},
+                        {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0},
+                        {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0},
+                        {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0},
+                        {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0}});
     }
 }
 
 TEST_CASE_METHOD(ScreenFixtureVarying, "deleteline removes lines",
-        "[screen]") {
-    SECTION("deletes one line") {
+        "[screen]")
+{
+    SECTION("deletes one line")
+    {
         auto c = screen.cursor();
 
         // delete one at the end
@@ -382,11 +403,11 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "deleteline removes lines",
 
         // verify last line is missing (10 to guarantee off-screen)
         checkMotion(
-                {{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0}});
+                {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}});
 
         // delete 3rd line
         c.row = 2, c.col = 0;
@@ -395,11 +416,11 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "deleteline removes lines",
 
         // verify line 2 missing, and 3 is scrolled to its place
         checkMotion(
-                {{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {1,0}, {1,0}, {1,0}, {1,0}, {1,0}, {1,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0}});
+                {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}});
 
         // delete 1st line
         c.row = 0, c.col = 2;
@@ -408,14 +429,15 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "deleteline removes lines",
 
         // verify line 0 is now missing too, and rest scrolled up
         checkMotion(
-                {{1,0}, {1,0}, {1,0}, {1,0}, {1,0}, {1,0},
-                {2,0}, {2,0}, {2,0}, {2,0}, {2,0}, {2,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0}});
+                {{1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 0},
+                        {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}});
     }
 
-    SECTION("deletes multiple lines") {
+    SECTION("deletes multiple lines")
+    {
         auto c = screen.cursor();
 
         // delete two in middle
@@ -425,11 +447,11 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "deleteline removes lines",
 
         // verify line 2 and 3 missing, and 4 is scrolled to its place
         checkMotion(
-                {{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {2,0}, {2,0}, {2,0}, {2,0}, {2,0}, {2,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0}});
+                {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}});
 
         // delete first two lines
         c.row = 0, c.col = 0;
@@ -438,14 +460,15 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "deleteline removes lines",
 
         // verify line 2 and 3 missing, and 4 is scrolled to its place
         checkMotion(
-                {{4,0}, {4,0}, {4,0}, {4,0}, {4,0}, {4,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0}});
+                {{4, 0}, {4, 0}, {4, 0}, {4, 0}, {4, 0}, {4, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}});
     }
 
-    SECTION("deletes one at end on overflow") {
+    SECTION("deletes one at end on overflow")
+    {
         auto c = screen.cursor();
 
         c.row = initial_rows - 1, c.col = 3;
@@ -454,17 +477,19 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "deleteline removes lines",
 
         // verify last line is missing (10 to guarantee off-screen)
         checkMotion(
-                {{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0}});
+                {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}});
     }
 }
 
 TEST_CASE_METHOD(ScreenFixtureVarying, "insertblankline adds lines",
-        "[screen]") {
-    SECTION("inserts one line") {
+        "[screen]")
+{
+    SECTION("inserts one line")
+    {
         auto c = screen.cursor();
 
         // insert one at the beginning
@@ -484,14 +509,15 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "insertblankline adds lines",
 
         // verify last line is missing (10 to guarantee off-screen)
         checkMotion(
-                {{10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0},
-                {-1,0}, {-1,0}, {-1,0}, {-1,0}, {-1,0}, {-1,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0},
-                {-2,0}, {-2,0}, {-2,0}, {-2,0}, {-2,0}, {-2,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0}});
+                {{10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0},
+                        {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0},
+                        {-2, 0}, {-2, 0}, {-2, 0}, {-2, 0}, {-2, 0}, {-2, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}});
     }
 
-    SECTION("inserts multiple lines") {
+    SECTION("inserts multiple lines")
+    {
         auto c = screen.cursor();
 
         // insert a couple in the middle
@@ -501,14 +527,15 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "insertblankline adds lines",
 
         // verify last line is missing (10 to guarantee off-screen)
         checkMotion(
-                {{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0},
-                {-2,0}, {-2,0}, {-2,0}, {-2,0}, {-2,0}, {-2,0}});
+                {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0},
+                        {-2, 0}, {-2, 0}, {-2, 0}, {-2, 0}, {-2, 0}, {-2, 0}});
     }
 
-    SECTION("inserts one at end on overflow") {
+    SECTION("inserts one at end on overflow")
+    {
         auto c = screen.cursor();
 
         c.row = initial_rows - 1, c.col = 3;
@@ -517,16 +544,17 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "insertblankline adds lines",
 
         // verify last line is missing (10 to guarantee off-screen)
         checkMotion(
-                {{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
-                {10,0}, {10,0}, {10,0}, {10,0}, {10,0}, {10,0}});
+                {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                        {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}});
     }
 }
 
 TEST_CASE_METHOD(ScreenFixtureVarying, "deletechar removes chars at cursor",
-        "[screen]") {
+        "[screen]")
+{
     // todo:
     // deletes zero
     // deletes one at first line
@@ -538,7 +566,8 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "deletechar removes chars at cursor",
 }
 
 TEST_CASE_METHOD(ScreenFixtureVarying, "insertblank adds chars at cursor",
-        "[screen]") {
+        "[screen]")
+{
     // todo:
     // inserts zero
     // inserts one at first line
