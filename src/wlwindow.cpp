@@ -479,6 +479,7 @@ void WlWindow::drawCore()
     }
 }
 
+// todo: constexpr?
 static const wl_callback_listener frame_listener = {
         // done event
         [](void* data, wl_callback* cb, uint32_t time) {
@@ -785,12 +786,11 @@ void Keyboard::handle_keymap(uint32_t format, int fd, uint32_t size)
         return;
     }
 
-    // todo: replace all getenv with std::getenv
-    const char* locale = getenv("LC_ALL");
+    const char* locale = std::getenv("LC_ALL");
     if (!locale)
-        locale = getenv("LC_CTYPE");
+        locale = std::getenv("LC_CTYPE");
     if (!locale)
-        locale = getenv("LANG");
+        locale = std::getenv("LANG");
     if (!locale) {
         LOGGER()->debug("unable to detect locale, fallback to C");
         locale = "C";
@@ -928,7 +928,7 @@ void Registry::handle_global(uint32_t name, const char* interface, uint32_t vers
         // right thing...no idea why, so not doing it.
         {
             int size = 32;
-            auto v = getenv("XCURSOR_SIZE");
+            auto v = std::getenv("XCURSOR_SIZE");
             // todo: std::from_chars
             if (v)
                 size = atoi(v);

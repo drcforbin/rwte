@@ -49,7 +49,7 @@ static int window_gc(lua_State* l)
 }
 
 // methods for window object
-static const luaL_Reg window_obj_funcs[] = {
+constexpr luaL_Reg window_obj_funcs[] = {
         {"__gc", window_gc},
         {nullptr, nullptr},
 };
@@ -165,7 +165,7 @@ static int luawindow_index(lua_State* l)
 }
 
 // functions for window library
-static const luaL_Reg window_lib_funcs[] = {
+constexpr luaL_Reg window_lib_funcs[] = {
         {"mouse_press", luawindow_mouse_press},
         {"key_press", luawindow_key_press},
         {"clippaste", luawindow_clippaste},

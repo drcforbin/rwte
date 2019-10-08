@@ -204,7 +204,7 @@ public:
         int size = m_cols - src;
 
         auto lineit = m_lines[m_cursor.row].begin();
-        std::copy(lineit + src, lineit + src + size, lineit + dst);
+        std::copy_n(lineit + src, size, lineit + dst);
         clear({m_cursor.row, m_cols - n}, {m_cursor.row, m_cols - 1});
     }
 
@@ -426,6 +426,7 @@ public:
     // todo: move to screen?
     std::shared_ptr<char> getsel() const
     {
+        // todo: refactor these?
         char *str, *ptr;
         int row, bufsize, lastcol, llen;
         const screen::Glyph *gp, *last;

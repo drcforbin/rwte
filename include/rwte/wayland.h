@@ -51,6 +51,7 @@ private:
         static_cast<T*>(data)->handle_release();
     }
 
+    // todo: can these be constexpr'd?
     static const wl_buffer_listener listener;
 };
 

@@ -214,22 +214,6 @@ std::size_t utf8encode(char32_t cp, char* c)
     return 0;
 }
 
-/*
-const char* utf8strchr(const char* s, char32_t u)
-{
-    char32_t r;
-    size_t len = std::strlen(s);
-    for (size_t i = 0, j = 0; i < len; i += j) {
-        if (!(j = utf8decode(&s[i], &r, len - i)))
-            break;
-        if (r == u)
-            return &(s[i]);
-    }
-
-    return nullptr;
-}
-*/
-
 std::pair<std::size_t, char32_t> utf8decode(std::string_view c)
 {
     if (!c.empty()) {

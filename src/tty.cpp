@@ -20,6 +20,8 @@
 #include "rwte/window.h"
 
 #include <algorithm>
+#include <csignal>
+#include <cstdlib>
 #include <fcntl.h>
 #include <pty.h>
 #include <pwd.h>
@@ -28,7 +30,7 @@
 #define LOGGER() (logging::get("tty"))
 
 // most we write in a chunk
-const std::size_t max_write = 255;
+constexpr std::size_t max_write = 255;
 
 static void setenv_windowid(Window* window)
 {
@@ -48,6 +50,10 @@ static void execsh(Window* window)
             LOGGER()->fatal("getpwuid failed: {}", strerror(errno));
         else
             LOGGER()->fatal("getpwuid failed for unknown reasons");
+
+        // this placates scan-build...fatal exits, so we
+        // should never actually get here
+        return;
     }
 
     auto L = rwte->lua();
@@ -56,7 +62,7 @@ static void execsh(Window* window)
 
     // check options for shell; use options.cmd
     // if set, otherwise try fallbacks
-    std::vector<const char*> args = options.cmd;
+    auto args = options.cmd;
     if (args.empty()) {
         // check env next...
         const char* sh = std::getenv("SHELL");
@@ -96,12 +102,12 @@ static void execsh(Window* window)
     setenv("TERM", term_name.data(), 1);
     setenv_windowid(window);
 
-    signal(SIGCHLD, SIG_DFL);
-    signal(SIGHUP, SIG_DFL);
-    signal(SIGINT, SIG_DFL);
-    signal(SIGQUIT, SIG_DFL);
-    signal(SIGTERM, SIG_DFL);
-    signal(SIGALRM, SIG_DFL);
+    std::signal(SIGCHLD, SIG_DFL);
+    std::signal(SIGHUP, SIG_DFL);
+    std::signal(SIGINT, SIG_DFL);
+    std::signal(SIGQUIT, SIG_DFL);
+    std::signal(SIGTERM, SIG_DFL);
+    std::signal(SIGALRM, SIG_DFL);
 
     execvp(args[0], const_cast<char* const*>(args.data()));
     LOGGER()->fatal("execvp failed: {}", strerror(errno));
@@ -117,6 +123,7 @@ static void stty()
     L->getglobal("config");
     L->getfield(-1, "stty_args");
 
+    // todo: seems excessive
     std::array<char, _POSIX_ARG_MAX> cmd;
 
     auto stty_args = L->tostring(-1);
@@ -163,6 +170,7 @@ private:
 
     friend class AsyncIO<TtyImpl, max_write>;
     void log_write(bool initial, const char* data, size_t len);
+    // todo: string_view
     std::size_t onread(const char* ptr, std::size_t len);
 
     std::shared_ptr<event::Bus> m_bus;

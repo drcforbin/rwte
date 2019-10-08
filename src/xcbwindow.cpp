@@ -16,9 +16,12 @@
 #include <cstdint>
 #include <cstdio>
 #include <limits.h>
+#include <string_view>
 #include <unistd.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_aux.h>
+
+using namespace std::literals;
 
 // xkb uses explicit as a field name. ugh.
 // clang complains about redefining explicit,
@@ -243,8 +246,8 @@ XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus,
             XCB_EVENT_MASK_VISIBILITY_CHANGE |
             XCB_EVENT_MASK_FOCUS_CHANGE;
 
-    const uint32_t mask = XCB_CW_EVENT_MASK;
-    uint32_t values[1] = {m_eventmask};
+    constexpr uint32_t mask = XCB_CW_EVENT_MASK;
+    const uint32_t values[1] = {m_eventmask};
 
     auto cookie = xcb_create_window_checked(connection, // Connection
             XCB_COPY_FROM_PARENT,                       // depth (same as root)
@@ -421,31 +424,31 @@ void XcbWindow::set_wmmachine_name()
 
 void XcbWindow::register_atoms()
 {
-    const char* const atom_names[] = {
-            "WM_PROTOCOLS",
-            "WM_DELETE_WINDOW",
-            "_XEMBED",
-            "_NET_WM_NAME",
-            "_NET_WM_PID",
-            "UTF8_STRING",
-            "CLIPBOARD",
-            "INCR",
-            "XSEL_DATA",
-            "TARGETS"};
-    const int num_atoms = std::extent<decltype(atom_names)>::value;
+    constexpr std::array atom_names = {
+            "WM_PROTOCOLS"sv,
+            "WM_DELETE_WINDOW"sv,
+            "_XEMBED"sv,
+            "_NET_WM_NAME"sv,
+            "_NET_WM_PID"sv,
+            "UTF8_STRING"sv,
+            "CLIPBOARD"sv,
+            "INCR"sv,
+            "XSEL_DATA"sv,
+            "TARGETS"sv
+    };
 
-    xcb_intern_atom_cookie_t cookies[num_atoms];
-    for (int i = 0; i < num_atoms; i++)
+    std::array<xcb_intern_atom_cookie_t, atom_names.size()> cookies;
+    for (std::size_t i = 0; i < atom_names.size(); i++)
         cookies[i] = xcb_intern_atom(connection,
-                0, strlen(atom_names[i]), atom_names[i]);
+                0, atom_names[i].size(), atom_names[i].data());
 
-    xcb_atom_t atoms[num_atoms];
-    for (int i = 0; i < num_atoms; i++) {
+    std::array<xcb_atom_t, atom_names.size()> atoms;
+    for (std::size_t i = 0; i < atom_names.size(); i++) {
         auto reply = xcb_intern_atom_reply(
                 connection, cookies[i], nullptr);
         if (reply) {
             atoms[i] = reply->atom;
-            free(reply);
+            std::free(reply);
         } else
             LOGGER()->error("unable to intern {}", atom_names[i]);
     }
@@ -475,7 +478,7 @@ void XcbWindow::setup_xkb()
                 nullptr) != 1)
         LOGGER()->fatal("could not setup XKB extension.");
 
-    const uint16_t required_map_parts =
+    constexpr uint16_t required_map_parts =
             (XCB_XKB_MAP_PART_KEY_TYPES |
                     XCB_XKB_MAP_PART_KEY_SYMS |
                     XCB_XKB_MAP_PART_MODIFIER_MAP |
@@ -484,7 +487,7 @@ void XcbWindow::setup_xkb()
                     XCB_XKB_MAP_PART_VIRTUAL_MODS |
                     XCB_XKB_MAP_PART_VIRTUAL_MOD_MAP);
 
-    const uint16_t required_events =
+    constexpr uint16_t required_events =
             (XCB_XKB_EVENT_TYPE_NEW_KEYBOARD_NOTIFY |
                     XCB_XKB_EVENT_TYPE_MAP_NOTIFY |
                     XCB_XKB_EVENT_TYPE_STATE_NOTIFY);
@@ -503,11 +506,11 @@ void XcbWindow::setup_xkb()
     if (!load_keymap())
         LOGGER()->fatal("could not load keymap");
 
-    const char* locale = getenv("LC_ALL");
+    const char* locale = std::getenv("LC_ALL");
     if (!locale)
-        locale = getenv("LC_CTYPE");
+        locale = std::getenv("LC_CTYPE");
     if (!locale)
-        locale = getenv("LANG");
+        locale = std::getenv("LANG");
     if (!locale) {
         LOGGER()->debug("unable to detect locale, fallback to C");
         locale = "C";
@@ -757,6 +760,7 @@ void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_ev
 
         // with XCB_ATOM_STRING non ascii characters may be incorrect in the
         // requestor. not our problem, use utf8
+        // todo: make stringview, get rid of later strlen
         std::shared_ptr<char> seltext;
         if (event->selection == XCB_ATOM_PRIMARY)
             seltext = m_term->sel().primary;
@@ -969,8 +973,8 @@ void XcbWindow::selnotify(xcb_atom_t property, bool propnotify)
             // notify events
             m_eventmask &= ~XCB_EVENT_MASK_PROPERTY_CHANGE;
 
-            const uint32_t mask = XCB_CW_EVENT_MASK;
-            uint32_t values[1] = {m_eventmask};
+            constexpr uint32_t mask = XCB_CW_EVENT_MASK;
+            const uint32_t values[1] = {m_eventmask};
             xcb_change_window_attributes(connection, win, mask, values);
         }
 
@@ -979,8 +983,8 @@ void XcbWindow::selnotify(xcb_atom_t property, bool propnotify)
             // notification about the next chunk
             m_eventmask |= XCB_EVENT_MASK_PROPERTY_CHANGE;
 
-            const uint32_t mask = XCB_CW_EVENT_MASK;
-            uint32_t values[1] = {m_eventmask};
+            constexpr uint32_t mask = XCB_CW_EVENT_MASK;
+            const uint32_t values[1] = {m_eventmask};
             xcb_change_window_attributes(connection, win, mask, values);
 
             // deleting the property is transfer start signal
@@ -1003,7 +1007,7 @@ void XcbWindow::selnotify(xcb_atom_t property, bool propnotify)
                 m_tty->write({"\033[201~", 6});
         }
 
-        free(reply);
+        std::free(reply);
     } else
         LOGGER()->error("unable to get clip property!");
 }
@@ -1038,7 +1042,7 @@ void XcbWindow::checkcb(ev::check& w, int)
             handle_xcb_event(w.loop, type, event);
         }
 
-        free(event);
+        std::free(event);
     }
 }
 

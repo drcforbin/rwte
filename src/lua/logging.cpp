@@ -165,7 +165,7 @@ static int logger_gc(lua_State* l)
 }
 
 // methods for logger object
-static const luaL_Reg logger_funcs[] = {
+constexpr luaL_Reg logger_funcs[] = {
         {"log", logger_log},
         {"trace", logger_trace},
         {"debug", logger_debug},
@@ -200,7 +200,7 @@ static int logging_get(lua_State* l)
 }
 
 // functions for logging library
-static const luaL_Reg logging_funcs[] = {
+constexpr luaL_Reg logging_funcs[] = {
         {"get", logging_get},
         {nullptr, nullptr}};
 

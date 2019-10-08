@@ -4,6 +4,7 @@
 #include "fmt/format.h"
 
 #include <chrono>
+#include <cstdlib>
 #include <memory>
 #include <string>
 
@@ -121,7 +122,7 @@ inline void logging::Logger::log(logging::level_enum lvl, std::string_view fmt, 
     details::log_message(message);
 
     if (lvl == logging::fatal)
-        exit(1);
+        std::exit(1);
 }
 
 template <typename... Args>
@@ -135,7 +136,7 @@ inline void logging::Logger::log(logging::level_enum lvl, std::string_view msg)
     details::log_message(message);
 
     if (lvl == logging::fatal)
-        exit(1);
+        std::exit(1);
 }
 
 template <typename T>
@@ -149,7 +150,7 @@ inline void logging::Logger::log(logging::level_enum lvl, const T& msg)
     details::log_message(message);
 
     if (lvl == logging::fatal)
-        exit(1);
+        std::exit(1);
 }
 
 template <typename Arg1, typename... Args>

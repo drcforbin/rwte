@@ -9,7 +9,7 @@
 namespace wlwin {
 
 // we should really only need one buffer, right?
-const int NumBuffers = 2;
+constexpr int NumBuffers = 2;
 
 static int create_shm_file(off_t size)
 {

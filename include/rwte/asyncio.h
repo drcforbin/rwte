@@ -50,7 +50,7 @@ public:
         }
 
         // copy anything left into m_wbuffer
-        std::copy(pdata, pdata + len, std::back_inserter(m_wbuffer));
+        std::copy_n(pdata, len, std::back_inserter(m_wbuffer));
 
         // now we want write events too
         m_io.set(ev::READ | ev::WRITE);

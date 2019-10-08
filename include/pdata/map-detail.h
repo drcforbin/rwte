@@ -218,7 +218,7 @@ public:
                 // remove element
                 array_type newArray(array.size() - 1);
                 auto abegin = array.cbegin();
-                std::copy(abegin, abegin + idx, newArray.begin());
+                std::copy_n(abegin, idx, newArray.begin());
                 std::copy(abegin + idx + 1, array.cend(), newArray.begin() + idx);
                 return std::make_shared<bitmap_indexed_node>(edit_type{},
                         bitmap ^ bit, std::move(newArray));
@@ -233,7 +233,7 @@ public:
                 // remove element
                 array_type newArray(array.size() - 1);
                 auto abegin = array.cbegin();
-                std::copy(abegin, abegin + idx, newArray.begin());
+                std::copy_n(abegin, idx, newArray.begin());
                 std::copy(abegin + idx + 1, array.cend(), newArray.begin() + idx);
                 return std::make_shared<bitmap_indexed_node>(edit_type{},
                         bitmap ^ bit, std::move(newArray));
@@ -752,7 +752,7 @@ public:
         } else {
             array_type newArray(count - 1);
             auto abegin = array.cbegin();
-            std::copy(abegin, abegin + idx, newArray.begin());
+            std::copy_n(abegin, idx, newArray.begin());
             std::copy(abegin + idx + 1, array.cend(), newArray.begin() + idx);
 
             return std::make_shared<hash_collision_node>(edit_type{}, hash,

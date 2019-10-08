@@ -66,7 +66,7 @@ enum term_mode_enum
 
 using term_mode = std::bitset<MODE_LAST + 1>;
 
-const term_mode mouse_modes(
+constexpr term_mode mouse_modes(
         1 << MODE_MOUSEBTN | 1 << MODE_MOUSEMOTION |
         1 << MODE_MOUSEX10 | 1 << MODE_MOUSEMANY);
 

@@ -128,13 +128,13 @@ static void exit_help(int code)
             "  -x, --wayland         use wayland rather than xcb\n"
 #endif
             "  -v, --version         show version and exit\n");
-    exit(code);
+    std::exit(code);
 }
 
 static void exit_version()
 {
     fmt::print("rwte {}\n", version_string());
-    exit(EXIT_SUCCESS);
+    std::exit(EXIT_SUCCESS);
 }
 
 static bool parse_geometry(const char* g, int* cols, int* rows)
@@ -179,7 +179,7 @@ int main(int argc, char* argv[])
     }
     L->setglobal("args");
 
-    static const struct option long_options[] =
+    constexpr struct option long_options[] =
     {
         {"config", required_argument, nullptr, 'c'},
         {"winclass", required_argument, nullptr, 'w'},

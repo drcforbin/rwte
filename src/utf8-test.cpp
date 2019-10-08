@@ -7,6 +7,7 @@
 
 using namespace std::literals;
 
+// todo: move this to separate file?
 extern const char* unicode_text;
 
 // todo: test utf8contains

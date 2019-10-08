@@ -3,6 +3,9 @@
 #include "rwte/logging.h"
 
 #include <ctime>
+#include <string_view>
+
+using namespace std::literals;
 
 template <>
 struct fmt::formatter<std::shared_ptr<logging::Logger>>
@@ -30,15 +33,15 @@ static std::shared_ptr<
         pdata::persistent_map<std::string, std::shared_ptr<logging::Logger>>>
         g_loggers;
 
-// todo: literal string_viewify?
-constexpr std::string_view level_names[]{
-        "TRACE",
-        "DEBUG",
-        " INFO",
-        " WARN",
-        "ERROR",
-        "FATAL",
-        "OTHER"};
+constexpr std::array level_names{
+        "TRACE"sv,
+        "DEBUG"sv,
+        " INFO"sv,
+        " WARN"sv,
+        "ERROR"sv,
+        "FATAL"sv,
+        "OTHER"sv
+};
 
 std::shared_ptr<logging::Logger> logging::get(std::string_view name)
 {

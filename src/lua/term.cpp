@@ -53,7 +53,7 @@ static int term_gc(lua_State* l)
 }
 
 // methods for term object
-static const luaL_Reg term_obj_funcs[] = {
+constexpr luaL_Reg term_obj_funcs[] = {
         {"__gc", term_gc},
         {nullptr, nullptr},
 };
@@ -110,7 +110,7 @@ static int luaterm_clipcopy(lua_State* l)
 }
 
 // functions for term library
-static const luaL_Reg term_funcs[] = {
+constexpr luaL_Reg term_funcs[] = {
         {"mode", luaterm_mode},
         {"send", luaterm_send},
         {"clipcopy", luaterm_clipcopy},

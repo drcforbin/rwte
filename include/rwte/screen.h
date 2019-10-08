@@ -31,7 +31,7 @@ enum glyph_attribute_enum
 
 using glyph_attribute = std::bitset<ATTR_LAST + 1>;
 
-const char32_t empty_char = ' ';
+constexpr char32_t empty_char = ' ';
 
 struct Glyph
 {
