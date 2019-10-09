@@ -88,6 +88,7 @@ public:
     void clippaste();
 
 private:
+    void settitlecore(std::string_view name);
     void set_wm_class();
     void set_wmmachine_name();
 
@@ -278,7 +279,7 @@ XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus,
     if (m_xtarget == XCB_ATOM_NONE)
         m_xtarget = XCB_ATOM_STRING;
 
-    settitle(options.title);
+    settitlecore(options.title);
 
     pid_t pid = getpid();
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
@@ -323,10 +324,7 @@ static std::string get_term_name()
 
 void XcbWindow::settitle(std::string_view name)
 {
-    xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
-            XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8, name.size(), name.data());
-    xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
-            m_netwmname, XCB_ATOM_STRING, 8, name.size(), name.data());
+    settitlecore(name);
 }
 
 void XcbWindow::seturgent(bool urgent)
@@ -379,6 +377,14 @@ void XcbWindow::clippaste()
     // request clipboard sel as utf8 to m_xseldata
     xcb_convert_selection(connection, win, m_clipboard,
             m_xtarget, m_xseldata, XCB_CURRENT_TIME);
+}
+
+void XcbWindow::settitlecore(std::string_view name)
+{
+    xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
+            XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8, name.size(), name.data());
+    xcb_change_property(connection, XCB_PROP_MODE_REPLACE, win,
+            m_netwmname, XCB_ATOM_STRING, 8, name.size(), name.data());
 }
 
 void XcbWindow::set_wm_class()

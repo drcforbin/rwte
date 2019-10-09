@@ -313,6 +313,7 @@ public:
     std::shared_ptr<Tty> m_tty;
 
 private:
+    void settitlecore(std::string_view name);
     void onresize(const event::Resize& evt);
 
     void iocb(ev::io&, int);
@@ -406,7 +407,7 @@ WlWindow::WlWindow(std::shared_ptr<event::Bus> bus,
     // toplevel->set_app_id(?);
 
     // set initial title
-    settitle(options.title);
+    settitlecore(options.title);
 
     // todo: move this somewhere
     cursor_surface = wl_compositor_create_surface(compositor);
@@ -501,8 +502,7 @@ void WlWindow::draw()
 
 void WlWindow::settitle(std::string_view name)
 {
-    LOGGER()->debug("setting title to {}", name);
-    toplevel->set_title(name);
+    settitlecore(name);
 }
 
 void WlWindow::setpointer(const PointerFrame& frame)
@@ -555,6 +555,12 @@ void WlWindow::publishresize(uint16_t width, uint16_t height)
             m_width, m_height, m_cols, m_rows);
 
     m_bus->publish(event::Resize{m_width, m_height, m_cols, m_rows});
+}
+
+void WlWindow::settitlecore(std::string_view name)
+{
+    LOGGER()->debug("setting title to {}", name);
+    toplevel->set_title(name);
 }
 
 void WlWindow::onresize(const event::Resize& evt)
