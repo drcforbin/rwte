@@ -2,6 +2,7 @@
 #define PDATA_TEST_HELPERS_H
 
 #include "fmt/format.h"
+#include "pdata/map.h"
 
 #include <random>
 

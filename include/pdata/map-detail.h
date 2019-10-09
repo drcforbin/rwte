@@ -1,6 +1,9 @@
 #ifndef PDATA_MAP_DETAIL_H
 #define PDATA_MAP_DETAIL_H
 
+#include "fmt/format.h"
+
+#include <array>
 #include <thread>
 #include <variant>
 

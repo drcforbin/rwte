@@ -1,6 +1,7 @@
 #ifndef RWTE_COLOR_H
 #define RWTE_COLOR_H
 
+#include <cstdint>
 #include <type_traits>
 
 namespace color {

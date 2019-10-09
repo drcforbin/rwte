@@ -92,6 +92,7 @@ private:
 
         m_rbuflen = static_cast<T*>(this)->onread(ptr, m_rbuflen);
 
+        // todo: this REALLY looks like it should be ptr + ret; test?
         // keep any uncomplete utf8 char for the next call
         if (m_rbuflen > 0)
             std::memmove(&m_rbuffer[0], ptr, m_rbuflen);
