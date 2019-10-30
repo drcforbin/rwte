@@ -40,8 +40,7 @@ constexpr std::array level_names{
         " WARN"sv,
         "ERROR"sv,
         "FATAL"sv,
-        "OTHER"sv
-};
+        "OTHER"sv};
 
 std::shared_ptr<logging::Logger> logging::get(std::string_view name)
 {

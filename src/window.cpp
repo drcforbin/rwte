@@ -48,7 +48,7 @@ void process_key(uint32_t key, term::Term* trm, Tty* tty, xkb_state* state,
                 return;
             case XKB_COMPOSE_COMPOSED:
                 len = xkb_compose_state_get_utf8(compose_state,
-                        buffer.data(), buffer.size()-1);
+                        buffer.data(), buffer.size() - 1);
                 ksym = xkb_compose_state_get_one_sym(compose_state);
                 composed = true;
                 break;
@@ -93,7 +93,7 @@ void process_key(uint32_t key, term::Term* trm, Tty* tty, xkb_state* state,
         return;
 
     if (!composed)
-        len = xkb_state_key_get_utf8(state, key, buffer.data(), buffer.size()-1);
+        len = xkb_state_key_get_utf8(state, key, buffer.data(), buffer.size() - 1);
 
     if (len == 1 && keymod[term::MOD_ALT]) {
         if (mode[term::MODE_8BIT]) {

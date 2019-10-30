@@ -196,7 +196,7 @@ void State::seti(int index, int n)
 std::string_view State::tostring(int index)
 {
     std::size_t len = 0;
-    const char *p = lua_tolstring(m_L, index, &len);
+    const char* p = lua_tolstring(m_L, index, &len);
     if (p)
         return {p, len};
     else
@@ -206,7 +206,7 @@ std::string_view State::tostring(int index)
 std::string_view State::checkstring(int arg)
 {
     std::size_t len = 0;
-    const char *p = luaL_checklstring(m_L, arg, &len);
+    const char* p = luaL_checklstring(m_L, arg, &len);
     if (p)
         return {p, len};
     else

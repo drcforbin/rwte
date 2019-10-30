@@ -209,7 +209,7 @@ using unique_font_desc = std::unique_ptr<PangoFontDescription, font_desc_deleter
 
 static PangoFontDescription* create_font_desc()
 {
-    std::string font = options.font;
+    auto font = options.font;
     if (font.empty()) {
         // get font from lua config
         font = lua::config::get_string("font");

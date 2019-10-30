@@ -440,8 +440,7 @@ void XcbWindow::register_atoms()
             "CLIPBOARD"sv,
             "INCR"sv,
             "XSEL_DATA"sv,
-            "TARGETS"sv
-    };
+            "TARGETS"sv};
 
     std::array<xcb_intern_atom_cookie_t, atom_names.size()> cookies;
     for (std::size_t i = 0; i < atom_names.size(); i++)
