@@ -254,7 +254,7 @@ private:
 };
 
 // main structure for window data
-class WlWindow : public Window
+class WlWindow final : public Window
 {
 public:
     WlWindow(std::shared_ptr<event::Bus> bus,

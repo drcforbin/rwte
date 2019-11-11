@@ -64,7 +64,7 @@ static int get_border_px()
 }
 
 // main structure for window data
-class XcbWindow : public Window
+class XcbWindow final : public Window
 {
 public:
     XcbWindow(std::shared_ptr<event::Bus> bus, std::shared_ptr<term::Term> term,
