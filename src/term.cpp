@@ -14,21 +14,27 @@
 #include "rwte/window.h"
 
 #include <algorithm>
+#include <cassert>
+#include <charconv>
 #include <chrono>
+#include <string_view>
+
+using namespace std::literals;
 
 #define LOGGER() (logging::get("term"))
 
 namespace term {
 
+// todo: just replace this with elvis operator
 template <typename T>
 void defaultval(T& a, const T& b)
 {
     a = a ? a : b;
 }
 
-static const keymod_state EMPTY_MASK; // no mods
-static const keymod_state SHIFT_MASK(1 << MOD_SHIFT);
-static const keymod_state ALT_MASK(1 << MOD_ALT);
+constexpr keymod_state EMPTY_MASK; // no mods
+constexpr keymod_state SHIFT_MASK(1 << MOD_SHIFT);
+constexpr keymod_state ALT_MASK(1 << MOD_ALT);
 
 enum charset
 {
@@ -62,44 +68,63 @@ enum cursor_movement
     CURSOR_LOAD
 };
 
-const int esc_buf_size = (128 * utf_size);
-const int esc_arg_size = 16;
-const int str_buf_size = esc_buf_size;
-const int str_arg_size = esc_arg_size;
+constexpr int esc_buf_size = (128 * utf_size);
+constexpr int esc_arg_size = 16;
+constexpr int str_buf_size = esc_buf_size;
+constexpr int str_arg_size = esc_arg_size;
 
 // CSI Escape sequence structs
 // ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]]
 struct CSIEscape
 {
-    // todo: arrayify
-    char buf[esc_buf_size]; // raw string
-    std::size_t len;        // raw string length
-    bool priv;
-    // todo: arrayify
-    int arg[esc_arg_size];
-    int narg; // num args
-    // todo: arrayify
-    char mode[2];
+    void reset()
+    {
+        buf.fill(0);
+        len = 0;
+        priv = false;
+        arg.fill(0);
+        narg = 0;
+        mode.fill(0);
+    }
+
+    // todo: array -> vector?
+
+    std::array<char, esc_buf_size> buf; // raw string
+    std::size_t len = 0;
+    bool priv = false;
+    // todo: rename args
+    std::array<int, esc_arg_size> arg;
+    std::size_t narg = 0;
+    std::array<char, 2> mode;
 };
 
 // STR Escape sequence structs
 // ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\'
 struct STREscape
 {
-    char type;              // ESC type ...
-    // todo: arrayify
-    char buf[str_buf_size]; // raw string
-    int len;                // raw string length
-    // todo: cppify
-    char* args[str_arg_size];
-    int narg; // nb of args
+    void reset()
+    {
+        type = 0;
+        buf.fill(0);
+        len = 0;
+        args.fill(0);
+        narg = 0;
+    }
+
+    // todo: array -> vector?
+
+    char type = 0;                      // ESC type ...
+    std::array<char, str_buf_size> buf; // raw string
+    std::size_t len = 0;
+    std::array<char*, str_arg_size> args;
+    std::size_t narg = 0;
 };
 
 // default values to use if we don't have
 // a default value in config
-static const int DEFAULT_TAB_SPACES = 8;
-static const int DEFAULT_DCLICK_TIMEOUT = 300;
-static const int DEFAULT_TCLICK_TIMEOUT = 600;
+constexpr int DEFAULT_TAB_SPACES = 8;
+constexpr int DEFAULT_DCLICK_TIMEOUT = 300;
+constexpr int DEFAULT_TCLICK_TIMEOUT = 600;
 
 static bool allow_alt_screen()
 {
@@ -111,16 +136,15 @@ static bool allow_alt_screen()
     return lua::config::get_bool("allow_alt_screen", true);
 }
 
-static int32_t hexcolor(const char* src)
+static int32_t hexcolor(std::string_view src)
 {
     int32_t idx = -1;
-    unsigned long val;
-    char* e;
 
-    std::size_t in_len = std::strlen(src);
-    if (in_len == 7 && src[0] == '#') {
-        // todo: std::from_chars
-        if ((val = strtoul(src + 1, &e, 16)) != ULONG_MAX && (e == src + 7))
+    if (src.size() == 7 && src[0] == '#') {
+        int val = 0;
+        auto [np, ec] = std::from_chars(src.data() + 1,
+                src.data() + src.size(), val, 16);
+        if (np == src.data() + 7)
             idx = 1 << 24 | val;
         else
             LOGGER()->error("erresc: invalid hex color ({})", src);
@@ -130,7 +154,8 @@ static int32_t hexcolor(const char* src)
     return idx;
 }
 
-static uint32_t defcolor(int* attr, int* npar, int l)
+// todo: std::span to replace attr and l when c++ 20
+static uint32_t defcolor(const int* attr, std::size_t* npar, std::size_t l)
 {
     int32_t idx = -1;
     uint r, g, b;
@@ -248,17 +273,17 @@ private:
     bool eschandle(unsigned char ascii);
     void resettitle();
     void puttab(int n);
-    void strreset();
     void strparse();
     void strhandle();
     std::string strdump();
     void strsequence(unsigned char c);
-    void csireset();
     void csiparse();
     void csihandle();
     std::string csidump();
-    void setattr(int* attr, int len);
-    void settmode(bool priv, bool set, int* args, int narg);
+    // todo: std::span when c++ 20
+    void setattr(const int* attr, std::size_t len);
+    // todo: std::span when c++ 20
+    void settmode(bool priv, bool set, const int* args, int narg);
     void getbuttoninfo(const Cell& cell, const keymod_state& mod);
 
     std::shared_ptr<event::Bus> m_bus;
@@ -288,9 +313,6 @@ TermImpl::TermImpl(std::shared_ptr<event::Bus> bus, int cols, int rows) :
     m_screen(m_bus),
     m_focused(false)
 {
-    strreset();
-    csireset();
-
     // only a few things are initialized here
     // the rest happens in resize and reset
     // todo: pass cols, rows to m_screen ctor
@@ -452,9 +474,7 @@ void TermImpl::resizeCore(int cols, int rows)
             while (--bp != m_tabs.cbegin() && !*bp) {
             }
         // set tabs from here (resize cleared newly added tabs)
-        // todo: is this backwards? do we even need idx?
-        auto idx = static_cast<decltype(m_tabs)::size_type>(
-                std::distance(m_tabs.cbegin(), bp));
+        decltype(m_tabs)::size_type idx = bp - m_tabs.cbegin();
         for (idx += tab_spaces; idx < m_tabs.size(); idx += tab_spaces)
             m_tabs[idx] = true;
     }
@@ -533,8 +553,7 @@ void TermImpl::putc(char32_t u)
     } else {
         len = utf8encode(u, c.begin()) - c.begin();
         if (!control && (width = wcwidth(u)) == -1) {
-            // todo: feels like a hack
-            std::memcpy(c.data(), "\xEF\xBF\xBD", 4); // UTF_INVALID
+            c = {'\xEF', '\xBF', '\xBD', '\0'}; // UTF_INVALID
             width = 1;
         }
     }
@@ -571,7 +590,7 @@ void TermImpl::putc(char32_t u)
             if (m_esc[ESC_DCS] && m_stresc.len == 0 && u == 'q')
                 m_mode.set(MODE_SIXEL);
 
-            if (m_stresc.len + len >= sizeof(m_stresc.buf) - 1) {
+            if (m_stresc.len + len >= m_stresc.buf.size() - 1) {
                 // Here is a bug in terminals. If the user never sends
                 // some code to stop the str or esc command, then we
                 // will stop responding. But this is better than
@@ -586,8 +605,7 @@ void TermImpl::putc(char32_t u)
                 return;
             }
 
-            // todo: replace with something
-            std::memmove(&m_stresc.buf[m_stresc.len], c.data(), len);
+            std::copy_n(c.cbegin(), len, m_stresc.buf.begin() + len);
             m_stresc.len += len;
             return;
         }
@@ -603,9 +621,11 @@ void TermImpl::putc(char32_t u)
         return;
     } else if (m_esc[ESC_START]) {
         if (m_esc[ESC_CSI]) {
+            // todo: check len?
             m_csiesc.buf[m_csiesc.len++] = u;
+            //m_csiesc.buf.push_back(u);
             if ((0x40 <= u && u <= 0x7E) ||
-                    m_csiesc.len >= sizeof(m_csiesc.buf) - 1) {
+                    m_csiesc.len >= m_csiesc.buf.size() - 1) {
                 m_esc.reset();
                 csiparse();
                 csihandle();
@@ -636,6 +656,7 @@ void TermImpl::putc(char32_t u)
             sel.ob.row <= cursor.row && cursor.row <= sel.oe.row)
         m_screen.selclear();
 
+    // todo: this seems unsafe / violates principle of least surprise
     screen::Glyph* gp = &m_screen.glyph(cursor);
     if (m_mode[MODE_WRAP] && (cursor.state & screen::CURSOR_WRAPNEXT)) {
         gp->attr.set(screen::ATTR_WRAP);
@@ -644,10 +665,9 @@ void TermImpl::putc(char32_t u)
     }
 
     // todo: it's not cool to dig into / make assumptions about screen here
-    if (m_mode[MODE_INSERT] && cursor.col + width < m_screen.cols())
-        // todo: check
-        std::memmove(gp + width, gp,
-                (m_screen.cols() - cursor.col - width) * sizeof(screen::Glyph));
+    if (m_mode[MODE_INSERT] && cursor.col + width < m_screen.cols()) {
+        std::copy_n(gp, m_screen.cols() - cursor.col - width, gp + width);
+    }
 
     if (cursor.col + width > m_screen.cols()) {
         m_screen.newline(true);
@@ -845,13 +865,11 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
 
                 L->getfield(-1, "dclick_timeout");
                 auto dclick_timeout = std::chrono::milliseconds{
-                    L->tointegerdef(-1, DEFAULT_DCLICK_TIMEOUT)
-                };
+                        L->tointegerdef(-1, DEFAULT_DCLICK_TIMEOUT)};
 
                 L->getfield(-2, "tclick_timeout");
                 auto tclick_timeout = std::chrono::milliseconds{
-                    L->tointegerdef(-1, DEFAULT_TCLICK_TIMEOUT)
-                };
+                        L->tointegerdef(-1, DEFAULT_TCLICK_TIMEOUT)};
 
                 L->pop(3);
 
@@ -966,24 +984,24 @@ void TermImpl::send(std::string_view data)
 
 void TermImpl::setchar(char32_t u, const screen::Glyph& attr, const Cell& cell)
 {
-    const char* const vt100_0[62] = {
-            // 0x41 - 0x7e
-            "↑", "↓", "→", "←", "█", "▚", "☃",                                      // A - G
-            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, // H - O
-            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, // P - W
-            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, " ",     // X - _
-            "◆", "▒", "␉", "␌", "␍", "␊", "°", "±",                                 // ` - g
-            "␤", "␋", "┘", "┐", "┌", "└", "┼", "⎺",                                 // h - o
-            "⎻", "─", "⎼", "⎽", "├", "┤", "┴", "┬",                                 // p - w
-            "│", "≤", "≥", "π", "≠", "£", "·",                                      // x - ~
-    };
-
     // The table is proudly stolen from st, where it was
     // stolen from rxvt.
+    constexpr std::array<std::string_view, 62> vt100_0 = {
+            // 0x41 - 0x7e
+            "↑", "↓", "→", "←", "█", "▚", "☃",      // A - G
+            {}, {}, {}, {}, {}, {}, {}, {},         // H - O
+            {}, {}, {}, {}, {}, {}, {}, {},         // P - W
+            {}, {}, {}, {}, {}, {}, {}, " ",        // X - _
+            "◆", "▒", "␉", "␌", "␍", "␊", "°", "±", // ` - g
+            "␤", "␋", "┘", "┐", "┌", "└", "┼", "⎺", // h - o
+            "⎻", "─", "⎼", "⎽", "├", "┤", "┴", "┬", // p - w
+            "│", "≤", "≥", "π", "≠", "£", "·"       // x - ~
+    };
+
+    // todo: can probably do this decode at compile time
     if (m_trantbl[m_charset] == CS_GRAPHIC0 &&
-            (0x41 <= u && u <= 0x7e) && vt100_0[u - 0x41]) {
-        // we know everything in the above array is valid, ignore size
-        std::tie(std::ignore, u) = utf8decode({vt100_0[u - 0x41], utf_size});
+            (0x41 <= u && u <= 0x7e) && !vt100_0[u - 0x41].empty()) {
+        std::tie(std::ignore, u) = utf8decode(vt100_0[u - 0x41]);
     }
 
     auto thisGlyph = m_screen.glyph(cell);
@@ -1019,14 +1037,21 @@ void TermImpl::defutf8(char ascii)
 
 void TermImpl::deftran(char ascii)
 {
-    const char* const cs = "0B";
-    const int vcs[] = {CS_GRAPHIC0, CS_USA};
+    // todo: replace with just a 'case' statement.
+    // or something. there's a better way to do this.
 
-    const char* p;
-    if ((p = std::strchr(cs, ascii)) == nullptr)
+    constexpr auto cs = "0B"sv;
+    constexpr int vcs[] = {CS_GRAPHIC0, CS_USA};
+
+    auto it = cs.cbegin();
+    for (; it != cs.cend(); it++) {
+        if (*it == ascii) {
+            m_trantbl[m_icharset] = vcs[it - cs.cbegin()];
+            break;
+        }
+    }
+    if (it == cs.cend())
         LOGGER()->error("esc unhandled charset: ESC ( {}", ascii);
-    else
-        m_trantbl[m_icharset] = vcs[p - cs];
 }
 
 void TermImpl::dectest(char c)
@@ -1089,7 +1114,7 @@ void TermImpl::controlcode(unsigned char ascii)
             }
             break;
         case '\033': // ESC
-            csireset();
+            m_csiesc.reset();
             m_esc.reset(ESC_CSI);
             m_esc.reset(ESC_ALTCHARSET);
             m_esc.reset(ESC_TEST);
@@ -1102,7 +1127,7 @@ void TermImpl::controlcode(unsigned char ascii)
         case '\032': // SUB
             setchar('?', cursor.attr, cursor);
         case '\030': // CAN
-            csireset();
+            m_csiesc.reset();
             break;
         case '\005': // ENQ (IGNORED)
         case '\000': // NUL (IGNORED)
@@ -1283,22 +1308,16 @@ void TermImpl::puttab(int n)
     m_screen.setCursor(cursor);
 }
 
-void TermImpl::strreset()
-{
-    std::memset(&m_stresc, 0, sizeof(m_stresc));
-}
-
 void TermImpl::strparse()
 {
     int c;
-    char* p = m_stresc.buf;
+    char* p = m_stresc.buf.data();
 
     m_stresc.narg = 0;
     m_stresc.buf[m_stresc.len] = '\0';
 
     if (*p == '\0')
         return;
-
     while (m_stresc.narg < str_arg_size) {
         m_stresc.args[m_stresc.narg++] = p;
         while ((c = *p) != ';' && c != '\0')
@@ -1320,8 +1339,19 @@ void TermImpl::strhandle()
     m_esc.reset(ESC_STR_END);
     m_esc.reset(ESC_STR);
     strparse();
-    // todo: std::from_chars
+
+    // todo: std::from_chars (and make args string_views?)
     par = (narg = m_stresc.narg) ? atoi(m_stresc.args[0]) : 0;
+
+    /*
+    int par = 0;
+    int narg = m_stresc.narg;
+    if (narg) {
+        // ignore parse error
+        const auto& parstr = m_stresc.args[0];
+        std::from_chars(parstr.data(), parstr.data() + parstr.size(), par);
+    }
+    */
 
     LOGGER()->trace("strhandle {}", strdump());
 
@@ -1416,7 +1446,8 @@ std::string TermImpl::strdump()
     writer.write("ESC");
     writer.write(m_stresc.type);
 
-    for (int i = 0; i < m_stresc.len; i++) {
+    for (std::size_t i = 0; i < m_stresc.len; i++) {
+        // todo: is this & necessary? does it just make it unsigned?
         unsigned int c = m_stresc.buf[i] & 0xff;
         if (c == '\0')
             return fmt::to_string(msg); // early exit
@@ -1438,7 +1469,7 @@ std::string TermImpl::strdump()
 
 void TermImpl::strsequence(unsigned char c)
 {
-    strreset();
+    m_stresc.reset();
 
     switch (c) {
         case 0x90: // DCS -- Device Control String
@@ -1460,14 +1491,9 @@ void TermImpl::strsequence(unsigned char c)
     m_esc.set(ESC_STR);
 }
 
-void TermImpl::csireset()
-{
-    std::memset(&m_csiesc, 0, sizeof(m_csiesc));
-}
-
 void TermImpl::csiparse()
 {
-    char *p = m_csiesc.buf, *np;
+    char *p = m_csiesc.buf.data(), *np;
     long int v;
 
     m_csiesc.narg = 0;
@@ -1477,7 +1503,7 @@ void TermImpl::csiparse()
     }
 
     m_csiesc.buf[m_csiesc.len] = '\0';
-    while (p < m_csiesc.buf + m_csiesc.len) {
+    while (p < m_csiesc.buf.data() + m_csiesc.len) {
         np = nullptr;
         // todo: std::from_chars
         v = strtol(p, &np, 10);
@@ -1486,13 +1512,15 @@ void TermImpl::csiparse()
         if (v == LONG_MAX || v == LONG_MIN)
             v = -1;
         m_csiesc.arg[m_csiesc.narg++] = v;
+
         p = np;
         if (*p != ';' || m_csiesc.narg == esc_arg_size)
             break;
         p++;
     }
+
     m_csiesc.mode[0] = *p++;
-    m_csiesc.mode[1] = (p < m_csiesc.buf + m_csiesc.len) ? *p : '\0';
+    m_csiesc.mode[1] = (p < m_csiesc.buf.data() + m_csiesc.len) ? *p : '\0';
 }
 
 void TermImpl::csihandle()
@@ -1639,7 +1667,7 @@ void TermImpl::csihandle()
             m_screen.insertblankline(m_csiesc.arg[0]);
             break;
         case 'l': // RM -- Reset Mode
-            settmode(m_csiesc.priv, false, m_csiesc.arg, m_csiesc.narg);
+            settmode(m_csiesc.priv, false, m_csiesc.arg.data(), m_csiesc.narg);
             break;
         case 'M': // DL -- Delete <n> lines
             defaultval(m_csiesc.arg[0], 1);
@@ -1662,15 +1690,15 @@ void TermImpl::csihandle()
             m_screen.moveato({m_csiesc.arg[0] - 1, cursor.col});
             break;
         case 'h': // SM -- Set terminal mode
-            settmode(m_csiesc.priv, true, m_csiesc.arg, m_csiesc.narg);
+            settmode(m_csiesc.priv, true, m_csiesc.arg.data(), m_csiesc.narg);
             break;
         case 'm': // SGR -- Terminal attribute (color)
-            setattr(m_csiesc.arg, m_csiesc.narg);
+            setattr(m_csiesc.arg.data(), m_csiesc.narg);
             break;
         case 'n': // DSR – Device Status Report (cursor position)
             if (m_csiesc.arg[0] == 6) {
                 if (auto tty = m_tty.lock()) {
-                    std::string seq = fmt::format(
+                    auto seq = fmt::format(
                             "\033[{};{}R",
                             cursor.row + 1, cursor.col + 1);
                     tty->write(seq);
@@ -1745,8 +1773,10 @@ std::string TermImpl::csidump()
     writer.write("ESC[");
 
     for (std::size_t i = 0; i < m_csiesc.len; i++) {
+        // todo: is this & necessary? does it just make it unsigned?
         unsigned int c = m_csiesc.buf[i] & 0xff;
         if (isprint(c))
+            // this is crazy...need to cast it back?
             writer.write(static_cast<char>(c));
         else if (c == '\n')
             writer.write("(\\n)");
@@ -1761,12 +1791,14 @@ std::string TermImpl::csidump()
     return fmt::to_string(msg);
 }
 
-void TermImpl::setattr(int* attr, int len)
+// todo: std::span when c++ 20
+void TermImpl::setattr(const int* attr, std::size_t len)
 {
     // todo: need track more than cursor attr,
     // how can this be implemented
     auto cursor = m_screen.cursor();
-    for (int i = 0; i < len; i++) {
+    for (std::size_t i = 0; i < len; i++) {
+        //    for (std::size_t i = 0; i < attr.size(); i++) {
         switch (attr[i]) {
             case 0:
                 cursor.attr.attr.reset(screen::ATTR_BOLD);
@@ -1890,13 +1922,15 @@ void TermImpl::setattr(int* attr, int len)
     }
 }
 
-void TermImpl::settmode(bool priv, bool set, int* args, int narg)
+// todo: std::span when c++ 20
+void TermImpl::settmode(bool priv, bool set, const int* args, int narg)
 {
-    int* lim;
+    const int* lim;
     term_mode mode;
     int alt;
 
     for (lim = args + narg; args < lim; ++args) {
+        //    for (auto arg : args) {
         if (priv) {
             switch (*args) {
                 case 1: // DECCKM -- Cursor key
