@@ -381,14 +381,14 @@ public:
         } else {
             auto value = std::get<value_type>(entry);
             if (value.first == key) {
-                return {};
-            } else {
                 // remove element
                 removedLeaf = true;
                 auto editable = ensureEditable(edit);
                 editable->bitmap ^= bit;
                 editable->array.erase(editable->array.cbegin() + idx);
                 return editable;
+            } else {
+                return this->shared_from_this();
             }
         }
     }
