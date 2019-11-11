@@ -13,6 +13,13 @@
 // todo: std::span
 // todo: std::bit_cast
 // todo: std::shift_left/shift_right
+// todo: more std::string_view
+// todo: memset/memcpy/memmove
+// todo: std::exit and EXIT_x
+// todo: nest impl classes
+// todo: use override keyword
+// todo: look for initializer in if or switch
+// todo: bench codecvt vs utf8
 
 // globals
 Options options;
@@ -23,7 +30,7 @@ lua_State* g_L = nullptr;
 
 // default values to use if we don't have
 // a default value in config
-static const float DEFAULT_BLINK_RATE = 0.6;
+constexpr float DEFAULT_BLINK_RATE = 0.6;
 
 Rwte::Rwte(std::shared_ptr<event::Bus> bus) :
     m_bus(std::move(bus)),
