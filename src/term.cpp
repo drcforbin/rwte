@@ -303,7 +303,7 @@ private:
     int m_icharset; // selected charset for sequence
     bool m_focused; // whether terminal has focus
 
-    char m_trantbl[4];                            // charset table translation
+    std::array<char, 4> m_trantbl; // charset table translation
     uint32_t m_deffg, m_defbg, m_defcs, m_defrcs; // default colors
 };
 
@@ -390,7 +390,7 @@ void TermImpl::reset()
         m_mode.set(MODE_PRINT);
 
     m_esc.reset();
-    std::memset(m_trantbl, CS_USA, sizeof(m_trantbl));
+    m_trantbl.fill(CS_USA);
     m_charset = 0;
     m_icharset = 0;
 
@@ -591,6 +591,7 @@ void TermImpl::putc(char32_t u)
                 m_mode.set(MODE_SIXEL);
 
             if (m_stresc.len + len >= m_stresc.buf.size() - 1) {
+                LOGGER()->warn("ugh, so, this happened...");
                 // Here is a bug in terminals. If the user never sends
                 // some code to stop the str or esc command, then we
                 // will stop responding. But this is better than
@@ -605,7 +606,7 @@ void TermImpl::putc(char32_t u)
                 return;
             }
 
-            std::copy_n(c.cbegin(), len, m_stresc.buf.begin() + len);
+            std::copy_n(c.cbegin(), len, m_stresc.buf.begin() + m_stresc.len);
             m_stresc.len += len;
             return;
         }
@@ -1316,14 +1317,17 @@ void TermImpl::strparse()
     m_stresc.narg = 0;
     m_stresc.buf[m_stresc.len] = '\0';
 
-    if (*p == '\0')
+    if (*p == '\0') {
         return;
+    }
     while (m_stresc.narg < str_arg_size) {
         m_stresc.args[m_stresc.narg++] = p;
-        while ((c = *p) != ';' && c != '\0')
+        while ((c = *p) != ';' && c != '\0') {
             ++p;
-        if (c == '\0')
+        }
+        if (c == '\0') {
             return;
+        }
         *p++ = '\0';
     }
 }
