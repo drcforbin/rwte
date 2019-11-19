@@ -1,0 +1,3 @@
+[submodule "subprojects/librw"]
+	path = subprojects/librw
+	url = https://github.com/drcforbin/librw.git

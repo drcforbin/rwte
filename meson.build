@@ -23,6 +23,8 @@ ev = cc.find_library('ev')
 util = cc.find_library('util')
 rt = cc.find_library('rt')
 
+librw_proj = subproject('librw')
+librw_dep = librw_proj.get_variable('librw_dep')
 
 rwte_common_deps = [
     xdg_basedir,
@@ -37,6 +39,56 @@ rwte_common_deps = [
 
 inc = include_directories('include')
 
+common_sources = files(
+    'src/lua/config.cpp',
+    'src/lua/logging.cpp',
+    'src/lua/state.cpp',
+    'src/lua/term.cpp',
+    'src/lua/window.cpp',
+
+    'src/profiling.cpp',
+    'src/renderer.cpp',
+    'src/rwte.cpp',
+    'src/screen.cpp',
+    'src/selection.cpp',
+    'src/sigwatcher.cpp',
+    'src/term.cpp',
+    'src/tty.cpp',
+    'src/utf8.cpp',
+    'src/window.cpp'
+)
+
 subdir('src')
 subdir('docs')
 
+executable(
+    'rwte-bench', [
+        'bench/main.cpp',
+        'bench/misc.cpp',
+        'bench/utf8.cpp',
+        'test/utf8-data.cpp',
+        common_sources
+    ],
+    dependencies: [
+        rwte_common_deps,
+        librw_dep
+    ],
+    include_directories : inc
+)
+
+testexe = executable(
+    'rwte-test', [
+        'test/main.cpp',
+        'test/screen.cpp',
+        'test/utf8.cpp',
+        'test/utf8-data.cpp',
+        common_sources
+    ],
+    dependencies: [
+        rwte_common_deps,
+        librw_dep
+    ],
+    include_directories: inc
+)
+
+test('rwte test', testexe)

@@ -1,12 +1,12 @@
 #include "lua/state.h"
 #include "lua/term.h"
-#include "rwte/logging.h"
+#include "rw/logging.h"
 #include "rwte/term.h"
 
 /// Term module; `term` is the global terminal object.
 // @module term
 
-#define LOGGER() (logging::get("luaterm"))
+#define LOGGER() (rw::logging::get("luaterm"))
 
 static int term_ref = LUA_NOREF;
 

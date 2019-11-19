@@ -1,9 +1,9 @@
 #include "lua/config.h"
 #include "lua/state.h"
 #include "lua/window.h"
+#include "rw/logging.h"
 #include "rwte/config.h"
 #include "rwte/coords.h"
-#include "rwte/logging.h"
 #include "rwte/renderer.h"
 #include "rwte/rwte.h"
 #include "rwte/selection.h"
@@ -44,7 +44,7 @@ using namespace std::literals;
 #include <xkbcommon/xkbcommon-x11.h>
 #include <xkbcommon/xkbcommon.h>
 
-#define LOGGER() (logging::get("xcbwindow"))
+#define LOGGER() (rw::logging::get("xcbwindow"))
 
 // XEMBED messages
 // todo: static const / constexpr
@@ -706,7 +706,7 @@ void XcbWindow::handle_selection_notify(ev::loop_ref&, xcb_selection_notify_even
 
 void XcbWindow::handle_property_notify(ev::loop_ref&, xcb_property_notify_event_t* event)
 {
-    if (LOGGER()->level() <= logging::debug) {
+    if (LOGGER()->level() <= rw::logging::log_level::debug) {
         const char* atom_name;
         if (event->atom == XCB_ATOM_PRIMARY)
             atom_name = "PRIMARY";
@@ -744,7 +744,7 @@ void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_ev
                 event->property, XCB_ATOM_ATOM, 32, 1, &m_xtarget);
         property = event->property;
     } else if (event->target == m_xtarget || event->target == XCB_ATOM_STRING) {
-        if (LOGGER()->level() <= logging::debug) {
+        if (LOGGER()->level() <= rw::logging::log_level::debug) {
             const char* target_type;
             if (event->target == m_xtarget)
                 target_type = "utf8";

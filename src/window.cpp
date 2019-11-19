@@ -1,5 +1,5 @@
 #include "lua/window.h"
-#include "rwte/logging.h"
+#include "rw/logging.h"
 #include "rwte/rwte.h"
 #include "rwte/term.h"
 #include "rwte/tty.h"
@@ -10,7 +10,7 @@
 #include <xkbcommon/xkbcommon-compose.h>
 #include <xkbcommon/xkbcommon.h>
 
-#define LOGGER() (logging::get("window"))
+#define LOGGER() (rw::logging::get("window"))
 
 WindowError::WindowError(const std::string& arg) :
     std::runtime_error(arg)

@@ -1,4 +1,4 @@
-#include "rwte/logging.h"
+#include "rw/logging.h"
 #include "rwte/profiling.h"
 
 // todo: replace with pdata
@@ -21,7 +21,7 @@ std::shared_ptr<profiling::Profiler> profiling::get(const std::string& name)
 
 void profiling::dump_and_clear()
 {
-    auto logger = logging::get("prof");
+    auto logger = rw::logging::get("prof");
 
     for (auto& p : g_profilers) {
         if (p.second->count() > 0) {

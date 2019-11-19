@@ -1,10 +1,10 @@
 #include "rwte/bufferpool.h"
-#include "rwte/logging.h"
+#include "rw/logging.h"
 #include "rwte/wayland.h"
 
 #include <cairo/cairo.h>
 
-#define LOGGER() (logging::get("bufferpool"))
+#define LOGGER() (rw::logging::get("bufferpool"))
 
 namespace wlwin {
 

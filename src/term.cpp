@@ -2,9 +2,9 @@
 #include "lua/config.h"
 #include "lua/state.h"
 #include "lua/window.h"
+#include "rw/logging.h"
 #include "rwte/color.h"
 #include "rwte/config.h"
-#include "rwte/logging.h"
 #include "rwte/rwte.h"
 #include "rwte/screen.h"
 #include "rwte/selection.h"
@@ -21,7 +21,7 @@
 
 using namespace std::literals;
 
-#define LOGGER() (logging::get("term"))
+#define LOGGER() (rw::logging::get("term"))
 
 namespace term {
 
@@ -744,7 +744,7 @@ void TermImpl::mousereport(const Cell& cell, mouse_event_enum evt, int button,
         }
     }
 
-    if (LOGGER()->level() <= logging::trace) {
+    if (LOGGER()->level() <= rw::logging::log_level::trace) {
         std::string mode;
         if (m_mode[MODE_MOUSEBTN])
             mode = "BTN";

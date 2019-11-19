@@ -1,6 +1,6 @@
 #include "lua/logging.h"
 #include "lua/state.h"
-#include "rwte/logging.h"
+#include "rw/logging.h"
 
 using namespace std::literals;
 
@@ -14,10 +14,10 @@ const char* const LUALOG = "LUALOG*";
 
 struct LuaLogStruct
 {
-    std::shared_ptr<logging::Logger> logger;
+    std::shared_ptr<rw::logging::Logger> logger;
 };
 
-static inline std::shared_ptr<logging::Logger> tologger(lua::State& L)
+static inline std::shared_ptr<rw::logging::Logger> tologger(lua::State& L)
 {
     auto p = L.checkobj<LuaLogStruct>(1, LUALOG);
     return p->logger;
@@ -32,7 +32,7 @@ static int logger_log(lua_State* l)
     lua::State L(l);
     auto logger = tologger(L);
 
-    auto level = static_cast<logging::level_enum>(L.checkinteger(2));
+    auto level = static_cast<rw::logging::log_level>(L.checkinteger(2));
     if (level < logger->level())
         return 0;
 
@@ -65,7 +65,7 @@ static int logger_log(lua_State* l)
     return 0;
 }
 
-static void call_log(lua_State* l, logging::level_enum level)
+static void call_log(lua_State* l, rw::logging::log_level level)
 {
     lua::State L(l);
     auto logger = tologger(L);
@@ -79,7 +79,7 @@ static void call_log(lua_State* l, logging::level_enum level)
     // get the log func, push self and level
     L.getfield(1, "log");
     L.pushvalue(1);
-    L.pushinteger(level);
+    L.pushinteger(static_cast<int>(level));
 
     // push non-self args
     for (int i = 2; i <= nargs; i++)
@@ -92,7 +92,7 @@ static void call_log(lua_State* l, logging::level_enum level)
 #define LOGGER_FUNC(levelname)                  \
     static int logger_##levelname(lua_State* L) \
     {                                           \
-        call_log(L, logging::levelname);        \
+        call_log(L, rw::logging::log_level::levelname);        \
         return 0;                               \
     }
 
@@ -136,7 +136,7 @@ static int logger_index(lua_State* l)
     auto key = L.checkstring(2);
 
     if (key == "level"sv)
-        L.pushinteger(logger->level());
+        L.pushinteger(static_cast<int>(logger->level()));
     else
         L.pushnil();
 
@@ -151,7 +151,7 @@ static int logger_newindex(lua_State* l)
     auto key = L.checkstring(2);
 
     if (key == "level"sv) {
-        auto level = static_cast<logging::level_enum>(L.checkinteger(3));
+        auto level = static_cast<rw::logging::log_level>(L.checkinteger(3));
         logger->level(level);
     }
 
@@ -195,7 +195,7 @@ static int logging_get(lua_State* l)
 
     // alloc and init
     auto p = L.newobj<LuaLogStruct>(LUALOG);
-    p->logger = logging::get(name);
+    p->logger = rw::logging::get(name);
     return 1;
 }
 
@@ -217,37 +217,37 @@ static int logging_openf(lua_State* l)
     /// Trace level
     // @class field
     // @name trace
-    L.pushinteger(logging::trace);
+    L.pushinteger(static_cast<int>(rw::logging::log_level::trace));
     L.setfield(-2, "trace");
     /// Debug level
     // @class field
     // @name debug
-    L.pushinteger(logging::debug);
+    L.pushinteger(static_cast<int>(rw::logging::log_level::debug));
     L.setfield(-2, "debug");
     /// Info level
     // @class field
     // @name info
-    L.pushinteger(logging::info);
+    L.pushinteger(static_cast<int>(rw::logging::log_level::info));
     L.setfield(-2, "info");
     /// Warn level
     // @class field
     // @name warn
-    L.pushinteger(logging::warn);
+    L.pushinteger(static_cast<int>(rw::logging::log_level::warn));
     L.setfield(-2, "warn");
     /// Error level
     // @class field
     // @name err
-    L.pushinteger(logging::err);
+    L.pushinteger(static_cast<int>(rw::logging::log_level::err));
     L.setfield(-2, "err");
     /// Fatal level
     // @class field
     // @name fatal
-    L.pushinteger(logging::fatal);
+    L.pushinteger(static_cast<int>(rw::logging::log_level::fatal));
     L.setfield(-2, "fatal");
     /// Logging off
     // @class field
     // @name off
-    L.pushinteger(logging::off);
+    L.pushinteger(static_cast<int>(rw::logging::log_level::off));
     L.setfield(-2, "off");
 
     // add LUALOG object

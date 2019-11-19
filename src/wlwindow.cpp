@@ -1,10 +1,10 @@
 #include "lua/config.h"
 #include "lua/state.h"
 #include "lua/window.h"
+#include "rw/logging.h"
 #include "rwte/bufferpool.h"
 #include "rwte/config.h"
 #include "rwte/coords.h"
-#include "rwte/logging.h"
 #include "rwte/renderer.h"
 #include "rwte/rwte.h"
 #include "rwte/selection.h"
@@ -25,7 +25,7 @@
 #include <xkbcommon/xkbcommon-compose.h>
 #include <xkbcommon/xkbcommon.h>
 
-#define LOGGER() (logging::get("wlwindow"))
+#define LOGGER() (rw::logging::get("wlwindow"))
 
 /// @file
 /// @brief Implements a wayland based window

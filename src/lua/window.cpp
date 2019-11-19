@@ -1,7 +1,7 @@
 #include "lua/state.h"
 #include "lua/window.h"
+#include "rw/logging.h"
 #include "rwte/coords.h"
-#include "rwte/logging.h"
 #include "rwte/window.h"
 
 using namespace std::literals;
@@ -15,7 +15,7 @@ using namespace std::literals;
 /// Window module; `window` is the global window object.
 // @module window
 
-#define LOGGER() (logging::get("luawindow"))
+#define LOGGER() (rw::logging::get("luawindow"))
 
 static int window_mouse_press_ref = LUA_NOREF;
 static int window_key_press_ref = LUA_NOREF;

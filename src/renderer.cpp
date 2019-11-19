@@ -1,8 +1,8 @@
 #include "lua/config.h"
 #include "lua/state.h"
+#include "rw/logging.h"
 #include "rwte/color.h"
 #include "rwte/config.h"
-#include "rwte/logging.h"
 #include "rwte/renderer.h"
 #include "rwte/rwte.h"
 #include "rwte/screen.h"
@@ -15,7 +15,7 @@
 #include <pango/pangocairo.h>
 #include <vector>
 
-#define LOGGER() (logging::get("renderer"))
+#define LOGGER() (rw::logging::get("renderer"))
 
 namespace renderer {
 
@@ -789,7 +789,7 @@ void RendererImpl::load_font(Context& cr)
                             pango_font_metrics_get_descent(metrics))) /
             (float) PANGO_SCALE * ch_scale);
 
-    if (LOGGER()->level() <= logging::debug) {
+    if (LOGGER()->level() <= rw::logging::log_level::debug) {
         char* font = pango_font_description_to_string(m_fontdesc);
         LOGGER()->debug("loaded {}, font size {}x{}", font, m_cw, m_ch);
         g_free(font);

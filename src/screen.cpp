@@ -1,12 +1,12 @@
 #include "lua/config.h"
 #include "lua/state.h"
-#include "rwte/logging.h"
+#include "rw/logging.h"
 #include "rwte/rwte.h"
 #include "rwte/screen.h"
 #include "rwte/selection.h"
 #include "rwte/utf8.h"
 
-#define LOGGER() (logging::get("screen"))
+#define LOGGER() (rw::logging::get("screen"))
 
 namespace screen {
 

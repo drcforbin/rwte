@@ -6,29 +6,6 @@ version_file = configure_file(
     }
 )
 
-common_sources = files(
-    'fmt/format.cc',
-    'fmt/posix.cc',
-
-    'lua/config.cpp',
-    'lua/logging.cpp',
-    'lua/state.cpp',
-    'lua/term.cpp',
-    'lua/window.cpp',
-
-    'logging.cpp',
-    'profiling.cpp',
-    'renderer.cpp',
-    'rwte.cpp',
-    'screen.cpp',
-    'selection.cpp',
-    'sigwatcher.cpp',
-    'term.cpp',
-    'tty.cpp',
-    'utf8.cpp',
-    'window.cpp'
-)
-
 xcb_deps = [
     xcb,
     xcb_util,
@@ -62,7 +39,8 @@ executable(
     dependencies: [
         rwte_common_deps,
         wayland_deps,
-        xcb_deps
+        xcb_deps,
+        librw_dep
     ],
     include_directories: inc
 )
@@ -76,7 +54,8 @@ executable(
     ],
     dependencies: [
         rwte_common_deps,
-        xcb_deps
+        xcb_deps,
+        librw_dep
     ],
     include_directories: inc,
     cpp_args : '-DRWTE_NO_WAYLAND'
@@ -91,23 +70,9 @@ executable(
     ],
     dependencies: [
         rwte_common_deps,
-        wayland_deps
+        wayland_deps,
+        librw_dep
     ],
     include_directories: inc,
     cpp_args : '-DRWTE_NO_XCB'
 )
-
-testexe = executable(
-    'rwte-test', [
-        'rwte-test.cpp',
-        'screen-test.cpp',
-        'pdata/map-test.cpp',
-        'utf8-test.cpp',
-        common_sources
-    ],
-    dependencies: rwte_common_deps,
-    include_directories: inc,
-    cpp_args : '-DCATCH_CONFIG_ENABLE_BENCHMARKING'
-)
-
-test('rwte test', testexe)

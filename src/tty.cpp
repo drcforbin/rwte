@@ -10,9 +10,9 @@
 #endif
 
 #include "lua/state.h"
+#include "rw/logging.h"
 #include "rwte/asyncio.h"
 #include "rwte/config.h"
-#include "rwte/logging.h"
 #include "rwte/rwte.h"
 #include "rwte/term.h"
 #include "rwte/tty.h"
@@ -27,7 +27,7 @@
 #include <pwd.h>
 #include <utility>
 
-#define LOGGER() (logging::get("tty"))
+#define LOGGER() (rw::logging::get("tty"))
 
 // most we write in a chunk
 constexpr std::size_t max_write = 255;
@@ -311,7 +311,7 @@ void TtyImpl::onresize(const event::Resize& evt)
 
 void TtyImpl::log_write(bool initial, const char* data, size_t len)
 {
-    if (logging::trace < LOGGER()->level())
+    if (rw::logging::log_level::trace < LOGGER()->level())
         return;
 
     fmt::memory_buffer msg;

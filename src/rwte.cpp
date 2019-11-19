@@ -1,6 +1,6 @@
 #include "lua/config.h"
 #include "lua/state.h"
-#include "rwte/logging.h"
+#include "rw/logging.h"
 #include "rwte/rwte.h"
 #include "rwte/term.h"
 #include "rwte/tty.h"
@@ -26,7 +26,7 @@ Options options;
 std::unique_ptr<Rwte> rwte;
 lua_State* g_L = nullptr;
 
-#define LOGGER() (logging::get("rwte"))
+#define LOGGER() (rw::logging::get("rwte"))
 
 // default values to use if we don't have
 // a default value in config

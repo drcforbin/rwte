@@ -1,10 +1,10 @@
-#include "rwte/logging.h"
+#include "rw/logging.h"
 #include "rwte/sigwatcher.h"
 
 #include <ev++.h>
 #include <sys/wait.h>
 
-#define LOGGER() (logging::get("sigwatcher"))
+#define LOGGER() (rw::logging::get("sigwatcher"))
 
 // listen to SIGTERM/QUIT/INT and try to exit cleanly, by stopping the main loop
 SigWatcher::SigWatcher()

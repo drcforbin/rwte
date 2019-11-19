@@ -1,5 +1,5 @@
+#include "doctest.h"
 #include "fmt/format.h"
-#include "rwte/catch.hpp"
 #include "rwte/screen.h"
 
 class ScreenFixture
@@ -125,7 +125,7 @@ protected:
                         << from.row << "," << from.col
                         << "}; got value from {"
                         << ((actual.u >> 10) & 0xFF) << ","
-                        << ((actual.u >> 2) & 0xFF) << "}")
+                        << ((actual.u >> 2) & 0xFF) << "}");
                 REQUIRE(actual.u == expected.u);
                 REQUIRE(actual.attr == expected.attr);
                 REQUIRE(actual.fg == expected.fg);
@@ -139,9 +139,11 @@ protected:
     }
 };
 
-TEST_CASE_METHOD(ScreenFixture, "resize resizes", "[screen]")
+TEST_SUITE_BEGIN("screen");
+
+TEST_CASE_FIXTURE(ScreenFixture, "resize resizes")
 {
-    SECTION("initial resize works")
+    SUBCASE("initial resize works")
     {
         REQUIRE(screen.cols() == initial_cols);
         REQUIRE(screen.rows() == initial_rows);
@@ -166,7 +168,7 @@ TEST_CASE_METHOD(ScreenFixture, "resize resizes", "[screen]")
         REQUIRE(count == 30);
     }
 
-    SECTION("resize smaller works")
+    SUBCASE("resize smaller works")
     {
         screen.resize(3, 2);
         REQUIRE(screen.cols() == 3);
@@ -192,7 +194,7 @@ TEST_CASE_METHOD(ScreenFixture, "resize resizes", "[screen]")
         REQUIRE(count == 6);
     }
 
-    SECTION("resize larger works")
+    SUBCASE("resize larger works")
     {
         screen.resize(9, 10);
         REQUIRE(screen.cols() == 9);
@@ -226,7 +228,7 @@ TEST_CASE_METHOD(ScreenFixture, "resize resizes", "[screen]")
     }
 }
 
-TEST_CASE_METHOD(ScreenFixture, "clear clears", "[screen]")
+TEST_CASE_FIXTURE(ScreenFixture, "clear clears")
 {
     auto checkRange = [this](
                               int row1, int col1, int row2, int col2) {
@@ -252,71 +254,70 @@ TEST_CASE_METHOD(ScreenFixture, "clear clears", "[screen]")
         }
     };
 
-    SECTION("clear all sets to cursor")
+    SUBCASE("clear all sets to cursor")
     {
         screen.clear();
         checkRange(0, 0, initial_rows - 1, initial_cols - 1);
     }
 
-    SECTION("clear sets top left to cursor")
+    SUBCASE("clear sets top left to cursor")
     {
         screen.clear({0, 0}, {2, 2});
         checkRange(0, 0, 2, 2);
     }
 
-    SECTION("clear sets middle to cursor")
+    SUBCASE("clear sets middle to cursor")
     {
         screen.clear({1, 1}, {3, 3});
         checkRange(1, 1, 3, 3);
     }
 
-    SECTION("clear sets bottom right to cursor")
+    SUBCASE("clear sets bottom right to cursor")
     {
         screen.clear({2, 3}, {initial_rows - 1, initial_cols - 1});
         checkRange(2, 3, initial_rows - 1, initial_cols - 1);
     }
 
-    SECTION("clear handles overflow top left")
+    SUBCASE("clear handles overflow top left")
     {
         screen.clear({-6, -4}, {2, 2});
         checkRange(0, 0, 2, 2);
     }
 
-    SECTION("clear handles overflow bottom right")
+    SUBCASE("clear handles overflow bottom right")
     {
         screen.clear({2, 3}, {9, 10});
         checkRange(2, 3, initial_rows - 1, initial_cols - 1);
     }
 
-    SECTION("clear handles complete overflow")
+    SUBCASE("clear handles complete overflow")
     {
         screen.clear({-6, -4}, {9, 10});
         checkRange(0, 0, initial_rows - 1, initial_cols - 1);
     }
 
-    SECTION("clear handles missorted cols")
+    SUBCASE("clear handles missorted cols")
     {
         screen.clear({1, 3}, {3, 1});
         checkRange(1, 1, 3, 3);
     }
 
-    SECTION("clear handles missorted rows")
+    SUBCASE("clear handles missorted rows")
     {
         screen.clear({3, 1}, {1, 3});
         checkRange(1, 1, 3, 3);
     }
 
-    SECTION("clear handles missorted coords")
+    SUBCASE("clear handles missorted coords")
     {
         screen.clear({3, 3}, {1, 1});
         checkRange(1, 1, 3, 3);
     }
 }
 
-TEST_CASE_METHOD(ScreenFixtureVarying, "newline moves cursor down",
-        "[screen]")
+TEST_CASE_FIXTURE(ScreenFixtureVarying, "newline moves cursor down")
 {
-    SECTION("moves down when not on last line")
+    SUBCASE("moves down when not on last line")
     {
         auto c = screen.cursor();
         c.row = 2, c.col = 3;
@@ -353,7 +354,7 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "newline moves cursor down",
                         {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}});
     }
 
-    SECTION("will scroll when on last line")
+    SUBCASE("will scroll when on last line")
     {
         auto c = screen.cursor();
         c.row = screen.bot(), c.col = 3;
@@ -389,10 +390,9 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "newline moves cursor down",
     }
 }
 
-TEST_CASE_METHOD(ScreenFixtureVarying, "deleteline removes lines",
-        "[screen]")
+TEST_CASE_FIXTURE(ScreenFixtureVarying, "deleteline removes lines")
 {
-    SECTION("deletes one line")
+    SUBCASE("deletes one line")
     {
         auto c = screen.cursor();
 
@@ -436,7 +436,7 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "deleteline removes lines",
                         {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}});
     }
 
-    SECTION("deletes multiple lines")
+    SUBCASE("deletes multiple lines")
     {
         auto c = screen.cursor();
 
@@ -467,7 +467,7 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "deleteline removes lines",
                         {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}});
     }
 
-    SECTION("deletes one at end on overflow")
+    SUBCASE("deletes one at end on overflow")
     {
         auto c = screen.cursor();
 
@@ -485,10 +485,9 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "deleteline removes lines",
     }
 }
 
-TEST_CASE_METHOD(ScreenFixtureVarying, "insertblankline adds lines",
-        "[screen]")
+TEST_CASE_FIXTURE(ScreenFixtureVarying, "insertblankline adds lines")
 {
-    SECTION("inserts one line")
+    SUBCASE("inserts one line")
     {
         auto c = screen.cursor();
 
@@ -516,7 +515,7 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "insertblankline adds lines",
                         {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}, {10, 0}});
     }
 
-    SECTION("inserts multiple lines")
+    SUBCASE("inserts multiple lines")
     {
         auto c = screen.cursor();
 
@@ -534,7 +533,7 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "insertblankline adds lines",
                         {-2, 0}, {-2, 0}, {-2, 0}, {-2, 0}, {-2, 0}, {-2, 0}});
     }
 
-    SECTION("inserts one at end on overflow")
+    SUBCASE("inserts one at end on overflow")
     {
         auto c = screen.cursor();
 
@@ -552,8 +551,7 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "insertblankline adds lines",
     }
 }
 
-TEST_CASE_METHOD(ScreenFixtureVarying, "deletechar removes chars at cursor",
-        "[screen]")
+TEST_CASE_FIXTURE(ScreenFixtureVarying, "deletechar removes chars at cursor")
 {
     // todo:
     // deletes zero
@@ -565,8 +563,7 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "deletechar removes chars at cursor",
     // deletes two at end
 }
 
-TEST_CASE_METHOD(ScreenFixtureVarying, "insertblank adds chars at cursor",
-        "[screen]")
+TEST_CASE_FIXTURE(ScreenFixtureVarying, "insertblank adds chars at cursor")
 {
     // todo:
     // inserts zero
@@ -577,3 +574,5 @@ TEST_CASE_METHOD(ScreenFixtureVarying, "insertblank adds chars at cursor",
     // inserts two in middle
     // inserts two at end
 }
+
+TEST_SUITE_END();
