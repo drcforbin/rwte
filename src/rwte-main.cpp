@@ -194,9 +194,7 @@ int main(int argc, char* argv[])
     bool got_wayland = false;
 #endif
 
-    // todo: move NoOpts to argparse ns
-    struct NoOpts {};
-    auto p = rw::argparse::parser<NoOpts>{}
+    auto p = rw::argparse::parser{}
         .optional(&confpath, "config"sv, "c"sv)
         .optional(&options.winclass, "winclass"sv, "w"sv)
         .optional(&options.noalt, "noalt"sv, "a"sv)
