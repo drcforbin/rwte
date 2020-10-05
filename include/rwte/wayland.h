@@ -4,6 +4,8 @@
 #include "xdg-shell/xdg-shell-client-protocol.h"
 
 #include <memory>
+#include <string>
+#include <string_view>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <wayland-client.h>

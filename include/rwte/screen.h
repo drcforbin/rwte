@@ -5,6 +5,7 @@
 #include "rwte/event.h"
 
 #include <bitset>
+#include <ostream>
 #include <memory>
 #include <vector>
 
