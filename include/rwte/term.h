@@ -20,9 +20,9 @@ namespace term {
 
 enum mouse_event_enum
 {
-    MOUSE_MOTION = 0,
-    MOUSE_PRESS = 1,
-    MOUSE_RELEASE = 2
+    MOUSE_MOTION,
+    MOUSE_PRESS,
+    MOUSE_RELEASE
 };
 
 enum keymod_state_enum
