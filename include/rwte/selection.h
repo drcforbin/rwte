@@ -45,7 +45,7 @@ public:
     // oe – original coordinates of the end of the selection
     Cell nb{0, 0};
     Cell ne{0, 0};
-    Cell ob{-1, 0};
+    Cell ob{0, -1};
     Cell oe{0, 0};
 
     std::shared_ptr<char> primary;
