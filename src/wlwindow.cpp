@@ -5,6 +5,7 @@
 #include "rwte/bufferpool.h"
 #include "rwte/config.h"
 #include "rwte/coords.h"
+#include "rwte/reactorctrl.h"
 #include "rwte/renderer.h"
 #include "rwte/rwte.h"
 #include "rwte/selection.h"
@@ -16,7 +17,6 @@
 #include "xdg-shell/xdg-shell-client-protocol.h"
 
 #include <cairo/cairo.h>
-#include <ev++.h>
 #include <linux/input.h>
 #include <sys/mman.h>
 #include <wayland-client-protocol.h>
@@ -258,11 +258,17 @@ class WlWindow final : public Window
 {
 public:
     WlWindow(std::shared_ptr<event::Bus> bus,
+            reactor::ReactorCtrl *ctrl,
             std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty);
     ~WlWindow();
 
     // todo: does this make sense?
     uint32_t windowid() const { return 0; }
+
+    int fd() const;
+    void prepare();
+    bool event();
+    bool check();
 
     uint16_t width() const { return m_width; }
     uint16_t height() const { return m_height; }
@@ -309,6 +315,7 @@ public:
     bool visible = false;
 
     std::shared_ptr<event::Bus> m_bus;
+    reactor::ReactorCtrl *m_ctrl;
     std::shared_ptr<term::Term> m_term;
     std::shared_ptr<Tty> m_tty;
 
@@ -316,8 +323,8 @@ private:
     void settitlecore(std::string_view name);
     void onresize(const event::Resize& evt);
 
-    void iocb(ev::io&, int);
-    void preparecb(ev::prepare&, int);
+    void iocb();
+    void preparecb();
 
     void paint_pixels(Buffer* buffer);
 
@@ -325,9 +332,6 @@ private:
 
     uint16_t m_width, m_height;
     uint16_t m_rows, m_cols;
-
-    ev::prepare m_prepare;
-    ev::io m_io;
 
     std::unique_ptr<renderer::Renderer> m_renderer;
 
@@ -341,15 +345,14 @@ private:
 };
 
 WlWindow::WlWindow(std::shared_ptr<event::Bus> bus,
+        reactor::ReactorCtrl *ctrl,
         std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty) :
     m_bus(std::move(bus)),
+    m_ctrl(ctrl),
     m_term(std::move(term)),
     m_tty(std::move(tty)),
     m_resizeReg(m_bus->reg<event::Resize, WlWindow, &WlWindow::onresize>(this))
 {
-    m_prepare.set<WlWindow, &WlWindow::preparecb>(this);
-    m_io.set<WlWindow, &WlWindow::iocb>(this);
-
     int cols = m_term->cols();
     int rows = m_term->rows();
 
@@ -389,7 +392,7 @@ WlWindow::WlWindow(std::shared_ptr<event::Bus> bus,
     wl_display_roundtrip(display);
 
     // todo: more checking
-    if (compositor == nullptr || !wmbase)
+    if (!compositor || !wmbase)
         throw WindowError("can't find compositor or wm_base");
     LOGGER()->debug("found compositor");
 
@@ -398,6 +401,10 @@ WlWindow::WlWindow(std::shared_ptr<event::Bus> bus,
     xdg_surface = wmbase->get_xdg_surface(
             surface.get());
     toplevel = xdg_surface->get_xdg_toplevel();
+
+    // set initial title
+    settitlecore(options.title);
+
     surface->commit();
 
     // todo: error handling
@@ -405,9 +412,6 @@ WlWindow::WlWindow(std::shared_ptr<event::Bus> bus,
 
     // todo: set app id
     // toplevel->set_app_id(?);
-
-    // set initial title
-    settitlecore(options.title);
 
     // todo: move this somewhere
     cursor_surface = wl_compositor_create_surface(compositor);
@@ -427,11 +431,6 @@ WlWindow::WlWindow(std::shared_ptr<event::Bus> bus,
     } else {
         LOGGER()->warn("unable to get a draw buffer");
     }
-
-    // start our event watchers
-    m_prepare.start();
-    m_io.start(wl_display_get_fd(display), ev::READ);
-    LOGGER()->debug("listening for display events");
 }
 
 WlWindow::~WlWindow()
@@ -462,6 +461,68 @@ WlWindow::~WlWindow()
     LOGGER()->debug("disconnected from display");
 
     m_bus->unreg<event::Resize>(m_resizeReg);
+}
+
+int WlWindow::fd() const
+{
+    return wl_display_get_fd(display);
+}
+
+void WlWindow::prepare()
+{
+    // flush anything outgoing to the server
+    LOGGER()->trace("prepare flush");
+    int ret = wl_display_flush(display);
+    if (ret == -1) {
+        if (errno == EAGAIN) {
+            LOGGER()->debug("prepare flush EAGAIN");
+            // failed with eagain, start waiting for write
+            // events and try again
+            // todo: when is this cleared?
+            m_ctrl->set_events(fd(), true, true);
+        } else if (errno != EPIPE) {
+            LOGGER()->debug("prepare flush error: {}", strerror(errno));
+            // if we got some other than epipe, cancel the read
+            // we signed up for earlier
+            wl_display_cancel_read(display);
+            m_ctrl->set_events(fd(), true, false);
+        }
+    }
+}
+
+bool WlWindow::event()
+{
+    for (;;) {
+        if (wl_display_prepare_read(display) == 0) {
+            // queue is empty; initiate a read (nonblocking)
+            if (wl_display_read_events(display) == 0) {
+                wl_display_dispatch_pending(display);
+            } else if (errno && errno != EAGAIN) {
+                LOGGER()->error("iocb dispatch_pending error: {}", strerror(errno));
+                // if we actually got an error on the read,
+                // we don't need to keep reading
+                m_ctrl->set_events(fd(), false, false);
+                return true;
+            } else if (errno) {
+                LOGGER()->debug("iocb dispatch_pending EAGAIN");
+            }
+
+            LOGGER()->trace("iocb read done");
+            break;
+        } else {
+            // queue not empty; dispatch whatever we have
+            wl_display_dispatch_pending(display);
+        }
+    }
+
+    // don't stop
+    return false;
+}
+
+bool WlWindow::check()
+{
+    // don't stop
+    return false;
 }
 
 void WlWindow::drawCore()
@@ -573,102 +634,7 @@ void WlWindow::onresize(const event::Resize& evt)
     // here would be better
     // m_renderer->resize(evt.width, evt.height);
 
-    // todo: figure out why we're painting badly on resize
-    // (we paint with an unresized surface, then resize
-    // and paint properly)
-
     buffers->resize(evt.width, evt.height);
-}
-
-void WlWindow::preparecb(ev::prepare&, int)
-{
-    // todo: test different kinds of failures in here
-
-    if (!prepared) {
-        // announce intention to read; if that fails, dispatch
-        // anything already pending and repeat until successful
-        LOGGER()->trace("preparecb prepare_read");
-        while (wl_display_prepare_read(display) != 0)
-            wl_display_dispatch_pending(display);
-
-        // flush anything outgoing to the server
-        LOGGER()->trace("preparecb flush");
-        int ret = wl_display_flush(display);
-        if (ret == -1) {
-            if (errno == EAGAIN) {
-                LOGGER()->debug("preparecb flush EAGAIN");
-                // failed with eagain, start waiting for write
-                // events and try again
-                m_io.set(ev::READ | ev::WRITE);
-            } else if (errno == EPIPE) {
-                // removing this condition and logging will
-                // make the following condition no longer
-                // redundant
-                LOGGER()->debug("preparecb flush error: {}", strerror(errno));
-            } else if (errno != EPIPE) {
-                LOGGER()->debug("preparecb flush error: {}", strerror(errno));
-                // if we got some other than epipe, cancel the read
-                // we signed up for earlier
-                wl_display_cancel_read(display);
-                m_io.set(ev::READ);
-            }
-        }
-
-        LOGGER()->trace("preparecb prepare done");
-        prepared = true;
-    }
-}
-
-void WlWindow::iocb(ev::io&, int revents)
-{
-    // todo: test different kinds of failures in here
-
-    if (revents & ev::WRITE) {
-        LOGGER()->trace("iocb WRITE");
-
-        // we're ready to write. try flushing again; if it
-        // succeeds or fails with something other than eagain,
-        // we can stop listening for write
-        int ret = wl_display_flush(display);
-        if (ret != -1 || errno != EAGAIN) {
-            // if the error is EPIPE, we can just stop listening
-            // for writes
-            if (errno == EPIPE) {
-                m_io.set(ev::READ);
-            } else {
-                // otherwise, we don't need to bother with the read
-                wl_display_cancel_read(display);
-                m_io.stop();
-
-                // todo: log, exit?
-            }
-        }
-    }
-
-    if (revents & ev::READ) {
-        // todo: how do we handle errors in polling?
-        // if (has_error(ret))
-        //     wl_display_cancel_read(display);
-
-        // try reading and dispatching
-        LOGGER()->trace("iocb read_events");
-        if (wl_display_read_events(display) != -1) {
-            LOGGER()->trace("iocb dispatch_pending");
-            wl_display_dispatch_pending(display);
-        } else if (errno && errno != EAGAIN) {
-            LOGGER()->debug("iocb dispatch_pending error: {}", strerror(errno));
-            // if we actually got an error on the read,
-            // we don't need to keep reading
-            m_io.stop();
-
-            // todo: log, exit?
-        } else if (errno) {
-            LOGGER()->debug("iocb dispatch_pending EAGAIN");
-        }
-
-        LOGGER()->trace("iocb read done");
-        prepared = false;
-    }
 }
 
 void WlWindow::paint_pixels(Buffer* buffer)
@@ -960,9 +926,10 @@ void Registry::handle_global(uint32_t name, const char* interface, uint32_t vers
 /// \addtogroup Window
 /// @{
 std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus,
+        reactor::ReactorCtrl *ctrl,
         std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty)
 {
     return std::make_unique<wlwin::WlWindow>(std::move(bus),
-            std::move(term), std::move(tty));
+            ctrl, std::move(term), std::move(tty));
 }
 /// @}

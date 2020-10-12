@@ -3,7 +3,6 @@
 
 #include "rwte/event.h"
 
-#include <ev++.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -11,6 +10,9 @@
 namespace lua {
 class State;
 } // namespace lua
+namespace reactor {
+class ReactorCtrl;
+} // namespace reactor
 namespace term {
 class Term;
 } // namespace term
@@ -35,34 +37,33 @@ extern Options options;
 class Rwte
 {
 public:
-    Rwte(std::shared_ptr<event::Bus> bus);
+    Rwte(std::shared_ptr<event::Bus> bus, reactor::ReactorCtrl *ctrl);
     ~Rwte();
 
     void setWindow(std::shared_ptr<Window> window) { m_window = window; }
     void setTerm(std::shared_ptr<term::Term> term) { m_term = term; }
-
-    void watch_child(pid_t pid);
 
     void refresh();
 
     void start_blink();
     void stop_blink();
 
+    void child_ended();
+
+    void flushcb();
+    void blinkcb();
+
     std::shared_ptr<lua::State> lua() { return m_lua; }
 
 private:
     void onrefresh(const event::Refresh& evt);
 
-    void childcb(ev::child& w, int);
-    void flushcb(ev::timer& w, int);
-    void blinkcb(ev::timer& w, int);
+    // todo: work out args
+    void childcb();
 
     std::shared_ptr<event::Bus> m_bus;
+    reactor::ReactorCtrl *m_ctrl;
     int m_refreshReg;
-
-    ev::child m_child;
-    ev::timer m_flush;
-    ev::timer m_blink;
 
     std::shared_ptr<lua::State> m_lua;
     std::weak_ptr<Window> m_window;

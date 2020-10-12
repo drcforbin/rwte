@@ -72,6 +72,12 @@ public:
     ~XcbWindow();
 
     uint32_t windowid() const { return win; }
+
+    int fd() const;
+    void prepare();
+    bool event();
+    bool check();
+
     uint16_t width() const { return m_width; }
     uint16_t height() const { return m_height; }
     uint16_t rows() const { return m_rows; }
@@ -99,40 +105,35 @@ private:
     void publishresize(uint16_t width, uint16_t height);
     void onresize(const event::Resize& evt);
 
-    void handle_key_press(ev::loop_ref&, xcb_key_press_event_t* event);
-    void handle_client_message(ev::loop_ref& loop, xcb_client_message_event_t* event);
-    void handle_motion_notify(ev::loop_ref&, xcb_motion_notify_event_t* event);
-    void handle_visibility_notify(ev::loop_ref&, xcb_visibility_notify_event_t* event);
-    void handle_unmap_notify(ev::loop_ref&, xcb_unmap_notify_event_t* event);
-    void handle_focus_in(ev::loop_ref&, xcb_focus_in_event_t* event);
-    void handle_focus_out(ev::loop_ref&, xcb_focus_out_event_t* event);
-    void handle_button(ev::loop_ref&, xcb_button_press_event_t* event);
-    void handle_selection_clear(ev::loop_ref&, xcb_selection_clear_event_t* event);
-    void handle_selection_notify(ev::loop_ref&, xcb_selection_notify_event_t* event);
-    void handle_property_notify(ev::loop_ref&, xcb_property_notify_event_t* event);
-    void handle_selection_request(ev::loop_ref&, xcb_selection_request_event_t* event);
-    void handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t* event);
-    void handle_expose(ev::loop_ref&, xcb_expose_event_t* event);
-    void handle_configure_notify(ev::loop_ref&, xcb_configure_notify_event_t* event);
-    void handle_xkb_event(xcb_generic_event_t* gevent);
+    bool handle_key_press(xcb_key_press_event_t* event);
+    bool handle_client_message(xcb_client_message_event_t* event);
+    bool handle_motion_notify(xcb_motion_notify_event_t* event);
+    bool handle_visibility_notify(xcb_visibility_notify_event_t* event);
+    bool handle_unmap_notify(xcb_unmap_notify_event_t* event);
+    bool handle_focus_in(xcb_focus_in_event_t* event);
+    bool handle_focus_out(xcb_focus_out_event_t* event);
+    bool handle_button(xcb_button_press_event_t* event);
+    bool handle_selection_clear(xcb_selection_clear_event_t* event);
+    bool handle_selection_notify(xcb_selection_notify_event_t* event);
+    bool handle_property_notify(xcb_property_notify_event_t* event);
+    bool handle_selection_request(xcb_selection_request_event_t* event);
+    bool handle_map_notify(xcb_map_notify_event_t* event);
+    bool handle_expose(xcb_expose_event_t* event);
+    bool handle_configure_notify(xcb_configure_notify_event_t* event);
+    bool handle_xkb_event(xcb_generic_event_t* gevent);
 
     void selnotify(xcb_atom_t property, bool propnotify);
 
     // helper to call the handlers with their expected args
     template <typename evt_type>
-    void call_handler(
-            void (XcbWindow::*handler)(ev::loop_ref&, evt_type*),
-            ev::loop_ref& loop,
+    bool call_handler(
+            bool (XcbWindow::*handler)(evt_type*),
             xcb_generic_event_t* event)
     {
-        (this->*handler)(loop, reinterpret_cast<evt_type*>(event));
+        return (this->*handler)(reinterpret_cast<evt_type*>(event));
     }
 
-    void handle_xcb_event(ev::loop_ref& loop, int type, xcb_generic_event_t* event);
-
-    void readcb(ev::io&, int);
-    void preparecb(ev::prepare&, int);
-    void checkcb(ev::check&, int);
+    bool handle_xcb_event(int type, xcb_generic_event_t* event);
 
     xcb_connection_t* connection = nullptr;
     xcb_drawable_t win = 0;
@@ -179,10 +180,6 @@ private:
     xcb_atom_t m_xseldata;
     xcb_atom_t m_targets;
 
-    ev::io m_io;
-    ev::prepare m_prepare;
-    ev::check m_check;
-
     std::unique_ptr<renderer::Renderer> m_renderer;
 
     term::keymod_state m_keymod;
@@ -198,12 +195,6 @@ XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus,
     m_resizeReg(m_bus->reg<event::Resize, XcbWindow, &XcbWindow::onresize>(this)),
     m_eventmask(0)
 {
-    // this io watcher is just to to kick the loop around
-    // when there is data available to be read
-    m_io.set<XcbWindow, &XcbWindow::readcb>(this);
-    m_prepare.set<XcbWindow, &XcbWindow::preparecb>(this);
-    m_check.set<XcbWindow, &XcbWindow::checkcb>(this);
-
     int cols = m_term->cols();
     int rows = m_term->rows();
 
@@ -291,11 +282,6 @@ XcbWindow::XcbWindow(std::shared_ptr<event::Bus> bus,
     // map the window on the screen and flush
     xcb_map_window(connection, win);
     xcb_flush(connection);
-
-    // start our event watchers
-    m_prepare.start();
-    m_check.start();
-    m_io.start(xcb_get_file_descriptor(connection), ev::READ);
 }
 
 XcbWindow::~XcbWindow()
@@ -306,12 +292,61 @@ XcbWindow::~XcbWindow()
     m_bus->unreg<event::Resize>(m_resizeReg);
 }
 
+int XcbWindow::fd() const
+{
+    return xcb_get_file_descriptor(connection);
+}
+
+void XcbWindow::prepare()
+{
+    // flush before blocking (and waiting for new events)
+    xcb_flush(connection);
+}
+
+bool XcbWindow::event()
+{
+    // this callback is a noop, work is done by the prepare and check
+    // this is really just to to kick the loop around when there is data
+    // available to be read
+
+    // todo: do we really not want to do the 'check' work here?
+
+    // don't stop
+    return false;
+}
+
+bool XcbWindow::check()
+{
+    // after handling other events, call xcb_poll_for_event
+    xcb_generic_event_t* event;
+
+    bool stop = false;
+    while (!stop && (event = xcb_poll_for_event(connection)) != nullptr) {
+        if (event->response_type == 0) {
+            //if (event_is_ignored(event->sequence, 0))
+            //    LOGGER()->debug("expected X11 Error received for sequence {:#x}", event->sequence);
+            //else {
+            auto error = reinterpret_cast<xcb_generic_error_t*>(event);
+            LOGGER()->error("X11 Error received! sequence {:#x}, error_code = {}",
+                    error->sequence, error->error_code);
+            //}
+        } else {
+            // clear high bit (indicates generated)
+            int type = (event->response_type & 0x7F);
+            stop = handle_xcb_event(type, event);
+        }
+
+        std::free(event);
+    }
+
+    return stop;
+}
+
 void XcbWindow::draw()
 {
-    if (!visible)
-        return;
-
-    m_renderer->drawregion({0, 0}, {m_term->rows(), m_term->cols()});
+    if (visible) {
+        m_renderer->drawregion({0, 0}, {m_term->rows(), m_term->cols()});
+    }
 }
 
 static std::string get_term_name()
@@ -612,13 +647,15 @@ void XcbWindow::onresize(const event::Resize& evt)
     LOGGER()->info("resize to {}x{}", evt.width, evt.height);
 }
 
-void XcbWindow::handle_key_press(ev::loop_ref&, xcb_key_press_event_t* event)
+bool XcbWindow::handle_key_press(xcb_key_press_event_t* event)
 {
     process_key(event->detail, m_term.get(), m_tty.get(), xkb_state,
             xkb_compose_state, m_keymod);
+
+    return false;
 }
 
-void XcbWindow::handle_client_message(ev::loop_ref& loop, xcb_client_message_event_t* event)
+bool XcbWindow::handle_client_message(xcb_client_message_event_t* event)
 {
     LOGGER()->debug("handle_client_message type={} data={}",
             event->type, event->data.data32[0]);
@@ -649,38 +686,50 @@ void XcbWindow::handle_client_message(ev::loop_ref& loop, xcb_client_message_eve
 
         // hang up on the shell and get out of here
         m_tty->hup();
-        loop.break_loop(ev::ALL);
+        return true;
     }
+
+    return false;
 }
 
-void XcbWindow::handle_motion_notify(ev::loop_ref&, xcb_motion_notify_event_t* event)
+bool XcbWindow::handle_motion_notify(xcb_motion_notify_event_t* event)
 {
     auto cell = m_renderer->pxtocell(event->event_x, event->event_y);
     m_term->mousereport(cell, term::MOUSE_MOTION, 0, m_keymod);
+
+    return false;
 }
 
-void XcbWindow::handle_visibility_notify(ev::loop_ref&, xcb_visibility_notify_event_t* event)
+bool XcbWindow::handle_visibility_notify(xcb_visibility_notify_event_t* event)
 {
     visible = event->state != XCB_VISIBILITY_FULLY_OBSCURED;
+
+    return false;
 }
 
-void XcbWindow::handle_unmap_notify(ev::loop_ref&, xcb_unmap_notify_event_t* event)
+bool XcbWindow::handle_unmap_notify(xcb_unmap_notify_event_t* event)
 {
     mapped = false;
+
+    return false;
 }
 
-void XcbWindow::handle_focus_in(ev::loop_ref&, xcb_focus_in_event_t* event)
+bool XcbWindow::handle_focus_in(xcb_focus_in_event_t* event)
 {
     seturgent(false);
     m_term->setfocused(true);
+
+    return false;
 }
 
-void XcbWindow::handle_focus_out(ev::loop_ref&, xcb_focus_out_event_t* event)
+bool XcbWindow::handle_focus_out(xcb_focus_out_event_t* event)
 {
     m_term->setfocused(false);
+
+    return false;
 }
 
-void XcbWindow::handle_button(ev::loop_ref&, xcb_button_press_event_t* event)
+bool XcbWindow::handle_button(xcb_button_press_event_t* event)
 {
     int button = event->detail;
     bool press = (event->response_type & 0x7F) == XCB_BUTTON_PRESS;
@@ -689,22 +738,28 @@ void XcbWindow::handle_button(ev::loop_ref&, xcb_button_press_event_t* event)
     term::mouse_event_enum mouse_evt =
             press ? term::MOUSE_PRESS : term::MOUSE_RELEASE;
     m_term->mousereport(cell, mouse_evt, button, m_keymod);
+
+    return false;
 }
 
-void XcbWindow::handle_selection_clear(ev::loop_ref&, xcb_selection_clear_event_t* event)
+bool XcbWindow::handle_selection_clear(xcb_selection_clear_event_t* event)
 {
     m_term->selclear();
+
+    return false;
 }
 
-void XcbWindow::handle_selection_notify(ev::loop_ref&, xcb_selection_notify_event_t* event)
+bool XcbWindow::handle_selection_notify(xcb_selection_notify_event_t* event)
 {
     LOGGER()->info("handle_selection_notify: requestor={} selection={} target={} property={}",
             event->requestor, event->selection, event->target, event->property);
 
     selnotify(event->property, false);
+
+    return false;
 }
 
-void XcbWindow::handle_property_notify(ev::loop_ref&, xcb_property_notify_event_t* event)
+bool XcbWindow::handle_property_notify(xcb_property_notify_event_t* event)
 {
     if (LOGGER()->level() <= rw::logging::log_level::debug) {
         const char* atom_name;
@@ -726,9 +781,11 @@ void XcbWindow::handle_property_notify(ev::loop_ref&, xcb_property_notify_event_
         LOGGER()->debug("got clipboard new value");
         selnotify(event->atom, true);
     }
+
+    return false;
 }
 
-void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_event_t* event)
+bool XcbWindow::handle_selection_request(xcb_selection_request_event_t* event)
 {
     xcb_atom_t property = XCB_NONE; // default to reject
 
@@ -773,7 +830,7 @@ void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_ev
             seltext = m_term->sel().clipboard;
         else {
             LOGGER()->error("unhandled selection {:#x}", event->selection);
-            return;
+            return false;
         }
 
         if (seltext) {
@@ -816,9 +873,11 @@ void XcbWindow::handle_selection_request(ev::loop_ref&, xcb_selection_request_ev
 
     xcb_send_event(connection, false, event->requestor,
             XCB_EVENT_MASK_NO_EVENT, (const char*) buffer);
+
+    return false;
 }
 
-void XcbWindow::handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t* event)
+bool XcbWindow::handle_map_notify(xcb_map_notify_event_t* event)
 {
     LOGGER()->info("handle_map_notify");
     mapped = true;
@@ -839,25 +898,31 @@ void XcbWindow::handle_map_notify(ev::loop_ref&, xcb_map_notify_event_t* event)
         publishresize(width, height);
     } else
         LOGGER()->error("unable to determine geometry!");
+
+    return false;
 }
 
-void XcbWindow::handle_expose(ev::loop_ref&, xcb_expose_event_t* event)
+bool XcbWindow::handle_expose(xcb_expose_event_t* event)
 {
     // redraw only on the last expose event in the sequence
     if (event->count == 0 && mapped && visible) {
         m_term->setdirty();
         draw();
     }
+
+    return false;
 }
 
-void XcbWindow::handle_configure_notify(ev::loop_ref&, xcb_configure_notify_event_t* event)
+bool XcbWindow::handle_configure_notify(xcb_configure_notify_event_t* event)
 {
     if (mapped)
         publishresize(event->width, event->height);
+
+    return false;
 }
 
 // xkb event handler
-void XcbWindow::handle_xkb_event(xcb_generic_event_t* gevent)
+bool XcbWindow::handle_xkb_event(xcb_generic_event_t* gevent)
 {
     union xkb_event {
         struct
@@ -875,7 +940,7 @@ void XcbWindow::handle_xkb_event(xcb_generic_event_t* gevent)
 
     uint8_t core_device = xkb_x11_get_core_keyboard_device_id(connection);
     if (event->any.deviceID != core_device)
-        return;
+        return false;
 
     // new keyboard notify + map notify capture all kinds of keymap
     // updates. state notify captures modifiers
@@ -915,15 +980,16 @@ void XcbWindow::handle_xkb_event(xcb_generic_event_t* gevent)
             LOGGER()->debug("unhandled xkb event for device {} (core {}): {}",
                     event->any.deviceID, core_device, event->any.xkbType);
     }
+
+    return false;
 }
 
-void XcbWindow::handle_xcb_event(ev::loop_ref& loop, int type, xcb_generic_event_t* event)
+bool XcbWindow::handle_xcb_event(int type, xcb_generic_event_t* event)
 {
     switch (type) {
-#define MESSAGE(msg, handler)                           \
-    case msg:                                           \
-        call_handler(&XcbWindow::handler, loop, event); \
-        break
+#define MESSAGE(msg, handler) \
+    case msg:                 \
+        return call_handler(&XcbWindow::handler, event)
 
         MESSAGE(XCB_KEY_PRESS, handle_key_press);
         MESSAGE(XCB_BUTTON_PRESS, handle_button);
@@ -959,6 +1025,8 @@ void XcbWindow::handle_xcb_event(ev::loop_ref& loop, int type, xcb_generic_event
             else
                 LOGGER()->warn("unknown message: {}", type);
     }
+
+    return false;
 }
 
 void XcbWindow::selnotify(xcb_atom_t property, bool propnotify)
@@ -1015,40 +1083,6 @@ void XcbWindow::selnotify(xcb_atom_t property, bool propnotify)
         std::free(reply);
     } else
         LOGGER()->error("unable to get clip property!");
-}
-
-// this callback is a noop, work is done by the prepare and check
-void XcbWindow::readcb(ev::io&, int)
-{}
-
-// flush before blocking (and waiting for new events)
-void XcbWindow::preparecb(ev::prepare&, int)
-{
-    xcb_flush(connection);
-}
-
-// after handling other events, call xcb_poll_for_event
-void XcbWindow::checkcb(ev::check& w, int)
-{
-    xcb_generic_event_t* event;
-
-    while ((event = xcb_poll_for_event(connection)) != nullptr) {
-        if (event->response_type == 0) {
-            //if (event_is_ignored(event->sequence, 0))
-            //    LOGGER()->debug("expected X11 Error received for sequence {:#x}", event->sequence);
-            //else {
-            auto error = reinterpret_cast<xcb_generic_error_t*>(event);
-            LOGGER()->error("X11 Error received! sequence {:#x}, error_code = {}",
-                    error->sequence, error->error_code);
-            //}
-        } else {
-            // clear high bit (indicates generated)
-            int type = (event->response_type & 0x7F);
-            handle_xcb_event(w.loop, type, event);
-        }
-
-        std::free(event);
-    }
 }
 
 } // namespace xcbwin

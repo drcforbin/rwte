@@ -1,10 +1,12 @@
 #ifndef RWTE_ASYNCIO_H
 #define RWTE_ASYNCIO_H
 
+#include "rwte/reactorctrl.h"
+
 #include <algorithm>
 #include <array>
 #include <cstring>
-#include <ev++.h>
+#include <memory>
 #include <unistd.h>
 #include <vector>
 
@@ -12,11 +14,11 @@ template <class T, std::size_t max_write>
 class AsyncIO
 {
 public:
-    AsyncIO() :
+    AsyncIO(reactor::ReactorCtrl *ctrl) :
+        m_ctrl(ctrl),
         m_fd(-1),
         m_rbuflen(0)
     {
-        m_io.set<AsyncIO, &AsyncIO::iocb>(this);
     }
 
     ~AsyncIO()
@@ -53,22 +55,7 @@ public:
         std::copy_n(pdata, len, std::back_inserter(m_wbuffer));
 
         // now we want write events too
-        m_io.set(ev::READ | ev::WRITE);
-    }
-
-    void startRead()
-    {
-        m_io.start(m_fd, ev::READ);
-    }
-
-private:
-    void iocb(ev::io&, int revents)
-    {
-        if (revents & ev::READ)
-            read_ready();
-
-        if (revents & ev::WRITE)
-            write_ready();
+        m_ctrl->set_events(m_fd, true, true);
     }
 
     void read_ready()
@@ -80,7 +67,7 @@ private:
         if ((ret = ::read(m_fd, ptr + m_rbuflen, m_rbuffer.size() - m_rbuflen)) < 0) {
             if (errno == EIO) {
                 // child exiting?
-                m_io.stop();
+                m_ctrl->set_events(m_fd, false, false);
                 return;
             }
             // todo: logging in here
@@ -112,7 +99,7 @@ private:
                 m_wbuffer.resize(0);
 
                 // stop waiting for write events
-                m_io.set(ev::READ);
+                m_ctrl->set_events(m_fd, true, false);
                 return;
             } else {
                 // if anything's left, move it up front, and shrink
@@ -124,12 +111,14 @@ private:
         } else if (written != -1 || (errno != EAGAIN && errno != EINTR)) {
             // todo: better error handling
             // for now, just stop waiting for write event
-            m_io.set(ev::READ);
+            m_ctrl->set_events(m_fd, true, false);
         }
     }
 
+private:
+    reactor::ReactorCtrl *m_ctrl;
+
     int m_fd;
-    ev::io m_io;
 
     // fixed-size read buffer
     // todo: consider replacing with std::vector

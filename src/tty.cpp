@@ -156,7 +156,9 @@ static void stty()
 class TtyImpl : public AsyncIO<TtyImpl, max_write>
 {
 public:
-    TtyImpl(std::shared_ptr<event::Bus> bus, std::shared_ptr<term::Term> term);
+    TtyImpl(std::shared_ptr<event::Bus> bus,
+            reactor::ReactorCtrl *ctrl,
+            std::shared_ptr<term::Term> term);
     ~TtyImpl();
 
     void open(Window* window);
@@ -181,7 +183,9 @@ private:
 };
 
 TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus,
+        reactor::ReactorCtrl *ctrl,
         std::shared_ptr<term::Term> term) :
+    AsyncIO<TtyImpl, max_write>(ctrl),
     m_bus(std::move(bus)),
     m_term(std::move(term)),
     m_resizeReg(m_bus->reg<event::Resize, TtyImpl, &TtyImpl::onresize>(this)),
@@ -192,6 +196,7 @@ TtyImpl::TtyImpl(std::shared_ptr<event::Bus> bus,
         LOGGER()->debug("logging to {}", options.io);
 
         m_term->setprint();
+        // todo: need CLOEXEC?
         m_iofd = (options.io == "-") ? STDOUT_FILENO : ::open(options.io.c_str(), O_WRONLY | O_CREAT, 0666);
         if (m_iofd < 0) {
             LOGGER()->error("error opening {}: {}",
@@ -215,6 +220,7 @@ void TtyImpl::open(Window* window)
         LOGGER()->debug("using line {}", options.line);
 
         int fd;
+        // todo: need CLOEXEC?
         if ((fd = ::open(options.line.c_str(), O_RDWR)) < 0)
             LOGGER()->fatal("open line failed: {}", strerror(errno));
         dup2(fd, STDIN_FILENO);
@@ -255,10 +261,8 @@ void TtyImpl::open(Window* window)
             close(child);
 
             m_pid = pid;
-            rwte->watch_child(pid);
 
             setFd(parent);
-            startRead();
             break;
     }
 }
@@ -358,8 +362,10 @@ std::size_t TtyImpl::onread(const char* ptr, std::size_t len)
     return data.size();
 }
 
-Tty::Tty(std::shared_ptr<event::Bus> bus, std::shared_ptr<term::Term> term) :
-    impl(std::make_unique<TtyImpl>(std::move(bus), std::move(term)))
+Tty::Tty(std::shared_ptr<event::Bus> bus,
+        reactor::ReactorCtrl *ctrl,
+        std::shared_ptr<term::Term> term) :
+    impl(std::make_unique<TtyImpl>(std::move(bus), std::move(ctrl), std::move(term)))
 {}
 
 Tty::~Tty()
@@ -368,6 +374,11 @@ Tty::~Tty()
 void Tty::open(Window* window)
 {
     impl->open(window);
+}
+
+int Tty::fd() const
+{
+    return impl->fd();
 }
 
 void Tty::write(std::string_view data)
@@ -384,3 +395,14 @@ void Tty::hup()
 {
     impl->hup();
 }
+
+void Tty::read_ready()
+{
+    impl->read_ready();
+}
+
+void Tty::write_ready()
+{
+    impl->write_ready();
+}
+

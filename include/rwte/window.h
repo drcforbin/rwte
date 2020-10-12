@@ -7,6 +7,9 @@
 #include <stdexcept>
 #include <string>
 
+namespace reactor {
+class ReactorCtrl;
+}
 namespace term {
 class Term;
 }
@@ -38,6 +41,11 @@ public:
     // todo: x specific?
     virtual uint32_t windowid() const = 0;
 
+    virtual int fd() const = 0;
+    virtual void prepare() = 0;
+    virtual bool event() = 0;
+    virtual bool check() = 0;
+
     virtual void draw() = 0;
 
     virtual void settitle(std::string_view name) = 0;
@@ -54,6 +62,7 @@ public:
 std::unique_ptr<Window> createXcbWindow(std::shared_ptr<event::Bus> bus,
         std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty);
 std::unique_ptr<Window> createWlWindow(std::shared_ptr<event::Bus> bus,
+        reactor::ReactorCtrl *ctrl,
         std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty);
 
 /// @}

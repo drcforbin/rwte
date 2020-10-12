@@ -6,8 +6,8 @@
 #include "rw/logging.h"
 #include "rwte/config.h"
 #include "rwte/event.h"
+#include "rwte/reactor.h"
 #include "rwte/rwte.h"
-#include "rwte/sigwatcher.h"
 #include "rwte/tty.h"
 #include "rwte/version.h"
 #include "rwte/window.h"
@@ -166,7 +166,8 @@ static bool parse_geometry(std::string_view g, int* cols, int* rows)
 int main(int argc, char* argv[])
 {
     auto bus = std::make_shared<event::Bus>();
-    rwte = std::make_unique<Rwte>(bus);
+    reactor::Reactor r;
+    rwte = std::make_unique<Rwte>(bus, &r);
     auto L = rwte->lua();
 
     // register internal modules, logging first
@@ -211,8 +212,8 @@ int main(int argc, char* argv[])
 #endif
         .optional(&show_version, "version"sv, "v"sv)
         .usage(usage);
-        rw::logging::dbg()->info("parser 8 {})",
-                (uint64_t)((void*)&p));
+    rw::logging::dbg()->info("parser 8 {})",
+            (uint64_t)((void*) &p));
     if (!p.parse(argc, argv)) {
         return EXIT_FAILURE;
     }
@@ -313,11 +314,8 @@ int main(int argc, char* argv[])
     rows = std::max(rows, 1);
 
     try {
-        // get ready, loop!
-        ev::default_loop main_loop;
-
         auto term = std::make_shared<term::Term>(bus, cols, rows);
-        auto tty = std::make_shared<Tty>(bus, term);
+        auto tty = std::make_shared<Tty>(bus, &r, term);
         term->setTty(tty);
 
         std::shared_ptr<Window> window;
@@ -326,13 +324,13 @@ int main(int argc, char* argv[])
         window = createXcbWindow(bus, term, tty);
 #elif defined(RWTE_NO_XCB)
         options.throttledraw = false;
-        window = createWlWindow(bus, term, tty);
+        window = createWlWindow(bus, &r, term, tty);
 #else
         if (!got_wayland)
             window = createXcbWindow(bus, term, tty);
         else {
             options.throttledraw = false;
-            window = createWlWindow(bus, term, tty);
+            window = createWlWindow(bus, &r, term, tty);
         }
 #endif
 
@@ -344,9 +342,39 @@ int main(int argc, char* argv[])
 
         tty->open(window.get());
 
-        {
-            SigWatcher sigwatcher;
-            main_loop.run();
+        r.set_ttyfd(tty->fd());
+        r.set_windowfd(window->fd());
+
+        for (;;) {
+            window->prepare();
+            bool stop = false;
+            std::visit(
+                    [tty, window, &stop](auto&& state) -> void {
+                        using T = std::decay_t<decltype(state)>;
+                        if constexpr (std::is_same_v<T, reactor::TtyRead>) {
+                            tty->read_ready();
+                        } else if constexpr (std::is_same_v<T, reactor::TtyWrite>) {
+                            tty->write_ready();
+                        } else if constexpr (std::is_same_v<T, reactor::Window>) {
+                            stop = window->event();
+                        } else if constexpr (std::is_same_v<T, reactor::Refresh>) {
+                            rwte->flushcb();
+                        } else if constexpr (std::is_same_v<T, reactor::RepeatKey>) {
+                            // todo: handle key repeat
+                            LOGGER()->info("repeatkey");
+                        } else if constexpr (std::is_same_v<T, reactor::Blink>) {
+                            rwte->blinkcb();
+                        } else if constexpr (std::is_same_v<T, reactor::ChildEnd>) {
+                            rwte->child_ended();
+                            stop = true;
+                        } else if constexpr (std::is_same_v<T, reactor::Stop>) {
+                            stop = true;
+                        }
+                    },
+                    r.wait());
+            if (stop || window->check()) {
+                break;
+            }
         }
     } catch (const WindowError& e) {
         LOGGER()->error(fmt::format("window error: {}", e.what()));

@@ -47,11 +47,12 @@ common_sources = files(
     'src/lua/window.cpp',
 
     'src/profiling.cpp',
+    'src/reactor.cpp',
     'src/renderer.cpp',
     'src/rwte.cpp',
     'src/screen.cpp',
     'src/selection.cpp',
-    'src/sigwatcher.cpp',
+    'src/sigevent.cpp',
     'src/term.cpp',
     'src/tty.cpp',
     'src/utf8.cpp',
