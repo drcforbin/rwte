@@ -19,7 +19,6 @@ xcd_xkb = dependency('xcb-xkb')
 wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
 lua = dependency('lua')
-ev = cc.find_library('ev')
 util = cc.find_library('util')
 rt = cc.find_library('rt')
 
@@ -32,7 +31,6 @@ rwte_common_deps = [
     pangocairo,
     xkbc,
     lua,
-    ev,
     util,
     rt
 ]
