@@ -8,7 +8,8 @@ class ReactorCtrl
 public:
     virtual ~ReactorCtrl() {}
 
-    virtual void set_events(int fd, bool read, bool write) = 0;
+    virtual void set_write(int fd, bool write) = 0;
+    virtual void unreg(int fd) = 0;
 
     virtual void queue_refresh(float secs) = 0;
     virtual void start_repeat(float secs) = 0;

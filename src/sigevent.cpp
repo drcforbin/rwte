@@ -1,3 +1,4 @@
+#include "rw/logging.h"
 #include "rwte/sigevent.h"
 
 #include <array>
@@ -8,6 +9,8 @@
 #include <signal.h>
 #include <sys/eventfd.h>
 #include <unistd.h>
+
+#define LOGGER() (rw::logging::get("sigevent"))
 
 // todo: clean up all these exposed errors
 
@@ -26,21 +29,39 @@ extern "C" void sig_handler(int sig)
     write(fd, &buf, buf.size());
 }
 
+// todo: de-genericify this or move it to librw...we dont need general purpose
 void connect_handler(int sig)
 {
     // we only have space for 64 signals...
-    // todo: throw if sig > 64
+    if (sig > 64) {
+        throw SigEventError(fmt::format("requested sig {}, only 64 signals are supported", sig));
+    }
 
     sigset_t mask;
     sigfillset(&mask);
 
+    // todo: do we want SA_NOCLDSTOP / SA_NOCLDWAIT when SIGCHLD,
+    // we're checking on whether it indicates an exit in the tty
     struct sigaction sa;
     sa.sa_handler = sig_handler;
     sa.sa_mask = mask;
 
-    // todo: error handling
-    sigaction(sig, &sa, nullptr);
+    if (sigaction(sig, &sa, nullptr) == -1) {
+        throw SigEventError(fmt::format("unable to register signal {}, ({}): {}",
+                sig, errno, strerror(errno)));
+    }
 }
+
+SigEventError::SigEventError(const std::string& arg) :
+    std::runtime_error(arg)
+{}
+
+SigEventError::SigEventError(const char* arg) :
+    std::runtime_error(arg)
+{}
+
+SigEventError::~SigEventError()
+{}
 
 SigEvent::SigEvent()
 {
@@ -48,12 +69,12 @@ SigEvent::SigEvent()
 
     int fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
     if (fd != -1) {
-        // todo: logging
-        // log::trace!("signal fd: {}", fd);
+        LOGGER()->trace("signal fd: {}", fd);
         SIGNAL_FD.store(fd, std::memory_order_relaxed);
         m_evfd = fd;
     } else {
-        // todo: error handlin
+        throw SigEventError(fmt::format("unable to create signal fd ({}): {}",
+                errno, strerror(errno)));
     }
 }
 
@@ -73,8 +94,8 @@ uint64_t SigEvent::read()
     ssize_t res = ::read(m_evfd, &buf, 8);
     if (res == -1) {
         if (errno != EINTR && errno != EWOULDBLOCK) {
-            // todo: error handling
-            // return Err(e);
+            LOGGER()->fatal("unable to read signal fd {}, ({}): {}",
+                    m_evfd, errno, strerror(errno));
             return 0;
         }
     }

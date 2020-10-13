@@ -1,6 +1,7 @@
 #ifndef RWTE_ASYNCIO_H
 #define RWTE_ASYNCIO_H
 
+#include "rw/logging.h"
 #include "rwte/reactorctrl.h"
 
 #include <algorithm>
@@ -9,6 +10,14 @@
 #include <memory>
 #include <unistd.h>
 #include <vector>
+
+// capture LOGGER if already set (someone defined it before
+// including this file), so it can be restored later
+#ifdef LOGGER
+#define ASYNCIO_OLD_LOGGER LOGGER
+#endif
+// define our own logger, just for this header
+#define LOGGER() (rw::logging::get("aio"))
 
 template <class T, std::size_t max_write>
 class AsyncIO
@@ -35,9 +44,16 @@ public:
         auto pdata = data.data();
         std::size_t len = data.size();
 
+        // don't write if we don't need to
+        if (!len) {
+            return;
+        }
+
         // if nothing's pending for write, kick it off
         if (m_wbuffer.empty()) {
             ssize_t written = ::write(m_fd, pdata, std::min(len, max_write));
+            // todo: error handling
+            // todo: consider throwing
             if (written < 0)
                 written = 0;
 
@@ -55,7 +71,7 @@ public:
         std::copy_n(pdata, len, std::back_inserter(m_wbuffer));
 
         // now we want write events too
-        m_ctrl->set_events(m_fd, true, true);
+        m_ctrl->set_write(m_fd, true);
     }
 
     void read_ready()
@@ -64,25 +80,31 @@ public:
 
         // append read bytes to unprocessed bytes
         int ret;
-        if ((ret = ::read(m_fd, ptr + m_rbuflen, m_rbuffer.size() - m_rbuflen)) < 0) {
+        if ((ret = ::read(m_fd, ptr + m_rbuflen, m_rbuffer.size() - m_rbuflen)) > 0) {
+            m_rbuflen += ret;
+
+            m_rbuflen = static_cast<T*>(this)->onread(ptr, m_rbuflen);
+
+            // todo: this REALLY looks like it should be ptr + ret; test?
+            // keep any uncomplete utf8 char for the next call
+            if (m_rbuflen > 0)
+                std::memmove(&m_rbuffer[0], ptr, m_rbuflen);
+        } else if (ret < 0) {
             if (errno == EIO) {
                 // child exiting?
-                m_ctrl->set_events(m_fd, false, false);
-                return;
+                m_ctrl->unreg(m_fd);
+            } else if (errno != EAGAIN && errno != EINTR) {
+                // ignoring EAGAIN and EINTR (we'll catch them on next
+                // ready event), log error
+                LOGGER()->fatal("could not read from shell ({}): {}",
+                        errno, strerror(errno));
+                // todo: consider throwing
             }
-            // todo: logging in here
-            //else
-            //    LOGGER()->fatal("could not read from shell ({}): {}", errno, strerror(errno));
+        } else {
+            // for some reason, read returned zero...this is probably
+            // a logic bug somewhere
+            LOGGER()->warn("read zero bytes");
         }
-
-        m_rbuflen += ret;
-
-        m_rbuflen = static_cast<T*>(this)->onread(ptr, m_rbuflen);
-
-        // todo: this REALLY looks like it should be ptr + ret; test?
-        // keep any uncomplete utf8 char for the next call
-        if (m_rbuflen > 0)
-            std::memmove(&m_rbuffer[0], ptr, m_rbuflen);
     }
 
     void write_ready()
@@ -99,8 +121,7 @@ public:
                 m_wbuffer.resize(0);
 
                 // stop waiting for write events
-                m_ctrl->set_events(m_fd, true, false);
-                return;
+                m_ctrl->set_write(m_fd, false);
             } else {
                 // if anything's left, move it up front, and shrink
                 //todo: remove
@@ -108,10 +129,17 @@ public:
                         m_wbuffer.begin());
                 m_wbuffer.resize(remaining);
             }
-        } else if (written != -1 || (errno != EAGAIN && errno != EINTR)) {
-            // todo: better error handling
-            // for now, just stop waiting for write event
-            m_ctrl->set_events(m_fd, true, false);
+        } else if (written == 0) {
+            // this is fine, not really an error. probably means we did
+            // something odd, like a zero byte write, or that we're listening
+            // for writable when we don't need to
+            LOGGER()->warn("write zero bytes");
+            m_ctrl->set_write(m_fd, false);
+        } else if (errno != EAGAIN && errno != EINTR) {
+            // for now, log and stop listening for writable
+            LOGGER()->error("write error: {}", strerror(errno));
+            m_ctrl->set_write(m_fd, false);
+            // todo: consider throwing
         }
     }
 
@@ -128,5 +156,12 @@ private:
     // write buffer
     std::vector<char> m_wbuffer;
 };
+
+// undefine LOGGER, restoring if needed
+#undef LOGGER
+#ifdef ASYNCIO_OLD_LOGGER
+#define LOGGER ASYNCIO_OLD_LOGGER
+#undef ASYNCIO_OLD_LOGGER
+#endif
 
 #endif // RWTE_ASYNCIO_H

@@ -12,6 +12,20 @@
 
 namespace reactor {
 
+class ReactorError : public std::runtime_error
+{
+public:
+    explicit ReactorError(const std::string& arg);
+    explicit ReactorError(const char* arg);
+
+    ReactorError(const ReactorError&) = default;
+    ReactorError& operator=(const ReactorError&) = default;
+    ReactorError(ReactorError&&) = default;
+    ReactorError& operator=(ReactorError&&) = default;
+
+    virtual ~ReactorError();
+};
+
 struct TtyRead
 {};
 struct TtyWrite
@@ -47,7 +61,9 @@ public:
 
     void set_ttyfd(int ttyfd);
     void set_windowfd(int windowfd);
-    void set_events(int fd, bool read, bool write);
+
+    void set_write(int fd, bool write);
+    void unreg(int fd);
 
     void queue_refresh(float secs);
     void start_repeat(float secs);
@@ -61,7 +77,9 @@ public:
     void stop();
 
 private:
-    void reg_fd(int fd, bool read, bool write);
+    int make_timer();
+    void set_timer(int fd, float initial_secs, float repeat_secs);
+    void reg_fd(int fd);
 
     int m_epfd = -1;
 

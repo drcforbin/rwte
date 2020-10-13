@@ -165,6 +165,9 @@ static bool parse_geometry(std::string_view g, int* cols, int* rows)
 
 int main(int argc, char* argv[])
 {
+    // todo: catch ReactorError
+    // todo: catch SigEventError
+
     auto bus = std::make_shared<event::Bus>();
     reactor::Reactor r;
     rwte = std::make_unique<Rwte>(bus, &r);

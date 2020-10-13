@@ -479,13 +479,13 @@ void WlWindow::prepare()
             // failed with eagain, start waiting for write
             // events and try again
             // todo: when is this cleared?
-            m_ctrl->set_events(fd(), true, true);
+            m_ctrl->set_write(fd(), true);
         } else if (errno != EPIPE) {
             LOGGER()->debug("prepare flush error: {}", strerror(errno));
             // if we got some other than epipe, cancel the read
             // we signed up for earlier
             wl_display_cancel_read(display);
-            m_ctrl->set_events(fd(), true, false);
+            m_ctrl->set_write(fd(), false);
         }
     }
 }
@@ -501,7 +501,7 @@ bool WlWindow::event()
                 LOGGER()->error("iocb dispatch_pending error: {}", strerror(errno));
                 // if we actually got an error on the read,
                 // we don't need to keep reading
-                m_ctrl->set_events(fd(), false, false);
+                m_ctrl->unreg(fd());
                 return true;
             } else if (errno) {
                 LOGGER()->debug("iocb dispatch_pending EAGAIN");
