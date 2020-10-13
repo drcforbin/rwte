@@ -126,7 +126,8 @@ Usage: rwte [options] [-- args]
   -h, --help            show help
   -b, --bench           run config and exit
 )"
-#if !defined(RWTE_NO_WAYLAND) && !defined(RWTE_NO_XCB)
+// todo: can use constexpr if somehow?
+#if defined(BUILD_WAYLAND_OPTIONAL)
 R"(  -x, --wayland         use wayland rather than xcb
 )"
 #endif
@@ -194,10 +195,6 @@ int main(int argc, char* argv[])
     int cols = 0, rows = 0;
     bool got_bench = false;
 
-#if !defined(RWTE_NO_WAYLAND) && !defined(RWTE_NO_XCB)
-    bool got_wayland = false;
-#endif
-
     auto p = rw::argparse::parser{}
         .optional(&confpath, "config"sv, "c"sv)
         .optional(&options.winclass, "winclass"sv, "w"sv)
@@ -210,11 +207,13 @@ int main(int argc, char* argv[])
         .optional(&options.io, "out"sv, "o"sv)
         .optional(&options.line, "line"sv, "l"sv)
         .optional(&got_bench, "bench"sv, "b"sv)
-#if !defined(RWTE_NO_WAYLAND) && !defined(RWTE_NO_XCB)
-        .optional(&got_wayland, "wayland"sv, "x"sv)
+        // todo: something constexpr?
+#if defined(BUILD_WAYLAND_OPTIONAL)
+        .optional(&options.wayland, "wayland"sv, "x"sv)
 #endif
         .optional(&show_version, "version"sv, "v"sv)
         .usage(usage);
+    // todo: remove
     rw::logging::dbg()->info("parser 8 {})",
             (uint64_t)((void*) &p));
     if (!p.parse(argc, argv)) {
@@ -241,8 +240,8 @@ int main(int argc, char* argv[])
         options.cmd.push_back(exec.data());
     }
 
-#if !defined(RWTE_NO_WAYLAND) && !defined(RWTE_NO_XCB)
-    if (got_wayland) {
+#if defined(BUILD_WAYLAND_OPTIONAL)
+    if (options.wayland) {
         LOGGER()->debug("using wayland", optarg);
     }
 #endif
@@ -322,14 +321,13 @@ int main(int argc, char* argv[])
         term->setTty(tty);
 
         std::shared_ptr<Window> window;
-
-#if defined(RWTE_NO_WAYLAND)
+#if defined(BUILD_XCB_ONLY)
         window = createXcbWindow(bus, term, tty);
-#elif defined(RWTE_NO_XCB)
+#elif defined(BUILD_WAYLAND_ONLY)
         options.throttledraw = false;
         window = createWlWindow(bus, &r, term, tty);
 #else
-        if (!got_wayland)
+        if (!options.wayland)
             window = createXcbWindow(bus, term, tty);
         else {
             options.throttledraw = false;

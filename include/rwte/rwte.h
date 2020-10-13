@@ -1,6 +1,7 @@
 #ifndef RWTE_RWTE_H
 #define RWTE_RWTE_H
 
+#include "rwte/buildopt.h"
 #include "rwte/event.h"
 
 #include <memory>
@@ -30,6 +31,10 @@ struct Options
     std::string line;
     bool noalt = false;
     bool throttledraw = true;
+
+#if defined(BUILD_WAYLAND_OPTIONAL)
+    bool wayland = false;
+#endif
 };
 
 extern Options options;

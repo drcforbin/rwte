@@ -262,8 +262,10 @@ public:
             std::shared_ptr<term::Term> term, std::shared_ptr<Tty> tty);
     ~WlWindow();
 
-    // todo: does this make sense?
+    // no need for compatibility if we're wayland only
+#if !defined(BUILD_WAYLAND_ONLY)
     uint32_t windowid() const { return 0; }
+#endif
 
     int fd() const;
     void prepare();

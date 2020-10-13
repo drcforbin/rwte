@@ -32,13 +32,13 @@
 // most we write in a chunk
 constexpr std::size_t max_write = 255;
 
+#if !defined(BUILD_WAYLAND_ONLY)
 static void setenv_windowid(Window* window)
 {
-    // todo: don't set this for wayland
-
     auto val = fmt::to_string(window->windowid());
     setenv("WINDOWID", val.c_str(), 1);
 }
+#endif
 
 static void execsh(Window* window)
 {
@@ -100,7 +100,14 @@ static void execsh(Window* window)
     setenv("SHELL", args[0], 1);
     setenv("HOME", pw->pw_dir, 1);
     setenv("TERM", term_name.data(), 1);
+
+#if defined(BUILD_WAYLAND_OPTIONAL)
+    if (!options.wayland) {
+        setenv_windowid(window);
+    }
+#elif !defined(BUILD_WAYLAND_ONLY)
     setenv_windowid(window);
+#endif
 
     std::signal(SIGCHLD, SIG_DFL);
     std::signal(SIGHUP, SIG_DFL);

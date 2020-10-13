@@ -2,6 +2,7 @@
 #include "lua/window.h"
 #include "rw/logging.h"
 #include "rwte/coords.h"
+#include "rwte/rwte.h"
 #include "rwte/window.h"
 
 using namespace std::literals;
@@ -150,16 +151,37 @@ static int luawindow_selpaste(lua_State* l)
 static int luawindow_index(lua_State* l)
 {
     lua::State L(l);
+
+#if defined(BUILD_XCB_ONLY)
     auto key = L.checkstring(2);
 
+    // id's the only property
     if (key == "id"sv) {
         auto window = getwindow(L);
         if (window)
             L.pushinteger(window->windowid());
         else
             L.pushnil();
-    } else
+    } else {
         L.pushnil();
+    }
+#elif defined(BUILD_WAYLAND_OPTIONAL)
+    auto key = L.checkstring(2);
+
+    // only check id if we're doing xcb
+    if (!options.wayland && key == "id"sv) {
+        auto window = getwindow(L);
+        if (window)
+            L.pushinteger(window->windowid());
+        else
+            L.pushnil();
+    } else {
+        L.pushnil();
+    }
+#else
+    // id would've been the only property
+    L.pushnil();
+#endif
 
     return 1;
 }

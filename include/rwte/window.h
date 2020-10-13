@@ -1,6 +1,7 @@
 #ifndef RWTE_WINDOW_H
 #define RWTE_WINDOW_H
 
+#include "rwte/buildopt.h"
 #include "rwte/event.h"
 
 #include <memory>
@@ -38,8 +39,9 @@ class Window
 public:
     virtual ~Window() {}
 
-    // todo: x specific?
+#if !defined(BUILD_WAYLAND_ONLY)
     virtual uint32_t windowid() const = 0;
+#endif
 
     virtual int fd() const = 0;
     virtual void prepare() = 0;
