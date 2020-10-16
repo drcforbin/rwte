@@ -74,7 +74,6 @@ public:
     Event wait();
 
     void enqueue(Event evt);
-    void stop();
 
 private:
     int make_timer();

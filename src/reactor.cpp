@@ -268,11 +268,6 @@ void Reactor::enqueue(Event evt)
     m_queue.push_back(evt);
 }
 
-void Reactor::stop()
-{
-    enqueue(Stop{});
-}
-
 int Reactor::make_timer() {
     int fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
     if (fd != -1) {
