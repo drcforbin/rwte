@@ -2,7 +2,7 @@ local util = {}
 
 -- set the magic bit for a color value
 function util.truecolor(color)
-    return bit32.bor(color, 0x1000000)
+    return color | 0x1000000
 end
 
 function util.bench(func, samples, batch_size)
