@@ -9,6 +9,7 @@
 constexpr int utf_size = 4;
 constexpr char32_t utf_invalid = 0xFFFD;
 
+std::size_t utf8size(std::string_view c);
 std::pair<std::size_t, char32_t> utf8decode(std::string_view c);
 bool utf8contains(std::string_view s, char32_t cp);
 

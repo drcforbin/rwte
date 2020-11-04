@@ -214,6 +214,17 @@ std::size_t utf8encode(char32_t cp, char* c)
     return 0;
 }
 
+std::size_t utf8size(std::string_view c)
+{
+    auto [sz, cp] = utf8decode(c);
+
+    if (cp != utf_invalid) {
+        return sz;
+    } else {
+        return -1;
+    }
+}
+
 std::pair<std::size_t, char32_t> utf8decode(std::string_view c)
 {
     if (!c.empty()) {
