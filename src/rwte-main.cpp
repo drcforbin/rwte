@@ -223,9 +223,6 @@ int main(int argc, char* argv[])
 #endif
         .optional(&show_version, "version"sv, "v"sv)
         .usage(usage);
-    // todo: remove
-    rw::logging::dbg()->info("parser 8 {})",
-            (uint64_t)((void*) &p));
     if (!p.parse(argc, argv)) {
         return EXIT_FAILURE;
     }
