@@ -16,6 +16,7 @@
 #include <basedir.h>
 #include <basedir_fs.h>
 #include <getopt.h>
+#include <langinfo.h>
 #include <vector>
 #include <wordexp.h>
 
@@ -166,6 +167,15 @@ static bool parse_geometry(std::string_view g, int* cols, int* rows)
 
 int main(int argc, char* argv[])
 {
+    // locale is needed for wcwidth/wcswidth call later!
+    std::setlocale(LC_ALL, "");
+    {
+        auto item = nl_langinfo(CODESET);
+        if (strcmp(item, "UTF-8") != 0) {
+            LOGGER()->warn("need UTF-8 local (LC_CTYPE) but have {}", item);
+        }
+    }
+
     // todo: catch ReactorError
     // todo: catch SigEventError
 
