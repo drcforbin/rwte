@@ -73,7 +73,7 @@ protected:
         uint32_t magic = (cell.row << 10) | (cell.col << 2);
         return {
                 magic | 0,
-                {magic | 1},
+                {},
                 magic | 2,
                 magic | 3};
     }
@@ -200,6 +200,8 @@ TEST_CASE_FIXTURE(ScreenFixture, "resize resizes")
         REQUIRE(screen.cols() == 9);
         REQUIRE(screen.rows() == 10);
 
+        const screen::glyph_attribute empty_attr{};
+
         Cell cell;
         for (cell.row = 0; cell.row < 10; cell.row++) {
             for (cell.col = 0; cell.col < 9; cell.col++) {
@@ -212,7 +214,7 @@ TEST_CASE_FIXTURE(ScreenFixture, "resize resizes")
                     REQUIRE(g.bg == this->initial_fill.bg);
                 } else {
                     REQUIRE(g.u == screen::empty_char);
-                    REQUIRE(g.attr.none());
+                    REQUIRE(g.attr == empty_attr);
                     REQUIRE(g.fg == 0);
                     REQUIRE(g.bg == 0);
                 }
@@ -232,6 +234,7 @@ TEST_CASE_FIXTURE(ScreenFixture, "clear clears")
 {
     auto checkRange = [this](
                               int row1, int col1, int row2, int col2) {
+        const screen::glyph_attribute empty_attr{};
         Cell cell;
         for (cell.row = 0; cell.row < this->screen.rows(); cell.row++) {
             for (cell.col = 0; cell.col < this->screen.cols(); cell.col++) {
@@ -241,7 +244,7 @@ TEST_CASE_FIXTURE(ScreenFixture, "clear clears")
                 if (row1 <= cell.row && cell.row <= row2 &&
                         col1 <= cell.col && cell.col <= col2) {
                     REQUIRE(g.u == screen::empty_char);
-                    REQUIRE(g.attr.none());
+                    REQUIRE(g.attr == empty_attr);
                     REQUIRE(g.fg == this->second_fill.fg);
                     REQUIRE(g.bg == this->second_fill.bg);
                 } else {

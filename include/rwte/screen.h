@@ -27,7 +27,7 @@ struct glyph_attribute
     uint16_t wide : 1;
     uint16_t wdummy : 1;
 
-    inline bool operator==(const glyph_attribute& other)
+    inline bool operator==(const glyph_attribute& other) const
     {
         return bold == other.bold &&
                faint == other.faint &&
@@ -42,7 +42,7 @@ struct glyph_attribute
                wdummy == other.wdummy;
     }
 
-    inline bool operator!=(const glyph_attribute& other)
+    inline bool operator!=(const glyph_attribute& other) const
     {
         return bold != other.bold ||
                faint != other.faint ||
