@@ -303,7 +303,7 @@ private:
     int m_icharset; // selected charset for sequence
     bool m_focused; // whether terminal has focus
 
-    std::array<char, 4> m_trantbl; // charset table translation
+    std::array<char, 4> m_trantbl;                // charset table translation
     uint32_t m_deffg, m_defbg, m_defcs, m_defrcs; // default colors
 };
 
@@ -423,7 +423,7 @@ void TermImpl::blink()
     // see if we have anything blinking and mark blinking lines dirty
     for (int i = 0; i < m_screen.rows(); i++) {
         for (const auto& g : m_screen.line(i)) {
-            if (g.attr[screen::ATTR_BLINK]) {
+            if (g.attr.blink) {
                 need_blink = true;
                 m_screen.setdirty(i, i);
                 break;
@@ -660,7 +660,7 @@ void TermImpl::putc(char32_t u)
     // todo: this seems unsafe / violates principle of least surprise
     screen::Glyph* gp = &m_screen.glyph(cursor);
     if (m_mode[MODE_WRAP] && (cursor.state & screen::CURSOR_WRAPNEXT)) {
-        gp->attr.set(screen::ATTR_WRAP);
+        gp->attr.wrap = 1;
         m_screen.newline(true);
         gp = &m_screen.glyph(cursor);
     }
@@ -678,11 +678,10 @@ void TermImpl::putc(char32_t u)
     setchar(u, cursor.attr, cursor);
 
     if (width == 2) {
-        gp->attr.set(screen::ATTR_WIDE);
+        gp->attr.wide = 1;
         if (cursor.col + 1 < m_screen.cols()) {
             gp[1].u = '\0';
-            gp[1].attr.reset();
-            gp[1].attr.set(screen::ATTR_WDUMMY);
+            gp[1].attr = {.wdummy = 1};
         }
     }
 
@@ -1006,17 +1005,17 @@ void TermImpl::setchar(char32_t u, const screen::Glyph& attr, const Cell& cell)
     }
 
     auto thisGlyph = m_screen.glyph(cell);
-    if (thisGlyph.attr[screen::ATTR_WIDE]) {
+    if (thisGlyph.attr.wide) {
         if (cell.col + 1 < m_screen.cols()) {
             auto nextGlyph = m_screen.glyph({cell.row, cell.col + 1});
             nextGlyph.u = screen::empty_char;
-            nextGlyph.attr.reset(screen::ATTR_WDUMMY);
+            nextGlyph.attr.wdummy = 0;
             m_screen.setGlyph({cell.row, cell.col + 1}, nextGlyph);
         }
-    } else if (thisGlyph.attr[screen::ATTR_WDUMMY]) {
+    } else if (thisGlyph.attr.wdummy) {
         auto prevGlyph = m_screen.glyph({cell.row, cell.col - 1});
         prevGlyph.u = screen::empty_char;
-        prevGlyph.attr.reset(screen::ATTR_WIDE);
+        prevGlyph.attr.wide = 0;
         m_screen.setGlyph({cell.row, cell.col - 1}, prevGlyph);
     }
 
@@ -1024,7 +1023,7 @@ void TermImpl::setchar(char32_t u, const screen::Glyph& attr, const Cell& cell)
     thisGlyph.u = u;
     m_screen.setGlyph(cell, thisGlyph);
 
-    if (attr.attr[screen::ATTR_BLINK])
+    if (attr.attr.blink)
         start_blink();
 }
 
@@ -1805,78 +1804,78 @@ void TermImpl::setattr(const int* attr, std::size_t len)
         //    for (std::size_t i = 0; i < attr.size(); i++) {
         switch (attr[i]) {
             case 0:
-                cursor.attr.attr.reset(screen::ATTR_BOLD);
-                cursor.attr.attr.reset(screen::ATTR_FAINT);
-                cursor.attr.attr.reset(screen::ATTR_ITALIC);
-                cursor.attr.attr.reset(screen::ATTR_UNDERLINE);
-                cursor.attr.attr.reset(screen::ATTR_BLINK);
-                cursor.attr.attr.reset(screen::ATTR_REVERSE);
-                cursor.attr.attr.reset(screen::ATTR_INVISIBLE);
-                cursor.attr.attr.reset(screen::ATTR_STRUCK);
+                cursor.attr.attr.bold = 0;
+                cursor.attr.attr.faint = 0;
+                cursor.attr.attr.italic = 0;
+                cursor.attr.attr.underline = 0;
+                cursor.attr.attr.blink = 0;
+                cursor.attr.attr.reverse = 0;
+                cursor.attr.attr.invisible = 0;
+                cursor.attr.attr.struck = 0;
                 cursor.attr.fg = m_deffg;
                 cursor.attr.bg = m_defbg;
                 m_screen.setCursor(cursor);
                 break;
             case 1:
-                cursor.attr.attr.set(screen::ATTR_BOLD);
+                cursor.attr.attr.bold = 1;
                 m_screen.setCursor(cursor);
                 break;
             case 2:
-                cursor.attr.attr.set(screen::ATTR_FAINT);
+                cursor.attr.attr.faint = 1;
                 m_screen.setCursor(cursor);
                 break;
             case 3:
-                cursor.attr.attr.set(screen::ATTR_ITALIC);
+                cursor.attr.attr.italic = 1;
                 m_screen.setCursor(cursor);
                 break;
             case 4:
-                cursor.attr.attr.set(screen::ATTR_UNDERLINE);
+                cursor.attr.attr.underline = 1;
                 m_screen.setCursor(cursor);
                 break;
             case 5: // slow blink
             case 6: // rapid blink
-                cursor.attr.attr.set(screen::ATTR_BLINK);
+                cursor.attr.attr.blink = 1;
                 m_screen.setCursor(cursor);
                 break;
             case 7:
-                cursor.attr.attr.set(screen::ATTR_REVERSE);
+                cursor.attr.attr.reverse = 1;
                 m_screen.setCursor(cursor);
                 break;
             case 8:
-                cursor.attr.attr.set(screen::ATTR_INVISIBLE);
+                cursor.attr.attr.invisible = 1;
                 m_screen.setCursor(cursor);
                 break;
             case 9:
-                cursor.attr.attr.set(screen::ATTR_STRUCK);
+                cursor.attr.attr.struck = 1;
                 m_screen.setCursor(cursor);
                 break;
             case 22:
-                cursor.attr.attr.reset(screen::ATTR_BOLD);
-                cursor.attr.attr.reset(screen::ATTR_FAINT);
+                cursor.attr.attr.bold = 0;
+                cursor.attr.attr.faint = 0;
                 m_screen.setCursor(cursor);
                 break;
             case 23:
-                cursor.attr.attr.reset(screen::ATTR_ITALIC);
+                cursor.attr.attr.italic = 0;
                 m_screen.setCursor(cursor);
                 break;
             case 24:
-                cursor.attr.attr.reset(screen::ATTR_UNDERLINE);
+                cursor.attr.attr.underline = 0;
                 m_screen.setCursor(cursor);
                 break;
             case 25:
-                cursor.attr.attr.reset(screen::ATTR_BLINK);
+                cursor.attr.attr.blink = 0;
                 m_screen.setCursor(cursor);
                 break;
             case 27:
-                cursor.attr.attr.reset(screen::ATTR_REVERSE);
+                cursor.attr.attr.reverse = 0;
                 m_screen.setCursor(cursor);
                 break;
             case 28:
-                cursor.attr.attr.reset(screen::ATTR_INVISIBLE);
+                cursor.attr.attr.invisible = 0;
                 m_screen.setCursor(cursor);
                 break;
             case 29:
-                cursor.attr.attr.reset(screen::ATTR_STRUCK);
+                cursor.attr.attr.struck = 0;
                 m_screen.setCursor(cursor);
                 break;
             case 38: {

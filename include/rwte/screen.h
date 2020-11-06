@@ -5,41 +5,67 @@
 #include "rwte/event.h"
 
 #include <bitset>
-#include <ostream>
 #include <memory>
+#include <ostream>
 #include <vector>
 
 class Selection;
 
 namespace screen {
 
-enum glyph_attribute_enum
+struct glyph_attribute
 {
-    ATTR_BOLD,
-    ATTR_FAINT,
-    ATTR_ITALIC,
-    ATTR_UNDERLINE,
-    ATTR_BLINK,
-    ATTR_REVERSE,
-    ATTR_INVISIBLE,
-    ATTR_STRUCK,
-    ATTR_WRAP,
-    ATTR_WIDE,
-    ATTR_WDUMMY,
-    ATTR_LAST = ATTR_WDUMMY
-    // ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
-};
+    uint16_t bold : 1;
+    uint16_t faint : 1;
+    uint16_t italic : 1;
+    uint16_t underline : 1;
+    uint16_t blink : 1;
+    uint16_t reverse : 1;
+    uint16_t invisible : 1;
+    uint16_t struck : 1;
+    uint16_t wrap : 1;
+    uint16_t wide : 1;
+    uint16_t wdummy : 1;
 
-using glyph_attribute = std::bitset<ATTR_LAST + 1>;
+    inline bool operator==(const glyph_attribute& other)
+    {
+        return bold == other.bold &&
+               faint == other.faint &&
+               italic == other.italic &&
+               underline == other.underline &&
+               blink == other.blink &&
+               reverse == other.reverse &&
+               invisible == other.invisible &&
+               struck == other.struck &&
+               wrap == other.wrap &&
+               wide == other.wide &&
+               wdummy == other.wdummy;
+    }
+
+    inline bool operator!=(const glyph_attribute& other)
+    {
+        return bold != other.bold ||
+               faint != other.faint ||
+               italic != other.italic ||
+               underline != other.underline ||
+               blink != other.blink ||
+               reverse != other.reverse ||
+               invisible != other.invisible ||
+               struck != other.struck ||
+               wrap != other.wrap ||
+               wide != other.wide ||
+               wdummy != other.wdummy;
+    }
+};
 
 constexpr char32_t empty_char = ' ';
 
 struct Glyph
 {
-    char32_t u = empty_char; // character code
-    glyph_attribute attr;    // attribute flags
-    uint32_t fg = 0;         // foreground
-    uint32_t bg = 0;         // background
+    char32_t u = empty_char;   // character code
+    glyph_attribute attr = {}; // attribute flags
+    uint32_t fg = 0;           // foreground
+    uint32_t bg = 0;           // background
 };
 
 // todo: drop cursor_ prefix
@@ -63,7 +89,7 @@ enum cursor_state
 
 struct Cursor : public Cell
 {
-    Glyph attr; // current char attributes
+    Glyph attr = {}; // current char attributes
     char state = 0;
 };
 

@@ -442,9 +442,10 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
             // making a copy, because we want to reverse it if it's
             // selected, without modifying the original
             screen::Glyph g = m_term->glyph(cell);
-            if (!g.attr[screen::ATTR_WDUMMY]) {
-                if (ena_sel && sel.selected(cell))
-                    g.attr.flip(screen::ATTR_REVERSE);
+            if (!g.attr.wdummy) {
+                if (ena_sel && sel.selected(cell)) {
+                    g.attr.reverse ^= 1;
+                }
             }
 
             runes.push_back(g.u);
@@ -453,9 +454,10 @@ void RendererImpl::drawregion(const Cell& begin, const Cell& end)
                 const screen::Glyph& g2 = m_term->glyph(
                         {cell.row, lookahead});
                 screen::glyph_attribute attr2 = g2.attr;
-                if (!attr2[screen::ATTR_WDUMMY]) {
-                    if (ena_sel && sel.selected({cell.row, lookahead}))
-                        attr2.flip(screen::ATTR_REVERSE);
+                if (!attr2.wdummy) {
+                    if (ena_sel && sel.selected({cell.row, lookahead})) {
+                        attr2.reverse ^= 1;
+                    }
                 }
 
                 if (g.attr != attr2 || g.fg != g2.fg || g.bg != g2.bg)
@@ -509,13 +511,13 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout* layout,
         const screen::glyph_attribute& attr, uint32_t fg, uint32_t bg,
         const std::vector<char32_t>& runes, const Cell& cell)
 {
-    int charlen = runes.size() * (attr[screen::ATTR_WIDE] ? 2 : 1);
+    int charlen = runes.size() * (attr.wide ? 2 : 1);
     int winx = m_border_px + cell.col * m_cw;
     int winy = m_border_px + cell.row * m_ch;
     int width = charlen * m_cw;
 
     // change basic system colors [0-7] to bright system colors [8-15]
-    if (attr[screen::ATTR_BOLD] && fg <= 7)
+    if (attr.bold && fg <= 7)
         fg = lookup_color(fg + 8);
 
     if (m_term->mode()[term::MODE_REVERSE]) {
@@ -542,7 +544,7 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout* layout,
     }
 
     // todo: this assumes darker is fainter
-    if (attr[screen::ATTR_FAINT]) {
+    if (attr.faint) {
         fg = lookup_color(fg);
         fg = color::truecol(
                 color::redByte(fg) / 2,
@@ -550,13 +552,14 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout* layout,
                 color::blueByte(fg) / 2);
     }
 
-    if (attr[screen::ATTR_REVERSE])
+    if (attr.reverse) {
         std::swap(fg, bg);
+    }
 
-    if (attr[screen::ATTR_BLINK] && m_term->mode()[term::MODE_BLINK])
+    if (attr.blink && m_term->mode()[term::MODE_BLINK])
         fg = bg;
 
-    if (attr[screen::ATTR_INVISIBLE])
+    if (attr.invisible)
         fg = bg;
 
     // border cleanup
@@ -597,27 +600,27 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout* layout,
 
     PangoAttrList* attrlist = nullptr;
 
-    if (attr[screen::ATTR_ITALIC]) {
+    if (attr.italic) {
         attrlist = pango_attr_list_new();
         auto attr = pango_attr_style_new(PANGO_STYLE_ITALIC);
         pango_attr_list_insert(attrlist, attr);
     }
 
-    if (attr[screen::ATTR_BOLD]) {
+    if (attr.bold) {
         if (!attrlist)
             attrlist = pango_attr_list_new();
         auto attr = pango_attr_weight_new(PANGO_WEIGHT_BOLD);
         pango_attr_list_insert(attrlist, attr);
     }
 
-    if (attr[screen::ATTR_UNDERLINE]) {
+    if (attr.underline) {
         if (!attrlist)
             attrlist = pango_attr_list_new();
         auto attr = pango_attr_underline_new(PANGO_UNDERLINE_SINGLE);
         pango_attr_list_insert(attrlist, attr);
     }
 
-    if (attr[screen::ATTR_STRUCK]) {
+    if (attr.struck) {
         if (!attrlist)
             attrlist = pango_attr_list_new();
         auto attr = pango_attr_strikethrough_new(true);
@@ -635,10 +638,10 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout* layout,
 
 void RendererImpl::drawcursor(Context& cr, PangoLayout* layout)
 {
-    screen::Glyph g;
-    g.u = ' ';
-    g.fg = m_term->defbg();
-    g.bg = m_term->defcs();
+    screen::Glyph g{
+            .u = ' ',
+            .fg = m_term->defbg(),
+            .bg = m_term->defcs()};
 
     auto& cursor = m_term->cursor();
 
@@ -648,9 +651,9 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout* layout)
     int curcol = cursor.col;
 
     // adjust position if in dummy
-    if (m_term->glyph(m_lastcur).attr[screen::ATTR_WDUMMY])
+    if (m_term->glyph(m_lastcur).attr.wdummy)
         m_lastcur.col--;
-    if (m_term->glyph({cursor.row, curcol}).attr[screen::ATTR_WDUMMY])
+    if (m_term->glyph({cursor.row, curcol}).attr.wdummy)
         curcol--;
 
     auto& sel = m_term->sel();
@@ -662,20 +665,20 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout* layout)
     // selected, without modifying the original
     screen::Glyph og = m_term->glyph(m_lastcur);
     if (ena_sel && sel.selected(m_lastcur))
-        og.attr.flip(screen::ATTR_REVERSE);
+        og.attr.reverse ^= 1;
     drawglyph(cr, layout, og, m_lastcur);
 
     auto& oldg = m_term->glyph(cursor);
     g.u = oldg.u;
-    g.attr[screen::ATTR_BOLD] = oldg.attr[screen::ATTR_BOLD];
-    g.attr[screen::ATTR_ITALIC] = oldg.attr[screen::ATTR_ITALIC];
-    g.attr[screen::ATTR_UNDERLINE] = oldg.attr[screen::ATTR_UNDERLINE];
-    g.attr[screen::ATTR_STRUCK] = oldg.attr[screen::ATTR_STRUCK];
+    g.attr.bold = oldg.attr.bold;
+    g.attr.italic = oldg.attr.italic;
+    g.attr.underline = oldg.attr.underline;
+    g.attr.struck = oldg.attr.struck;
 
     // select the right color for the right mode.
     uint32_t drawcol;
     if (m_term->mode()[term::MODE_REVERSE]) {
-        g.attr.set(screen::ATTR_REVERSE);
+        g.attr.reverse = 1;
         g.bg = m_term->deffg();
         if (ena_sel && sel.selected(cursor)) {
             drawcol = m_term->defcs();
@@ -705,8 +708,8 @@ void RendererImpl::drawcursor(Context& cr, PangoLayout* layout)
                     break;
                 [[fallthrough]];
             case screen::cursor_type::CURSOR_STEADY_BLOCK:
-                g.attr[screen::ATTR_WIDE] = m_term->glyph({cursor.row, curcol})
-                                                    .attr[screen::ATTR_WIDE];
+                g.attr.wide = m_term->glyph({cursor.row, curcol})
+                                      .attr.wide;
                 drawglyph(cr, layout, g, cursor);
                 break;
             case screen::cursor_type::CURSOR_BLINK_UNDER:

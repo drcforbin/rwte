@@ -39,13 +39,13 @@ const int ScreenFixture::initial_cols = 6;
 
 const screen::Glyph ScreenFixture::initial_fill{
         32655,
-        {screen::ATTR_BOLD},
+        {.bold = 1},
         982374,
         8758};
 
 const screen::Glyph ScreenFixture::second_fill{
         3423,
-        {screen::ATTR_FAINT},
+        {.faint = 1},
         8474,
         2897};
 
@@ -106,7 +106,7 @@ protected:
             for (cell.col = 0; cell.col < screen.cols(); cell.col++) {
                 const auto actual = screen.glyph(cell);
 
-                screen::Glyph expected;
+                screen::Glyph expected{};
                 Cell from{cell.row + source->row, cell.col + source->col};
                 if (0 <= from.row && from.row < screen.rows() &&
                         0 <= from.col && from.col < screen.cols()) {

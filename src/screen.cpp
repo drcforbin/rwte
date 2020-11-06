@@ -313,7 +313,7 @@ public:
                             rowt = *row, colt = *col;
                         else
                             rowt = newrow, colt = newcol;
-                        if (!attr({rowt, colt})[ATTR_WRAP])
+                        if (!attr({rowt, colt}).wrap)
                             break;
                     }
 
@@ -322,7 +322,7 @@ public:
 
                     gp = &m_lines[newrow][newcol];
                     delim = isdelim(gp->u);
-                    if (!gp->attr[ATTR_WDUMMY] &&
+                    if (!gp->attr.wdummy &&
                             (delim != prevdelim || (delim && gp->u != prevgp->u)))
                         break;
 
@@ -334,19 +334,19 @@ public:
                 break;
             case Selection::Snap::Line:
                 // Snap around if the the previous line or the current one
-                // has set ATTR_WRAP at its end. Then the whole next or
+                // has set wrap at its end. Then the whole next or
                 // previous line will be selected.
 
                 *col = (direction < 0) ? 0 : m_cols - 1;
                 if (direction < 0) {
                     for (; *row > 0; *row += direction) {
-                        if (!attr({*row - 1, m_cols - 1})[ATTR_WRAP]) {
+                        if (!attr({*row - 1, m_cols - 1}).wrap) {
                             break;
                         }
                     }
                 } else if (direction > 0) {
                     for (; *row < m_rows - 1; *row += direction) {
-                        if (!attr({*row, m_cols - 1})[ATTR_WRAP]) {
+                        if (!attr({*row, m_cols - 1}).wrap) {
                             break;
                         }
                     }
@@ -457,7 +457,7 @@ public:
                 --last;
 
             for (; gp <= last; ++gp) {
-                if (gp->attr[screen::ATTR_WDUMMY])
+                if (gp->attr.wdummy)
                     continue;
 
                 ptr = utf8encode(gp->u, ptr);
@@ -465,7 +465,7 @@ public:
 
             // use \n for line ending in outgoing data
             if ((row < m_sel.ne.row || lastcol >= llen) &&
-                    !(last->attr[screen::ATTR_WRAP]))
+                    !last->attr.wrap)
                 *ptr++ = '\n';
         }
         *ptr = 0;
@@ -477,7 +477,7 @@ public:
     {
         int i = m_cols;
 
-        if (attr({row, i - 1})[ATTR_WRAP])
+        if (attr({row, i - 1}).wrap)
             return i;
 
         while (i > 0 && glyph({row, i - 1}).u == empty_char)
