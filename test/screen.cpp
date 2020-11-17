@@ -1,5 +1,5 @@
 #include "doctest.h"
-#include "fmt/format.h"
+#include "fmt/core.h"
 #include "rwte/screen.h"
 
 class ScreenFixture

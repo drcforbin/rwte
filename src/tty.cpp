@@ -1,14 +1,4 @@
-// todo: see if this goes away with a more recent ver
-// gcc complains about the fmt::to_string(uint32_t) call below
-#if defined(__GNUC__) && !defined(__clang__)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
 #include "fmt/format.h"
-#if defined(__GNUC__) && !defined(__clang__)
-#    pragma GCC diagnostic pop
-#endif
-
 #include "lua/state.h"
 #include "rw/logging.h"
 #include "rwte/asyncio.h"
@@ -326,14 +316,13 @@ void TtyImpl::log_write(bool initial, const char* data, size_t len)
         return;
 
     fmt::memory_buffer msg;
-    fmt::writer writer(msg);
 
     for (size_t i = 0; i < len; i++) {
         char ch = data[i];
         if (ch == '\033')
-            writer.write("ESC");
+            fmt::format_to(msg, "ESC");
         else if (isprint(ch))
-            writer.write(ch);
+            fmt::format_to(msg, "{}", ch);
         else
             fmt::format_to(msg, "<{:02x}>", (unsigned int) ch);
     }

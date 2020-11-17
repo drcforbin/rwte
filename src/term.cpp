@@ -1444,10 +1444,9 @@ void TermImpl::strhandle()
 std::string TermImpl::strdump()
 {
     fmt::memory_buffer msg;
-    fmt::writer writer(msg);
 
-    writer.write("ESC");
-    writer.write(m_stresc.type);
+    fmt::format_to(msg, "ESC");
+    fmt::format_to(msg, "{}", m_stresc.type);
 
     for (std::size_t i = 0; i < m_stresc.len; i++) {
         // todo: is this & necessary? does it just make it unsigned?
@@ -1455,18 +1454,18 @@ std::string TermImpl::strdump()
         if (c == '\0')
             return fmt::to_string(msg); // early exit
         else if (isprint(c))
-            writer.write(static_cast<char>(c));
+            fmt::format_to(msg, "{}", static_cast<char>(c));
         else if (c == '\n')
-            writer.write("(\\n)");
+            fmt::format_to(msg, "(\\n)");
         else if (c == '\r')
-            writer.write("(\\r)");
+            fmt::format_to(msg, "(\\r)");
         else if (c == 0x1b)
-            writer.write("(\\e)");
+            fmt::format_to(msg, "(\\e)");
         else
             fmt::format_to(msg, "(0x{:02X})", c);
     }
 
-    writer.write("ESC\\\n");
+    fmt::format_to(msg, "ESC\\\n");
     return fmt::to_string(msg);
 }
 
@@ -1771,22 +1770,21 @@ void TermImpl::csihandle()
 std::string TermImpl::csidump()
 {
     fmt::memory_buffer msg;
-    fmt::writer writer(msg);
 
-    writer.write("ESC[");
+    fmt::format_to(msg, "ESC[");
 
     for (std::size_t i = 0; i < m_csiesc.len; i++) {
         // todo: is this & necessary? does it just make it unsigned?
         unsigned int c = m_csiesc.buf[i] & 0xff;
         if (isprint(c))
             // this is crazy...need to cast it back?
-            writer.write(static_cast<char>(c));
+            fmt::format_to(msg, "{}", static_cast<char>(c));
         else if (c == '\n')
-            writer.write("(\\n)");
+            fmt::format_to(msg, "(\\n)");
         else if (c == '\r')
-            writer.write("(\\r)");
+            fmt::format_to(msg, "(\\r)");
         else if (c == 0x1b)
-            writer.write("(\\e)");
+            fmt::format_to(msg, "(\\e)");
         else
             fmt::format_to(msg, "(0x{:02X})", c);
     }
