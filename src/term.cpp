@@ -552,6 +552,9 @@ void TermImpl::putc(char32_t u)
         width = len = 1;
     } else {
         len = utf8encode(u, c.begin()) - c.begin();
+        // todo: look into using wcswidth, for grapheme support
+        // ...this will also require us to stop using a single
+        // code point per cell, probably to move to just utf8
         if (!control && (width = wcwidth(u)) == -1) {
             c = {'\xEF', '\xBF', '\xBD', '\0'}; // UTF_INVALID
             width = 1;
