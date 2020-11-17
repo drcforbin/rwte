@@ -197,16 +197,6 @@ private:
     cairo_t* m_ctx = nullptr;
 };
 
-struct font_desc_deleter
-{
-    void operator()(PangoFontDescription* fontdesc)
-    {
-        if (fontdesc)
-            pango_font_description_free(fontdesc);
-    }
-};
-using unique_font_desc = std::unique_ptr<PangoFontDescription, font_desc_deleter>;
-
 static PangoFontDescription* create_font_desc()
 {
     auto font = options.font;
@@ -217,7 +207,7 @@ static PangoFontDescription* create_font_desc()
             LOGGER()->fatal("config.font is invalid");
     }
 
-    PangoFontDescription* fontdesc(pango_font_description_from_string(font.c_str()));
+    PangoFontDescription* fontdesc = pango_font_description_from_string(font.c_str());
 
     pango_font_description_set_weight(fontdesc, PANGO_WEIGHT_MEDIUM);
     return fontdesc;
@@ -626,6 +616,8 @@ void RendererImpl::drawglyphs(Context& cr, PangoLayout* layout,
         auto attr = pango_attr_strikethrough_new(true);
         pango_attr_list_insert(attrlist, attr);
     }
+
+    // todo: look at pango_layout_set_justify + pango_layout_set_width
 
     pango_layout_set_attributes(layout, attrlist);
     if (attrlist)
