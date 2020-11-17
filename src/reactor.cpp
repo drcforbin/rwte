@@ -187,10 +187,17 @@ Event Reactor::wait()
                     return TtyRead{};
                 } else if (events[i].events == EPOLLOUT) {
                     return TtyWrite{};
+                } else if (events[i].events == EPOLLHUP) {
+                    // todo: how to handle EPOLLHUP?
+                    continue;
+                } else if (events[i].events == EPOLLERR) {
+                    // todo: how to handle EPOLLERR?
+                    continue;
                 }
 
-                LOGGER()->warn(fmt::format("unexpected tty event event ({})",
-                            events[i].events));
+                auto event = events[i].events;
+                LOGGER()->warn(fmt::format("unexpected tty event ({})",
+                            event));
                 continue;
             } else if (events[i].data.fd == m_windowfd) {
                 return Window{};
@@ -200,9 +207,10 @@ Event Reactor::wait()
                     std::optional<Event> first;
 
                     while (mask != 0) {
-                        auto t = mask & (-mask);
                         Event evt = Stop{};
 
+                        // count # of trailing zeroes
+                        auto t = __builtin_ctzl(mask);
                         switch (t) {
                             case SIGCHLD:
                                 evt = ChildEnd{};
@@ -224,7 +232,8 @@ Event Reactor::wait()
                             enqueue(evt);
                         }
 
-                        mask ^= t;
+                        // unset least significant bit
+                        mask ^= mask & (-mask);
                     }
 
                     if (first.has_value()) {
