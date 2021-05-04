@@ -44,7 +44,6 @@ common_sources = files(
     'src/lua/term.cpp',
     'src/lua/window.cpp',
 
-    'src/profiling.cpp',
     'src/reactor.cpp',
     'src/renderer.cpp',
     'src/rwte.cpp',
@@ -53,7 +52,6 @@ common_sources = files(
     'src/sigevent.cpp',
     'src/term.cpp',
     'src/tty.cpp',
-    'src/utf8.cpp',
     'src/window.cpp'
 )
 
@@ -64,8 +62,6 @@ executable(
     'rwte-bench', [
         'bench/main.cpp',
         'bench/misc.cpp',
-        'bench/utf8.cpp',
-        'test/utf8-data.cpp',
         common_sources
     ],
     dependencies: [
@@ -79,8 +75,6 @@ testexe = executable(
     'rwte-test', [
         'test/main.cpp',
         'test/screen.cpp',
-        'test/utf8.cpp',
-        'test/utf8-data.cpp',
         common_sources
     ],
     dependencies: [
