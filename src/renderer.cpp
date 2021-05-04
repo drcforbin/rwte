@@ -1,6 +1,7 @@
 #include "lua/config.h"
 #include "lua/state.h"
 #include "rw/logging.h"
+#include "rw/utf8.h"
 #include "rwte/color.h"
 #include "rwte/config.h"
 #include "rwte/renderer.h"
@@ -8,7 +9,6 @@
 #include "rwte/screen.h"
 #include "rwte/selection.h"
 #include "rwte/term.h"
-#include "rwte/utf8.h"
 
 #include <cairo/cairo-xcb.h> // for cairo_xcb_surface_set_size
 #include <cmath>

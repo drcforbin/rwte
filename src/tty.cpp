@@ -1,12 +1,12 @@
 #include "fmt/format.h"
 #include "lua/state.h"
 #include "rw/logging.h"
+#include "rw/utf8.h"
 #include "rwte/asyncio.h"
 #include "rwte/config.h"
 #include "rwte/rwte.h"
 #include "rwte/term.h"
 #include "rwte/tty.h"
-#include "rwte/utf8.h"
 #include "rwte/window.h"
 
 #include <algorithm>

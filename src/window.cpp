@@ -1,9 +1,9 @@
 #include "lua/window.h"
 #include "rw/logging.h"
+#include "rw/utf8.h"
 #include "rwte/rwte.h"
 #include "rwte/term.h"
 #include "rwte/tty.h"
-#include "rwte/utf8.h"
 #include "rwte/window-internal.h"
 #include "rwte/window.h"
 

@@ -4,10 +4,7 @@
 #include "rw/logging.h"
 #include "rwte/reactorctrl.h"
 
-#include <algorithm>
 #include <array>
-#include <cstring>
-#include <memory>
 #include <unistd.h>
 #include <vector>
 

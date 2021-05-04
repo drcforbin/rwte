@@ -1,9 +1,7 @@
 #ifndef RWTE_EVENT_H
 #define RWTE_EVENT_H
 
-#include "rwte/bus.h"
-
-#include <memory>
+#include "rw/bus.h"
 
 namespace event {
 

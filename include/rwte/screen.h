@@ -4,9 +4,7 @@
 #include "rwte/coords.h"
 #include "rwte/event.h"
 
-#include <bitset>
 #include <memory>
-#include <ostream>
 #include <vector>
 
 class Selection;

@@ -7,7 +7,6 @@
 #include "rwte/reactorctrl.h"
 
 #include <deque>
-#include <optional>
 #include <variant>
 
 namespace reactor {

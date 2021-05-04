@@ -1,10 +1,10 @@
 #include "lua/config.h"
 #include "lua/state.h"
 #include "rw/logging.h"
+#include "rw/utf8.h"
 #include "rwte/rwte.h"
 #include "rwte/screen.h"
 #include "rwte/selection.h"
-#include "rwte/utf8.h"
 
 #define LOGGER() (rw::logging::get("screen"))
 

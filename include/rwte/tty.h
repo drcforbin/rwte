@@ -4,7 +4,7 @@
 #include "rwte/event.h"
 
 #include <memory>
-#include <string>
+#include <string_view>
 
 namespace reactor {
 class ReactorCtrl;

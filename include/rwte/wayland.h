@@ -8,7 +8,6 @@
 #include <string_view>
 #include <sys/mman.h>
 #include <unistd.h>
-#include <wayland-client.h>
 
 namespace wayland {
 

@@ -5,7 +5,6 @@
 #include "rwte/event.h"
 
 #include <memory>
-#include <stdexcept>
 #include <string>
 
 namespace reactor {

@@ -1,8 +1,6 @@
 #ifndef RWTE_SIGEVENT_H
 #define RWTE_SIGEVENT_H
 
-#include <cstdint>
-
 class SigEventError : public std::runtime_error
 {
 public:
